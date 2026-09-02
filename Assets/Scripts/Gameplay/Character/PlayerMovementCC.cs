@@ -59,23 +59,9 @@ public class PlayerMovementCC : MonoBehaviour
 
     private void Move()
     {
-        Vector3 move = new Vector3(moveInput.x, 0f, moveInput.y);
-
-        if (cameraTransform != null)
-        {
-            Vector3 forward = cameraTransform.forward;
-            forward.y = 0f;
-            forward.Normalize();
-
-            Vector3 right = cameraTransform.right;
-            right.y = 0f;
-            right.Normalize();
-
-            move = right * move.x + forward * move.z; // Convert input to camera-relative movement
-        }
+        Vector3 move = GetCameraRelativeMoveDirection(moveInput);
 
         if (MovementLocked) move = Vector3.zero;
-        if (move.sqrMagnitude > 1f) move.Normalize();
         
         // block small input to prevent unwanted movement direction changes
         if (move.magnitude >= DirUpdateDeadzone) LastMoveDir = move.normalized;
@@ -93,6 +79,27 @@ public class PlayerMovementCC : MonoBehaviour
         vel.y = 0f;
         externalVelocity = vel;
         externalTimer = Mathf.Max(duration, 0.01f);
+    }
+
+    public Vector3 GetCameraRelativeMoveDirection(Vector2 input)
+    {
+        Vector3 move = new Vector3(input.x, 0f, input.y);
+
+        if (cameraTransform != null)
+        {
+            Vector3 forward = cameraTransform.forward;
+            forward.y = 0f;
+            forward.Normalize();
+
+            Vector3 right = cameraTransform.right;
+            right.y = 0f;
+            right.Normalize();
+
+            move = right * move.x + forward * move.z;
+        }
+
+        if (move.sqrMagnitude > 1f) move.Normalize();
+        return move;
     }
 
     private void UpdateKelpMovementAnimation(float speed)

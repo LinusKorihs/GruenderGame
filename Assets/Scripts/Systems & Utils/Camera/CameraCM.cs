@@ -1,11 +1,13 @@
-using UnityEngine;
 using Unity.Cinemachine;
+using Unity.Cinemachine.TargetTracking;
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class CameraCM : MonoBehaviour
 {
     [Header("Settings")]
     [SerializeField] private CameraCMSettings settings;
+    [SerializeField] private CameraStage startingStage = CameraStage.Default;
 
     [Header("Cinemachine")]
     [SerializeField] public CinemachineOrbitalFollow orbital;
@@ -25,31 +27,27 @@ public class CameraCM : MonoBehaviour
     [SerializeField] private bool enableLogs;
 
     private bool isLockedOn;
-    private GroundCursor cursor; // reference to GroundCursor for optional interaction (e.g. force unlock when player teleports)
+    private GroundCursor cursor;
     private Transform lockTarget;
     private Transform defaultLookAt;
 
-    private bool isThird;
+    private CameraStage currentStage;
     private float targetRadius;
     private float targetVertical;
+    private float targetFieldOfView;
+    private Vector3 targetOffset;
+    private float baseStageRadius;
     private Transform lockFramingTarget;
-    private Vector3 lockFramingVelocity;
-    private float baseModeRadius;
+    private float lastStageRadius;
+    private float lastStageVertical;
+    private float lastStageFieldOfView;
+    private Vector3 lastStageTargetOffset;
 
-    private float ZoomSpeed => settings.zoomSpeed;
     private float TransitionSpeed => settings.transitionSpeed;
     private float MinRadius => settings.minRadius;
     private float MaxRadius => settings.maxRadius;
-    private float TopRadius => settings.topRadius;
-    private float TopVertical => settings.topVertical;
-    private float ThirdRadius => settings.thirdRadius;
-    private float ThirdVertical => settings.thirdVertical;
-    private float LookSensX => settings.lookSensitivityX;
-    private float LookSensY => settings.lookSensitivityY;
-    private bool InvertY => settings.invertY;
-    private bool LookScaleWithDeltaTime => settings.lookScaleWithDeltaTime;
-    private float MinVertical => settings.minVertical;
-    private float MaxVertical => settings.maxVertical;
+    private bool LiveStageTuning => settings.liveStageTuning;
+    private float InvertSignY => settings.invertY ? 1f : -1f;
     private string[] LockOnTags => settings.lockOnTags;
     private float LockOnMaxDistance => settings.lockOnMaxDistance;
     private float GamepadSensX => settings.gamepadSensitivityX;
@@ -57,14 +55,18 @@ public class CameraCM : MonoBehaviour
     private float MouseSensX => settings.mouseSensitivityX;
     private float MouseSensY => settings.mouseSensitivityY;
     private bool MouseScaleWithDeltaTime => settings.mouseScaleWithDeltaTime;
-    private float LockOnPlayerBias => settings.lockOnPlayerBias;
+    private float LockOnTargetWeight => settings.lockOnTargetWeight;
+    private Vector3 LockOnFramingOffset => settings.lockOnFramingOffset;
     private float LockOnHeightOffset => settings.lockOnHeightOffset;
     private float LockOnLookTargetSmooth => settings.lockOnLookTargetSmooth;
     private float LockOnRadiusPerMeter => settings.lockOnRadiusPerMeter;
     private float LockOnMaxExtraRadius => settings.lockOnMaxExtraRadius;
     private float LockOnVertical => settings.lockOnVertical;
     private float LockOnVerticalSmooth => settings.lockOnVerticalSmooth;
+    private float LockOnHorizontalSmooth => settings.lockOnHorizontalSmooth;
     private float LockOnMinDistance => settings.lockOnMinDistance;
+
+    public CameraCMSettings Settings => settings;
 
     private void Log(string msg) { if (enableLogs) Debug.Log(msg); }
 
@@ -109,113 +111,179 @@ public class CameraCM : MonoBehaviour
     private void Start()
     {
         if (!cmCamera) cmCamera = GetComponent<CinemachineCamera>();
+        if (!orbital) orbital = GetComponent<CinemachineOrbitalFollow>();
         if (cmCamera) defaultLookAt = cmCamera.LookAt;
+
+        EnsureWorldSpaceOrbit();
         CreateLockFramingTarget();
         cursor = FindFirstObjectByType<GroundCursor>();
-        SetMode(false, instant: true);
+
+        currentStage = startingStage;
+        ApplyStage(currentStage, instant: true);
     }
 
     private void Update()
     {
+        if (!settings || !orbital) return;
+
         if (ShouldBreakLockOn())
         {
             ClearLockOn();
             return;
         }
 
-        if (zoomAction)
-        {
-            float z = zoomAction.action.ReadValue<float>();
-            if (Mathf.Abs(z) > 0.001f)
-            {
-                bool usingMouseWheel = Mouse.current != null && Mathf.Abs(Mouse.current.scroll.ReadValue().y) > 0.01f;
+        HandleZoom();
+        HandleLookInput();
 
-                float speed = usingMouseWheel ? settings.mouseZoomSpeed : settings.gamepadZoomSpeed;
-                float dt = usingMouseWheel ? 1f : Time.deltaTime; // Controller = per second
-
-                targetRadius = Mathf.Clamp(targetRadius - z * speed * dt, MinRadius, MaxRadius);
-            }
-        }
-
-        if (!isLockedOn && lookAction)
-        {
-            Vector2 look = lookAction.action.ReadValue<Vector2>();
-
-            // Block camera look ONLY for the device currently aiming the cursor
-            if (!isLockedOn && cursor != null)
-            {
-                bool mouseMoving = Mouse.current != null && Mouse.current.delta.ReadValue().sqrMagnitude > 0.01f;
-                bool stickMoving = Gamepad.current != null && Gamepad.current.rightStick.ReadValue().sqrMagnitude > 0.01f;
-
-                if ((mouseMoving && cursor.IsAimingWithMouseKeyboard) || (stickMoving && cursor.IsAimingWithGamepad))
-                {
-                    return;
-                }
-            }
-
-            if (look.sqrMagnitude > 0.0001f)
-            {
-                bool usingMouse = Mouse.current != null && Mouse.current.delta.ReadValue().sqrMagnitude > 0.01f;
-
-                float sensX = usingMouse ? MouseSensX : GamepadSensX;
-                float sensY = usingMouse ? MouseSensY : GamepadSensY;
-
-                float dt = 1f;
-                if (!usingMouse || MouseScaleWithDeltaTime) dt = Time.deltaTime;
-
-                // Horizontal
-                var h = orbital.HorizontalAxis;
-                h.Value += look.x * sensX * dt;
-                orbital.HorizontalAxis = h;
-
-                // Vertical
-                float y = (InvertY ? look.y : -look.y);
-                var vAxis = orbital.VerticalAxis;
-                vAxis.Value = Mathf.Clamp(vAxis.Value + y * sensY * dt, MinVertical, MaxVertical);
-                orbital.VerticalAxis = vAxis;
-
-                targetVertical = vAxis.Value;
-            }
-        }
-
+        if (LiveStageTuning && !isLockedOn) RefreshCurrentStageTargetsFromSettings();
         if (isLockedOn && lockTarget != null) UpdateLockOnFraming();
 
-        // Smooth transition
+        ApplyCameraTargets();
+    }
+
+    private void HandleZoom()
+    {
+        if (!zoomAction || isLockedOn) return;
+
+        float z = zoomAction.action.ReadValue<float>();
+        if (Mathf.Abs(z) <= 0.001f) return;
+
+        bool usingMouseWheel = Mouse.current != null && Mathf.Abs(Mouse.current.scroll.ReadValue().y) > 0.01f;
+        float speed = usingMouseWheel ? settings.mouseZoomSpeed : settings.gamepadZoomSpeed;
+        float dt = usingMouseWheel ? 1f : Time.deltaTime;
+
+        targetRadius = Mathf.Clamp(targetRadius - z * speed * dt, MinRadius, MaxRadius);
+    }
+
+    private void HandleLookInput()
+    {
+        if (isLockedOn || !lookAction) return;
+
+        Vector2 look = lookAction.action.ReadValue<Vector2>();
+
+        if (cursor != null)
+        {
+            bool mouseMoving = Mouse.current != null && Mouse.current.delta.ReadValue().sqrMagnitude > 0.01f;
+            bool stickMoving = Gamepad.current != null && Gamepad.current.rightStick.ReadValue().sqrMagnitude > 0.01f;
+
+            if ((mouseMoving && cursor.IsAimingWithMouseKeyboard) || (stickMoving && cursor.IsAimingWithGamepad))
+                return;
+        }
+
+        if (look.sqrMagnitude <= 0.0001f) return;
+
+        bool usingMouse = Mouse.current != null && Mouse.current.delta.ReadValue().sqrMagnitude > 0.01f;
+        float sensX = usingMouse ? MouseSensX : GamepadSensX;
+        float sensY = usingMouse ? MouseSensY : GamepadSensY;
+
+        float dt = 1f;
+        if (!usingMouse || MouseScaleWithDeltaTime) dt = Time.deltaTime;
+
+        var h = orbital.HorizontalAxis;
+        h.Value += look.x * sensX * dt;
+        h.Value = ClampHorizontalIfNeeded(h.Value);
+        orbital.HorizontalAxis = h;
+
+        CameraStageSettings stageSettings = settings.GetStage(currentStage);
+        var vAxis = orbital.VerticalAxis;
+        vAxis.Value = Mathf.Clamp(vAxis.Value + look.y * InvertSignY * sensY * dt, GetStageMinVertical(stageSettings), GetStageMaxVertical(stageSettings));
+        orbital.VerticalAxis = vAxis;
+
+        targetVertical = vAxis.Value;
+    }
+
+    private void ApplyCameraTargets()
+    {
         orbital.Radius = Mathf.Lerp(orbital.Radius, targetRadius, Time.deltaTime * settings.zoomSmoothing);
+
+        orbital.TargetOffset = Vector3.Lerp(orbital.TargetOffset, targetOffset, Time.deltaTime * TransitionSpeed);
 
         var v = orbital.VerticalAxis;
         v.Value = Mathf.Lerp(v.Value, targetVertical, Time.deltaTime * TransitionSpeed);
         orbital.VerticalAxis = v;
+
+        if (cmCamera)
+            cmCamera.Lens.FieldOfView = Mathf.Lerp(cmCamera.Lens.FieldOfView, targetFieldOfView, Time.deltaTime * TransitionSpeed);
     }
 
     private void OnToggle(InputAction.CallbackContext _)
     {
-        SetMode(!isThird, instant: false);
-        Log($"Camera mode toggled. Now in {(isThird ? "third-person" : "top-down")} mode.");
+        ApplyStage(GetNextStage(currentStage), instant: false);
+        Log($"Camera stage toggled. Now in {settings.GetStage(currentStage).displayName}.");
     }
 
-    private void SetMode(bool third, bool instant)
+    public void ApplyStartingStageNow()
     {
-        isThird = third;
+        EnsureReferences();
+        EnsureWorldSpaceOrbit();
+        ApplyStage(startingStage, instant: true);
+    }
 
-        baseModeRadius = third ? ThirdRadius : TopRadius;
-        targetRadius = baseModeRadius;
-        targetVertical = third ? ThirdVertical : TopVertical;
+    public void ApplyWideStageNow()
+    {
+        ApplyStageNow(CameraStage.Wide);
+    }
 
-        if (!orbital)
+    public void ApplyDefaultStageNow()
+    {
+        ApplyStageNow(CameraStage.Default);
+    }
+
+    public void ApplyCloseStageNow()
+    {
+        ApplyStageNow(CameraStage.Close);
+    }
+
+    public void ApplyStageNow(CameraStage stage)
+    {
+        EnsureReferences();
+        EnsureWorldSpaceOrbit();
+        ApplyStage(stage, instant: true);
+    }
+
+    private CameraStage GetNextStage(CameraStage stage)
+    {
+        return stage switch
         {
-            Debug.LogError("No CinemachineOrbitalFollow assigned/found!");
+            CameraStage.Wide => CameraStage.Default,
+            CameraStage.Default => CameraStage.Close,
+            CameraStage.Close => CameraStage.Wide,
+            _ => CameraStage.Default
+        };
+    }
+
+    private void ApplyStage(CameraStage stage, bool instant)
+    {
+        if (!settings || !orbital)
+        {
+            Debug.LogError("CameraCM is missing settings or CinemachineOrbitalFollow.");
             return;
         }
+
+        currentStage = stage;
+        CameraStageSettings stageSettings = settings.GetStage(stage);
+
+        baseStageRadius = Mathf.Clamp(stageSettings.radius, MinRadius, MaxRadius);
+        targetRadius = baseStageRadius;
+        targetVertical = ClampStageVertical(stageSettings, stageSettings.vertical);
+        targetFieldOfView = Mathf.Clamp(stageSettings.fieldOfView, 1f, 179f);
+        targetOffset = GetStageTargetOffset(stageSettings);
+        CacheStageTargets(targetRadius, targetVertical, targetFieldOfView, targetOffset);
+        ApplyHorizontalLimitForStage(stageSettings);
 
         if (instant)
         {
             orbital.Radius = targetRadius;
+            orbital.TargetOffset = targetOffset;
+
             var v = orbital.VerticalAxis;
             v.Value = targetVertical;
             orbital.VerticalAxis = v;
+
+            if (cmCamera) cmCamera.Lens.FieldOfView = targetFieldOfView;
         }
-        Log($"SetMode -> targetRadius:{targetRadius}, targetVertical:{targetVertical} | currentRadius:{orbital.Radius}, currentVertical:{orbital.VerticalAxis.Value}");
+
+        Log($"ApplyStage -> {stageSettings.displayName} radius:{targetRadius}, vertical:{targetVertical}, fov:{targetFieldOfView}, offset:{targetOffset}");
     }
 
     private void OnLockOn(InputAction.CallbackContext _)
@@ -258,8 +326,12 @@ public class CameraCM : MonoBehaviour
         isLockedOn = false;
         lockTarget = null;
 
-        targetRadius = baseModeRadius;
-        targetVertical = isThird ? ThirdVertical : TopVertical;
+        CameraStageSettings stageSettings = settings.GetStage(currentStage);
+        targetRadius = Mathf.Clamp(stageSettings.radius, MinRadius, MaxRadius);
+        targetVertical = ClampStageVertical(stageSettings, stageSettings.vertical);
+        targetFieldOfView = Mathf.Clamp(stageSettings.fieldOfView, 1f, 179f);
+        targetOffset = GetStageTargetOffset(stageSettings);
+        CacheStageTargets(targetRadius, targetVertical, targetFieldOfView, targetOffset);
 
         if (cmCamera) cmCamera.LookAt = defaultLookAt;
 
@@ -269,7 +341,7 @@ public class CameraCM : MonoBehaviour
 
     private Transform FindClosestLockTarget()
     {
-        Vector3 originPos = (cmCamera && cmCamera.Follow) ? cmCamera.Follow.position : transform.position;
+        Vector3 originPos = GetPlayerPosition();
 
         bool useCursorOrigin = cursor != null && cursor.LockWithCursor;
         if (useCursorOrigin) originPos = cursor.WorldPos;
@@ -324,9 +396,7 @@ public class CameraCM : MonoBehaviour
 
         if (cursor != null && cursor.IsLocked && cursor.LockedTarget != lockTarget) return true;
 
-        Transform playerTarget = (cmCamera != null && cmCamera.Follow != null) ? cmCamera.Follow : transform;
-
-        float distSq = (lockTarget.position - playerTarget.position).sqrMagnitude;
+        float distSq = (lockTarget.position - GetPlayerPosition()).sqrMagnitude;
         return distSq > LockOnMaxDistance * LockOnMaxDistance;
     }
 
@@ -338,7 +408,7 @@ public class CameraCM : MonoBehaviour
         go.hideFlags = HideFlags.HideInHierarchy;
         lockFramingTarget = go.transform;
 
-        Vector3 startPos = transform.position + Vector3.up * LockOnHeightOffset;
+        Vector3 startPos = GetPlayerPosition() + Vector3.up * Mathf.Max(LockOnHeightOffset, LockOnFramingOffset.y);
         lockFramingTarget.position = startPos;
     }
 
@@ -346,26 +416,165 @@ public class CameraCM : MonoBehaviour
     {
         if (!cmCamera || !lockTarget || !lockFramingTarget) return;
 
-        Transform playerTarget = cmCamera.Follow != null ? cmCamera.Follow : transform;
-
-        Vector3 playerPos = playerTarget.position;
+        Vector3 playerPos = GetPlayerPosition();
         Vector3 enemyPos = lockTarget.position;
 
-        // Framing point between player and enemy, but slightly enemy-favored
-        Vector3 framedPos = Vector3.Lerp(playerPos, enemyPos, 1f - LockOnPlayerBias);
-        framedPos.y += LockOnHeightOffset;
+        Vector3 flatToEnemy = enemyPos - playerPos;
+        flatToEnemy.y = 0f;
+        if (flatToEnemy.sqrMagnitude < 0.0001f) return;
+        flatToEnemy.Normalize();
+
+        float desiredYaw = Mathf.Atan2(flatToEnemy.x, flatToEnemy.z) * Mathf.Rad2Deg;
+        float horizontalT = 1f - Mathf.Exp(-LockOnHorizontalSmooth * Time.deltaTime);
+
+        var h = orbital.HorizontalAxis;
+        h.Value = Mathf.LerpAngle(h.Value, desiredYaw, horizontalT);
+        orbital.HorizontalAxis = h;
+
+        Vector3 side = Vector3.Cross(Vector3.up, flatToEnemy);
+        if (side.sqrMagnitude > 0.0001f) side.Normalize();
+
+        Vector3 localOffset = LockOnFramingOffset;
+        Vector3 framedPos = Vector3.Lerp(playerPos, enemyPos, Mathf.Clamp01(LockOnTargetWeight));
+        framedPos += side * localOffset.x;
+        framedPos += Vector3.up * localOffset.y;
+        framedPos += flatToEnemy * localOffset.z;
 
         float lookT = 1f - Mathf.Exp(-LockOnLookTargetSmooth * Time.deltaTime);
         lockFramingTarget.position = Vector3.Lerp(lockFramingTarget.position, framedPos, lookT);
 
-        // Keep both visible by forcing a combat angle during lock-on
         targetVertical = Mathf.Lerp(targetVertical, LockOnVertical, Time.deltaTime * LockOnVerticalSmooth);
 
-        // Zoom OUT only, based on player-enemy distance
         float distance = Vector3.Distance(playerPos, enemyPos);
         float extraRadius = Mathf.Min(distance * LockOnRadiusPerMeter, LockOnMaxExtraRadius);
 
-        float desiredRadius = Mathf.Max(LockOnMinDistance, baseModeRadius + extraRadius);
-        targetRadius = Mathf.Clamp(desiredRadius, baseModeRadius, MaxRadius);
+        float desiredRadius = Mathf.Max(LockOnMinDistance, baseStageRadius + extraRadius);
+        targetRadius = Mathf.Clamp(desiredRadius, MinRadius, MaxRadius);
+    }
+
+    private Vector3 GetPlayerPosition()
+    {
+        if (cmCamera && cmCamera.Follow) return cmCamera.Follow.position;
+        return transform.position;
+    }
+
+    private void RefreshCurrentStageTargetsFromSettings()
+    {
+        CameraStageSettings stageSettings = settings.GetStage(currentStage);
+        float stageRadius = Mathf.Clamp(stageSettings.radius, MinRadius, MaxRadius);
+        float stageVertical = ClampStageVertical(stageSettings, stageSettings.vertical);
+        float stageFieldOfView = Mathf.Clamp(stageSettings.fieldOfView, 1f, 179f);
+        Vector3 stageTargetOffset = GetStageTargetOffset(stageSettings);
+
+        if (!Mathf.Approximately(stageRadius, lastStageRadius))
+        {
+            baseStageRadius = stageRadius;
+            targetRadius = stageRadius;
+            lastStageRadius = stageRadius;
+        }
+
+        if (!Mathf.Approximately(stageVertical, lastStageVertical))
+        {
+            targetVertical = stageVertical;
+            lastStageVertical = stageVertical;
+        }
+
+        if (!Mathf.Approximately(stageFieldOfView, lastStageFieldOfView))
+        {
+            targetFieldOfView = stageFieldOfView;
+            lastStageFieldOfView = stageFieldOfView;
+        }
+
+        if ((stageTargetOffset - lastStageTargetOffset).sqrMagnitude > 0.000001f)
+        {
+            targetOffset = stageTargetOffset;
+            lastStageTargetOffset = stageTargetOffset;
+        }
+    }
+
+    private Vector3 GetStageTargetOffset(CameraStageSettings stageSettings)
+    {
+        return stageSettings.targetOffset;
+    }
+
+    private void CacheStageTargets(float radius, float vertical, float fieldOfView, Vector3 offset)
+    {
+        lastStageRadius = radius;
+        lastStageVertical = vertical;
+        lastStageFieldOfView = fieldOfView;
+        lastStageTargetOffset = offset;
+    }
+
+    private float ClampHorizontalIfNeeded(float value)
+    {
+        CameraStageSettings stageSettings = settings.GetStage(currentStage);
+        if (!stageSettings.limitHorizontalRotation) return value;
+
+        float min = Mathf.Min(stageSettings.minHorizontal, stageSettings.maxHorizontal);
+        float max = Mathf.Max(stageSettings.minHorizontal, stageSettings.maxHorizontal);
+        return Mathf.Clamp(Mathf.DeltaAngle(0f, value), min, max);
+    }
+
+    private void ApplyHorizontalLimitForStage(CameraStageSettings stageSettings)
+    {
+        if (!stageSettings.limitHorizontalRotation || orbital == null) return;
+
+        var h = orbital.HorizontalAxis;
+        h.Value = ClampHorizontalForStage(h.Value, stageSettings);
+        orbital.HorizontalAxis = h;
+    }
+
+    private float ClampHorizontalForStage(float value, CameraStageSettings stageSettings)
+    {
+        float min = Mathf.Min(stageSettings.minHorizontal, stageSettings.maxHorizontal);
+        float max = Mathf.Max(stageSettings.minHorizontal, stageSettings.maxHorizontal);
+        return Mathf.Clamp(Mathf.DeltaAngle(0f, value), min, max);
+    }
+
+    private float ClampStageVertical(CameraStageSettings stageSettings, float value)
+    {
+        GetStageVerticalLimits(stageSettings, out float min, out float max);
+        return Mathf.Clamp(value, min, max);
+    }
+
+    private float GetStageMinVertical(CameraStageSettings stageSettings)
+    {
+        GetStageVerticalLimits(stageSettings, out float min, out _);
+        return min;
+    }
+
+    private float GetStageMaxVertical(CameraStageSettings stageSettings)
+    {
+        GetStageVerticalLimits(stageSettings, out _, out float max);
+        return max;
+    }
+
+    private void GetStageVerticalLimits(CameraStageSettings stageSettings, out float min, out float max)
+    {
+        if (stageSettings.minVertical <= 0f && stageSettings.maxVertical <= 0f)
+        {
+            min = settings.minVertical;
+            max = settings.maxVertical;
+            return;
+        }
+
+        min = Mathf.Min(stageSettings.minVertical, stageSettings.maxVertical);
+        max = Mathf.Max(stageSettings.minVertical, stageSettings.maxVertical);
+    }
+
+    private void EnsureWorldSpaceOrbit()
+    {
+        if (!orbital) return;
+
+        var tracker = orbital.TrackerSettings;
+        tracker.BindingMode = BindingMode.WorldSpace;
+        orbital.TrackerSettings = tracker;
+    }
+
+    private void EnsureReferences()
+    {
+        if (!cmCamera) cmCamera = GetComponent<CinemachineCamera>();
+        if (!orbital) orbital = GetComponent<CinemachineOrbitalFollow>();
+        if (cmCamera && defaultLookAt == null) defaultLookAt = cmCamera.LookAt;
     }
 }

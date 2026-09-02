@@ -138,16 +138,19 @@ public class PlayerBrain : MonoBehaviour
 
     private Vector3 GetDodgeDir(Vector2 moveInput)
     {
-        // 1) Cursor direction (optional)
-        if (cursor != null)
+        if (movement != null && moveInput.magnitude >= config.activeMoveDeadzone)
+        {
+            Vector3 moveDir = movement.GetCameraRelativeMoveDirection(moveInput);
+            if (moveDir.sqrMagnitude > 0.0001f) return moveDir.normalized;
+        }
+
+        if (cursor != null && movement != null && !cursor.IsLocked)
         {
             Vector3 toCursor = cursor.WorldPos - movement.transform.position;
             toCursor.y = 0f;
             if (toCursor.sqrMagnitude > 0.0001f) return toCursor.normalized;
         }
 
-        // 2) fallback: old logic
-        if (moveInput.magnitude >= config.activeMoveDeadzone) return movement.LastMoveDir;
         return GetFacingDir();
     }
 }

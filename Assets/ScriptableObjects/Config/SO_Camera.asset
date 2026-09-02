@@ -12,25 +12,59 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0ec59f96f86e8024ca658040f27068d1, type: 3}
   m_Name: SO_Camera
   m_EditorClassIdentifier: Assembly-CSharp::CameraCMSettings
-  topRadius: 12
-  topVertical: 75
-  thirdRadius: 4
-  thirdVertical: 25
+  wideStage:
+    displayName: Wide
+    radius: 16
+    vertical: 70
+    fieldOfView: 50
+    targetOffset: {x: 0, y: 1.5, z: 0}
+    minVertical: 5
+    maxVertical: 85
+    limitHorizontalRotation: 0
+    minHorizontal: -120
+    maxHorizontal: 120
+    targetOffsetY: 1.5
+  defaultStage:
+    displayName: Default
+    radius: 8
+    vertical: 58
+    fieldOfView: 40
+    targetOffset: {x: 0, y: 1, z: 0}
+    minVertical: 5
+    maxVertical: 85
+    limitHorizontalRotation: 0
+    minHorizontal: -120
+    maxHorizontal: 120
+    targetOffsetY: 1
+  closeStage:
+    displayName: Close
+    radius: 5
+    vertical: 35
+    fieldOfView: 40
+    targetOffset: {x: 0, y: 0.75, z: 0}
+    minVertical: 5
+    maxVertical: 85
+    limitHorizontalRotation: 0
+    minHorizontal: -120
+    maxHorizontal: 120
+    targetOffsetY: 0.75
   transitionSpeed: 6
   zoomSpeed: 0.02
   minRadius: 2.5
   maxRadius: 16
+  liveStageTuning: 1
   mouseZoomSpeed: 0.5
   gamepadZoomSpeed: 10
   zoomSmoothing: 10
   occluderMask:
     serializedVersion: 2
-    m_Bits: 128
+    m_Bits: 192
   makeTransparent: 1
   transparentAlpha: 0.25
   occlusionRadius: 0.35
   paddingFromCamera: 0.2
   paddingFromTarget: 0.1
+  hideWhenTransparencyUnsupported: 0
   staleFramesToRestore: 2
   debugEnabled: 0
   drawGizmos: 1
@@ -40,19 +74,29 @@ MonoBehaviour:
   lookScaleWithDeltaTime: 1
   minVertical: 5
   maxVertical: 85
+  limitHorizontalRotation: 0
+  minHorizontal: -120
+  maxHorizontal: 120
   lockOnTags:
   - Enemy
   lockOnMaxDistance: 25
-  lockOnPlayerBias: 0.42
+  lockOnTargetWeight: 0.5
+  lockOnFramingOffset: {x: 0, y: 1, z: -1}
   lockOnHeightOffset: 1.2
   lockOnLookTargetSmooth: 10
   lockOnRadiusPerMeter: 0.18
   lockOnMaxExtraRadius: 3
   lockOnVertical: 42
   lockOnVerticalSmooth: 8
+  lockOnHorizontalSmooth: 12
   lockOnMinDistance: 6
   gamepadSensitivityX: 180
   gamepadSensitivityY: 120
   mouseSensitivityX: 0.1
   mouseSensitivityY: 0.1
   mouseScaleWithDeltaTime: 0
+  topRadius: 12
+  topVertical: 75
+  thirdRadius: 4
+  thirdVertical: 25
+  lockOnPlayerBias: 0.42

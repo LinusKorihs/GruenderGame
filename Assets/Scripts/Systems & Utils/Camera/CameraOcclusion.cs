@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 [RequireComponent(typeof(CapsuleCollider), typeof(Rigidbody))]
-public class CameraOcclusionTrigger : MonoBehaviour
+public class CameraOcclusion : MonoBehaviour
 {
     [Header("Settings")]
     [SerializeField] private CameraCMSettings settings;
@@ -31,6 +31,9 @@ public class CameraOcclusionTrigger : MonoBehaviour
 
     private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorId = Shader.PropertyToID("_Color");
+    private static readonly int AlphaId = Shader.PropertyToID("_Alpha");
+    private static readonly int OpacityId = Shader.PropertyToID("_Opacity");
+    private static readonly int TransparencyId = Shader.PropertyToID("_Transparency");
     private static readonly int SurfaceId = Shader.PropertyToID("_Surface");
     private static readonly int BlendId = Shader.PropertyToID("_Blend");
     private static readonly int ModeId = Shader.PropertyToID("_Mode");
@@ -44,6 +47,7 @@ public class CameraOcclusionTrigger : MonoBehaviour
     private LayerMask OccluderMask => settings.occluderMask;
     private bool MakeTransparent => settings.makeTransparent;
     private float TransparentAlpha => settings.transparentAlpha;
+    private bool HideWhenTransparencyUnsupported => settings.hideWhenTransparencyUnsupported;
     private float Radius => settings.occlusionRadius;
     private float PaddingFromCamera => settings.paddingFromCamera;
     private float PaddingFromTarget => settings.paddingFromTarget;
@@ -69,7 +73,7 @@ public class CameraOcclusionTrigger : MonoBehaviour
 
         if (DebugEnabled)
         {
-            Debug.Log($"[CameraOcclusionTrigger] Awake on '{name}'. cameraTransform={(cameraTransform ? cameraTransform.name : "NULL")} target={(target ? target.name : "NULL")}");
+            Debug.Log($"[CameraOcclusion] Awake on '{name}'. cameraTransform={(cameraTransform ? cameraTransform.name : "NULL")} target={(target ? target.name : "NULL")}");
         }
     }
 
@@ -115,7 +119,7 @@ public class CameraOcclusionTrigger : MonoBehaviour
         Renderer rend = other.GetComponentInParent<Renderer>();
         if (!rend)
         {
-            if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] ENTER '{other.name}' but no Renderer found.");
+            if (DebugEnabled) Debug.Log($"[CameraOcclusion] ENTER '{other.name}' but no Renderer found.");
             return;
         }
 
@@ -125,7 +129,7 @@ public class CameraOcclusionTrigger : MonoBehaviour
         count++;
         overlapCounts[rend] = count;
 
-        if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] ENTER '{other.name}' -> '{rend.name}' count={count}");
+        if (DebugEnabled) Debug.Log($"[CameraOcclusion] ENTER '{other.name}' -> '{rend.name}' count={count}");
 
         if (count == 1) ApplyOcclusion(rend);
     }
@@ -145,7 +149,7 @@ public class CameraOcclusionTrigger : MonoBehaviour
             overlapCounts[rend] = Mathf.Max(1, count);
             ApplyOcclusion(rend);
 
-            if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] STAY '{other.name}' -> '{rend.name}' count={overlapCounts[rend]}");
+            if (DebugEnabled) Debug.Log($"[CameraOcclusion] STAY '{other.name}' -> '{rend.name}' count={overlapCounts[rend]}");
         }
     }
 
@@ -156,7 +160,7 @@ public class CameraOcclusionTrigger : MonoBehaviour
         Renderer rend = other.GetComponentInParent<Renderer>();
         if (!rend)
         {
-            if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] EXIT '{other.name}' but no Renderer found.");
+            if (DebugEnabled) Debug.Log($"[CameraOcclusion] EXIT '{other.name}' but no Renderer found.");
             return;
         }
 
@@ -169,20 +173,20 @@ public class CameraOcclusionTrigger : MonoBehaviour
             lastSeenFrame.Remove(rend);
             RestoreOne(rend);
 
-            if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] EXIT '{other.name}' -> '{rend.name}' restored (count=0)");
+            if (DebugEnabled) Debug.Log($"[CameraOcclusion] EXIT '{other.name}' -> '{rend.name}' restored (count=0)");
         }
         else
         {
             overlapCounts[rend] = count;
 
-            if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] EXIT '{other.name}' -> '{rend.name}' count={count}");
+            if (DebugEnabled) Debug.Log($"[CameraOcclusion] EXIT '{other.name}' -> '{rend.name}' count={count}");
         }
     }
 
     private void OnDisable()
     {
         if (DebugEnabled)
-            Debug.Log($"[CameraOcclusionTrigger] OnDisable - restoring {activeOccluders.Count} occluders.");
+            Debug.Log($"[CameraOcclusion] OnDisable - restoring {activeOccluders.Count} occluders.");
 
         foreach (Renderer rend in new List<Renderer>(activeOccluders))
             RestoreOne(rend);
@@ -270,14 +274,14 @@ public class CameraOcclusionTrigger : MonoBehaviour
         {
             rend.enabled = false;
 
-            if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] HIDE -> '{rend.name}' (renderer.enabled=false)");
+            if (DebugEnabled) Debug.Log($"[CameraOcclusion] HIDE -> '{rend.name}' (renderer.enabled=false)");
             return;
         }
 
         if (state.originalSharedMaterials == null || state.originalSharedMaterials.Length == 0)
         {
-            if (DebugEnabled) Debug.LogWarning($"[CameraOcclusionTrigger] '{rend.name}' has no material. Falling back to HIDE.");
-            rend.enabled = false;
+            if (DebugEnabled) Debug.LogWarning($"[CameraOcclusion] '{rend.name}' has no material. Keeping original visibility.");
+            ApplyUnsupportedTransparencyFallback(rend, state);
             return;
         }
 
@@ -298,39 +302,75 @@ public class CameraOcclusionTrigger : MonoBehaviour
 
         if (!applied)
         {
-            if (DebugEnabled) Debug.LogWarning($"[CameraOcclusionTrigger] Shader on '{rend.name}' has no _BaseColor/_Color. Falling back to HIDE.");
-            rend.enabled = false;
+            if (DebugEnabled) Debug.LogWarning($"[CameraOcclusion] Shader on '{rend.name}' has no supported color/alpha property. Keeping original visibility.");
+            ApplyUnsupportedTransparencyFallback(rend, state);
             return;
         }
 
         if (DebugEnabled)
-            Debug.Log($"[CameraOcclusionTrigger] FADE -> '{rend.name}' alpha={TransparentAlpha}");
+            Debug.Log($"[CameraOcclusion] FADE -> '{rend.name}' alpha={TransparentAlpha}");
     }
 
     private static bool ApplyTransparentMaterial(Renderer rend, int materialIndex, Material material, Material sourceMaterial, float alpha)
     {
+        bool applied = false;
         int colorId;
         if (material.HasProperty(BaseColorId))
             colorId = BaseColorId;
         else if (material.HasProperty(ColorId))
             colorId = ColorId;
         else
-            return false;
+            colorId = 0;
 
-        Color color = sourceMaterial != null && sourceMaterial.HasProperty(colorId)
-            ? sourceMaterial.GetColor(colorId)
-            : material.GetColor(colorId);
-        color.a = alpha;
+        if (colorId != 0)
+        {
+            Color color = sourceMaterial != null && sourceMaterial.HasProperty(colorId)
+                ? sourceMaterial.GetColor(colorId)
+                : material.GetColor(colorId);
+            color.a = alpha;
 
-        ConfigureTransparentMaterial(material);
-        material.SetColor(colorId, color);
+            material.SetColor(colorId, color);
 
-        MaterialPropertyBlock block = new MaterialPropertyBlock();
-        rend.GetPropertyBlock(block, materialIndex);
-        block.SetColor(colorId, color);
-        rend.SetPropertyBlock(block, materialIndex);
+            MaterialPropertyBlock block = new MaterialPropertyBlock();
+            rend.GetPropertyBlock(block, materialIndex);
+            block.SetColor(colorId, color);
+            rend.SetPropertyBlock(block, materialIndex);
 
-        return true;
+            applied = true;
+        }
+
+        if (material.HasProperty(AlphaId))
+        {
+            material.SetFloat(AlphaId, alpha);
+            applied = true;
+        }
+
+        if (material.HasProperty(OpacityId))
+        {
+            material.SetFloat(OpacityId, alpha);
+            applied = true;
+        }
+
+        if (material.HasProperty(TransparencyId))
+        {
+            material.SetFloat(TransparencyId, 1f - alpha);
+            applied = true;
+        }
+
+        if (applied) ConfigureTransparentMaterial(material);
+        return applied;
+    }
+
+    private void ApplyUnsupportedTransparencyFallback(Renderer rend, OccluderState state)
+    {
+        if (HideWhenTransparencyUnsupported)
+        {
+            rend.enabled = false;
+            if (DebugEnabled) Debug.Log($"[CameraOcclusion] HIDE fallback -> '{rend.name}' (renderer.enabled=false)");
+            return;
+        }
+
+        RestoreVisualState(rend, state);
     }
 
     private static void ConfigureTransparentMaterial(Material material)
@@ -362,7 +402,7 @@ public class CameraOcclusionTrigger : MonoBehaviour
 
         if (!activeOccluders.Remove(rend))
         {
-            if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] Restore skipped (not active) -> '{rend.name}'");
+            if (DebugEnabled) Debug.Log($"[CameraOcclusion] Restore skipped (not active) -> '{rend.name}'");
             return;
         }
 
@@ -376,7 +416,7 @@ public class CameraOcclusionTrigger : MonoBehaviour
             rend.SetPropertyBlock(null);
         }
 
-        if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] RESTORE -> '{rend.name}' (enabled={rend.enabled})");
+        if (DebugEnabled) Debug.Log($"[CameraOcclusion] RESTORE -> '{rend.name}' (enabled={rend.enabled})");
     }
 
     private static void RestoreVisualState(Renderer rend, OccluderState state)
@@ -458,7 +498,7 @@ public class CameraOcclusionTrigger : MonoBehaviour
             lastSeenFrame.Remove(rend);
             RestoreOne(rend);
 
-            if (DebugEnabled) Debug.Log($"[CameraOcclusionTrigger] FAILSAFE RESTORE -> '{rend.name}' (stale)");
+            if (DebugEnabled) Debug.Log($"[CameraOcclusion] FAILSAFE RESTORE -> '{rend.name}' (stale)");
         }
     }
 }

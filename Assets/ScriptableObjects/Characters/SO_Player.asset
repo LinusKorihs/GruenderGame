@@ -15,9 +15,9 @@ MonoBehaviour:
   gravity: -25
   groundedStickForce: -2
   terminalVelocity: -50
-  walkSpeed: 5
+  walkSpeed: 8
   dirUpdateDeadzone: 0.25
-  dodgeSpeed: 10
+  dodgeSpeed: 13
   dodgeDuration: 0.3
   dodgeCooldown: 1
   activeMoveDeadzone: 0.35
