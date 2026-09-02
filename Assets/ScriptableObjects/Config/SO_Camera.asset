@@ -15,14 +15,14 @@ MonoBehaviour:
   wideStage:
     displayName: Wide
     radius: 16
-    vertical: 70
+    vertical: 60
     fieldOfView: 50
     targetOffset: {x: 0, y: 1.5, z: 0}
-    minVertical: 5
+    minVertical: 40
     maxVertical: 85
-    limitHorizontalRotation: 0
-    minHorizontal: -120
-    maxHorizontal: 120
+    limitHorizontalRotation: 1
+    minHorizontal: -60
+    maxHorizontal: 60
     targetOffsetY: 1.5
   defaultStage:
     displayName: Default
@@ -73,10 +73,10 @@ MonoBehaviour:
   invertY: 0
   lookScaleWithDeltaTime: 1
   minVertical: 5
-  maxVertical: 85
+  maxVertical: 50
   limitHorizontalRotation: 0
-  minHorizontal: -120
-  maxHorizontal: 120
+  minHorizontal: -180
+  maxHorizontal: 180
   lockOnTags:
   - Enemy
   lockOnMaxDistance: 25
