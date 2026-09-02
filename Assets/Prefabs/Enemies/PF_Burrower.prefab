@@ -220,6 +220,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyCursorHighlight
   renderers:
   - {fileID: 7122657857581225033}
+  autoRefreshRenderers: 1
   highlightColor: {r: 0.042452812, g: 0.20989934, b: 1, a: 1}
   intensity: 2
   addToExistingEmission: 1
