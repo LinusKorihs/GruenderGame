@@ -28,9 +28,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 833103c004d1e6a4aac51cc8ba2d09a9, type: 2}
   - {fileID: 11400000, guid: 7524bb6857f37874b905bb5ba78a1adb, type: 2}
   wallCapRoom: {fileID: 11400000, guid: 683f4ae77d082e644b510e8cc8550017, type: 2}
-  minRooms: 8
-  maxRooms: 15
-  useEndDistanceRange: 1
+  minRooms: 6
+  maxRooms: 8
+  useEndDistanceRange: 0
   minEndDistanceRooms: 5
   maxEndDistanceRooms: 10
   roomUnitWorldOverride: 0
