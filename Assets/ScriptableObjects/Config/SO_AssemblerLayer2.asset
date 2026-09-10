@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38aaed3d5c2d5004d878334ee9af568d, type: 3}
+  m_Name: SO_AssemblerLayer2
+  m_EditorClassIdentifier: Assembly-CSharp::RoomAssemblerConfig
+  startRoom: {fileID: 11400000, guid: 5f11bf5df2a08a040ac334e8244303d1, type: 2}
+  endRoom: {fileID: 11400000, guid: e7563cdf260b5fe4a958bf41d828cde5, type: 2}
+  roomPool:
+  - {fileID: 11400000, guid: 70f08adfe92f3294b9e7448a91a056e8, type: 2}
+  - {fileID: 11400000, guid: 2d6155fd9e77c7f44ab61a43dacaf13d, type: 2}
+  - {fileID: 11400000, guid: 09fcbbac7416bca42b8803240f4d0a9a, type: 2}
+  - {fileID: 11400000, guid: 774172464660bac49884a20a1e9a4123, type: 2}
+  - {fileID: 11400000, guid: 55f65165f227c99419accf49750e86ae, type: 2}
+  - {fileID: 11400000, guid: da2a4399948c11f4e8344eec1adc9648, type: 2}
+  - {fileID: 11400000, guid: 1d8e0cfcfddb0804ca5418c9271be4a3, type: 2}
+  - {fileID: 11400000, guid: b4a4bec43ec57d948b47240dbe3ca0cc, type: 2}
+  - {fileID: 11400000, guid: 5f104578d1c85864c80487da4d7c3e0b, type: 2}
+  - {fileID: 11400000, guid: 8d1479fc00c205b4bbca6719ffa036b8, type: 2}
+  - {fileID: 11400000, guid: 833103c004d1e6a4aac51cc8ba2d09a9, type: 2}
+  - {fileID: 11400000, guid: 7524bb6857f37874b905bb5ba78a1adb, type: 2}
+  wallCapRoom: {fileID: 11400000, guid: 683f4ae77d082e644b510e8cc8550017, type: 2}
+  minRooms: 9
+  maxRooms: 12
+  useEndDistanceRange: 0
+  minEndDistanceRooms: 5
+  maxEndDistanceRooms: 10
+  roomUnitWorldOverride: 0
+  attemptsPerOpenSocket: 40
+  maxGenerationRetries: 10
+  useEmergencyFallback: 1
+  emergencyFallbackRetries: 15
+  emergencyMinimumRooms: 8
+  emergencyAdditionalMaxRooms: 15
+  emergencyIgnoreEndDistance: 0
+  emergencyForceEndRoom: 0
+  allowLoops: 1
+  autoCloseMatchingSockets: 1
+  centerSnapTolerance: 0.02
+  forwardDotTolerance: 0.95
+  widthToleranceFallback: 0.05
+  roomOverlapMask:
+    serializedVersion: 2
+    m_Bits: 64
+  capOverlapMask:
+    serializedVersion: 2
+    m_Bits: 128
+  overlapPadding: 0.02
+  capOpenSocketsAfterEnd: 1
+  useDeadEndsToCap: 1
+  maxCapsAfterEnd: 999
+  capExtraPadding: 0.03
+  preventCapOverlappingCaps: 1
+  wallCapInset: 0
+  randomSeed: 1
+  seed: 12345
+  log: 0

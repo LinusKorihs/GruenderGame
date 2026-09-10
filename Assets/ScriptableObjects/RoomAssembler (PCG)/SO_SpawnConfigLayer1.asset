@@ -1,0 +1,87 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e516c40f73814e1f89b847f807fe39a0, type: 3}
+  m_Name: SO_SpawnConfigLayer1
+  m_EditorClassIdentifier: Assembly-CSharp::LevelContentSpawnConfig
+  playerPrefab: {fileID: 3093259835440501442, guid: e72bb5ab3a57424408c939924b8a72f0, type: 3}
+  spawnPlayer: 1
+  spawnMinions: 1
+  minionPool:
+  - id: Melee
+    prefab: {fileID: 980464467663854597, guid: abbf8a3296401ee4783a5b360911857e, type: 3}
+    weight: 0
+    minLevel: 0
+    maxLevel: 0
+    maxPerLevel: 0
+  - id: Ranged
+    prefab: {fileID: 980464467663854597, guid: 0d34c0dfc91fd0048a9dc2e3de14a115, type: 3}
+    weight: 0
+    minLevel: 0
+    maxLevel: 0
+    maxPerLevel: 0
+  - id: Support
+    prefab: {fileID: 980464467663854597, guid: 06a5cbf5c41792c4f858ab1266919769, type: 3}
+    weight: 0
+    minLevel: 0
+    maxLevel: 0
+    maxPerLevel: 0
+  spawnEnemies: 1
+  enemyBudget:
+    minPerRoom: 0
+    maxPerRoom: 3
+    minPerLevel: 5
+    maxPerLevel: 8
+    additionalMinPerLevel: 0
+    additionalMaxPerLevel: 2
+  enemyPool:
+  - id: Lunger
+    prefab: {fileID: 1121785977838751573, guid: 516acb0300f70694fa480808d3db79ae, type: 3}
+    weight: 0
+    minLevel: 0
+    maxLevel: 0
+    maxPerLevel: 0
+  spawnItems: 0
+  itemBudget:
+    minPerRoom: 0
+    maxPerRoom: 1
+    minPerLevel: 1
+    maxPerLevel: 5
+    additionalMinPerLevel: 0
+    additionalMaxPerLevel: 2
+  itemPool: []
+  scalingMode: 2
+  enemyStatMultiplierByLevel:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0.11111111
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 10
+      value: 2
+      inSlope: 0.11111111
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  scaledEnemyStats: 0000000001000000
+  log: 1
