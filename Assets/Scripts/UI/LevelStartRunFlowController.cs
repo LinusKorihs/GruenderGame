@@ -11,7 +11,7 @@ using UnityEngine.UI;
 public sealed class LevelStartRunFlowController : MonoBehaviour
 {
     public const int MaxSelectableMinions = RunSetupData.DefaultMaxTotal;
-    private const string DefaultRunSceneName = "Run";
+    private const string DefaultRunSceneName = "2. Linus Run";
 
     public static LevelStartRunFlowController Instance { get; private set; }
 
@@ -77,9 +77,14 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         string normalized = sceneName
             .Replace(" ", string.Empty)
             .Replace("_", string.Empty)
-            .Replace("-", string.Empty);
+            .Replace("-", string.Empty)
+            .Replace(".", string.Empty);
 
-        return string.Equals(normalized, "LevelStart", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(normalized, "LevelStart", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "LinusStart", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "1LinusStart", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "LinusTutorial", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "1LinusTutorial", StringComparison.OrdinalIgnoreCase);
     }
 
     private void Awake()
@@ -97,6 +102,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private void Start()
     {
+        LevelFlowController.EnsureInstance().PrepareStaticStepForScene(SceneManager.GetActiveScene());
         ResolveSceneReferences();
         PrepareLobby();
     }
@@ -126,6 +132,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         RunSetupData data = RunSetupData.EnsureInstance();
         data.levelIndex = 1;
         data.SetMinionCounts(melee, ranged, support, MaxSelectableMinions);
+        LevelFlowController.EnsureInstance().BeginRun();
 
         runStarted = true;
         Time.timeScale = 1f;
@@ -168,8 +175,23 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         // keeps the room clear/regenerate path out of that callback.
         yield return null;
 
-        RunSetupData data = RunSetupData.EnsureInstance();
-        data.levelIndex = Mathf.Max(1, data.levelIndex + 1);
+        LevelFlowAdvanceAction flowAction = LevelFlowController.Instance != null
+            ? LevelFlowController.Instance.AdvanceAfterCurrentLevelExit()
+            : LevelFlowAdvanceAction.NotHandled;
+
+        if (flowAction == LevelFlowAdvanceAction.LoadingScene ||
+            flowAction == LevelFlowAdvanceAction.Complete ||
+            flowAction == LevelFlowAdvanceAction.Blocked)
+        {
+            transitioningLevel = false;
+            yield break;
+        }
+
+        if (flowAction == LevelFlowAdvanceAction.NotHandled)
+        {
+            RunSetupData data = RunSetupData.EnsureInstance();
+            data.levelIndex = Mathf.Max(1, data.levelIndex + 1);
+        }
 
         GenerateCurrentLevel();
         transitioningLevel = false;
@@ -201,13 +223,13 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         PrepareRunAssemblerForSceneLoad();
 
         pendingGenerationAfterRunSceneLoad = true;
-        SceneManager.LoadScene(string.IsNullOrWhiteSpace(runSceneName) ? DefaultRunSceneName : runSceneName, LoadSceneMode.Single);
+        SceneManager.LoadScene(ResolveTargetRunSceneName(), LoadSceneMode.Single);
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (!pendingGenerationAfterRunSceneLoad) return;
-        if (!string.Equals(scene.name, string.IsNullOrWhiteSpace(runSceneName) ? DefaultRunSceneName : runSceneName, StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(scene.name, ResolveTargetRunSceneName(), StringComparison.OrdinalIgnoreCase)) return;
 
         pendingGenerationAfterRunSceneLoad = false;
 
@@ -218,7 +240,11 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         if (runAssemblerRoot != null)
         {
-            SceneManager.MoveGameObjectToScene(runAssemblerRoot, scene);
+            LevelFlowController flow = LevelFlowController.Instance;
+            if (flow == null || !flow.IsRuntimeLevelLoaderRoot(runAssemblerRoot))
+            {
+                SceneManager.MoveGameObjectToScene(runAssemblerRoot, scene);
+            }
         }
         else if (assembler != null)
         {
@@ -229,11 +255,32 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         GenerateCurrentLevel();
     }
 
+    private string ResolveTargetRunSceneName()
+    {
+        LevelFlowStep step = LevelFlowController.Instance != null ? LevelFlowController.Instance.CurrentStep : null;
+        if (step != null && step.stepType == LevelFlowStepType.PCG && !string.IsNullOrWhiteSpace(step.sceneName))
+        {
+            return step.sceneName;
+        }
+
+        return string.IsNullOrWhiteSpace(runSceneName) ? DefaultRunSceneName : runSceneName;
+    }
+
     private void PrepareRunAssemblerForSceneLoad()
     {
         if (assembler == null)
         {
-            Debug.LogWarning("[RunFlow] Cannot prepare run scene because no RoomAssemblerGenerator was found.", this);
+            runAssemblerRoot = null;
+            return;
+        }
+
+        LevelProfileLoader loader = assembler.GetComponentInParent<LevelProfileLoader>();
+        if (loader != null)
+        {
+            loader.ClearGeneratedLevelContent();
+            runAssemblerRoot = loader.gameObject;
+            runAssemblerRoot.SetActive(true);
+            DontDestroyOnLoad(runAssemblerRoot);
             return;
         }
 
@@ -260,7 +307,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         ResolveSceneReferences();
 
-        if (contentSpawner != null && player != null)
+        if (contentSpawner != null && contentSpawner.Config != null && player != null)
         {
             contentSpawner.SpawnMinionPartyNearPlayer(
                 player,
@@ -279,12 +326,25 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         if (assembler == null)
         {
-            Debug.LogWarning("[RunFlow] Cannot generate level because no RoomAssemblerGenerator was found.", this);
-            return;
+            LevelFlowController flow = LevelFlowController.EnsureInstance();
+            if (flow.TryGetPCGTargets(out RoomAssemblerGenerator flowAssembler, out LevelContentSpawner flowSpawner))
+            {
+                assembler = flowAssembler;
+                contentSpawner = flowSpawner;
+            }
+
+            if (assembler == null)
+            {
+                Debug.LogWarning("[RunFlow] Cannot generate level because no RoomAssemblerGenerator was found.", this);
+                return;
+            }
         }
 
         RunSetupData data = RunSetupData.EnsureInstance();
-        if (contentSpawner != null)
+        bool flowApplied = LevelFlowController.Instance != null
+            && LevelFlowController.Instance.PrepareCurrentPCGLevel(assembler, contentSpawner);
+
+        if (!flowApplied && contentSpawner != null)
         {
             contentSpawner.LevelIndex = Mathf.Max(1, data.levelIndex);
         }
@@ -305,6 +365,42 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         ResolveSceneReferences();
         PlaceExitInEndRoom();
+    }
+
+    [ContextMenu("Move Player Near Generated Exit")]
+    public void MovePlayerNearGeneratedExitForTesting()
+    {
+        ResolveSceneReferences();
+
+        if (player == null)
+        {
+            Debug.LogWarning("[RunFlow] Cannot move player near exit because no player was found.", this);
+            return;
+        }
+
+        if (exitObject == null)
+        {
+            PlaceExitInEndRoom();
+        }
+
+        if (exitObject == null)
+        {
+            Debug.LogWarning("[RunFlow] Cannot move player near exit because no exit exists.", this);
+            return;
+        }
+
+        Vector3 offset = Vector3.back;
+        Transform body = PlayerRootResolver.BodyTransform(player);
+        if (body != null)
+        {
+            offset = -body.forward;
+            offset.y = 0f;
+            if (offset.sqrMagnitude < 0.001f) offset = Vector3.back;
+            offset.Normalize();
+        }
+
+        player.transform.position = exitObject.transform.position + offset + Vector3.up * 0.25f;
+        Debug.Log("[RunFlow] Moved player near generated exit for flow testing.", this);
     }
 
     private void CreateStartButton()

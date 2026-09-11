@@ -20,11 +20,19 @@ public class LevelProfileLoader : MonoBehaviour
     [SerializeField] private string contentRootName = "Content";
 
     public LevelConfigProfile LevelProfile => levelProfile;
+    public RoomAssemblerGenerator RoomAssemblerGenerator => roomAssemblerGenerator;
+    public LevelContentSpawner LevelContentSpawner => levelContentSpawner;
     public RoomAssemblerConfig RuntimeRoomAssemblerConfig { get; private set; }
     public LevelContentSpawnConfig RuntimeSpawnConfig { get; private set; }
 
     private void Awake()
     {
+        if (levelProfile == null)
+        {
+            ResolveMissingTargets();
+            return;
+        }
+
         bool applied = ApplyLevelProfile();
         if (applied && generateAfterApply)
         {
@@ -109,6 +117,35 @@ public class LevelProfileLoader : MonoBehaviour
         {
             ApplyLevelProfile();
         }
+    }
+
+    public bool ApplyLevelProfile(LevelConfigProfile profile)
+    {
+        levelProfile = profile;
+        return ApplyLevelProfile();
+    }
+
+    public void ConfigureTargets(RoomAssemblerGenerator roomAssembler, LevelContentSpawner contentSpawner, Light levelLight = null)
+    {
+        if (roomAssembler != null)
+        {
+            roomAssemblerGenerator = roomAssembler;
+        }
+
+        if (contentSpawner != null)
+        {
+            levelContentSpawner = contentSpawner;
+        }
+
+        if (levelLight != null)
+        {
+            directionalLight = levelLight;
+        }
+    }
+
+    public void ResolveSceneTargets()
+    {
+        ResolveMissingTargets();
     }
 
     [ContextMenu("Validate Level Profile")]

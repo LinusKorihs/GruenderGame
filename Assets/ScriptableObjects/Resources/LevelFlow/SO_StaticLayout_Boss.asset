@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8f9c4643694515888391b1b938d198, type: 3}
+  m_Name: SO_StaticLayout_Boss
+  m_EditorClassIdentifier: 
+  rooms:
+  - roomId: boss_start
+    roomDefinition: {fileID: 11400000, guid: 5f11bf5df2a08a040ac334e8244303d1, type: 2}
+    scale: {x: 1, y: 1, z: 1}
+    attachToRoomId: 
+    targetSocketName: 
+    roomSocketName: 
+  - roomId: boss_arena
+    roomDefinition: {fileID: 11400000, guid: 70f08adfe92f3294b9e7448a91a056e8, type: 2}
+    scale: {x: 1, y: 1, z: 1}
+    attachToRoomId: boss_start
+    targetSocketName: South
+    roomSocketName: North
+  - roomId: boss_end
+    roomDefinition: {fileID: 11400000, guid: e7563cdf260b5fe4a958bf41d828cde5, type: 2}
+    scale: {x: 1, y: 1, z: 1}
+    attachToRoomId: boss_arena
+    targetSocketName: South
+    roomSocketName: North
+  wallCapRoom: {fileID: 11400000, guid: 683f4ae77d082e644b510e8cc8550017, type: 2}
+  capOpenSockets: 1
+  matchCapScaleToRoom: 1
+  wallCapInset: 0.02
+  clearBeforeBuild: 1
+  buildNavMesh: 1
+  spawnPlayer: 1
+  reuseExistingPlayer: 1
+  playerPrefab: {fileID: 3093259835440501442, guid: e72bb5ab3a57424408c939924b8a72f0, type: 3}
+  playerRoomId: boss_start
+  playerFallbackLocalPosition: {x: 0, y: 1, z: 0}
+  spawnBoss: 1
+  bossPrefab: {fileID: 351521915338319218, guid: f7670940e4cc2474fb9c4c73884c8881, type: 3}
+  bossRoomId: boss_arena
+  bossFallbackLocalPosition: {x: 0, y: 1, z: 0}

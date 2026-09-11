@@ -9,11 +9,14 @@ EditorBuildSettings:
     path: Assets/Scenes/MainMenu.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
-    path: "Assets/Scenes/Pr\xE4si/LevelStart.unity"
-    guid: b9cf8e1dd2e5f644a9bfb31cd87b9a8d
+    path: Assets/Scenes/Personal/Linus/1. Linus Tutorial.unity
+    guid: a151e67befe2d804da6b0c919173d4cf
   - enabled: 1
-    path: Assets/Scenes/Run.unity
-    guid: f4ec1313100e19741ba5557e168b8a7c
+    path: Assets/Scenes/Personal/Linus/2. Linus Run.unity
+    guid: cb56b3a67dc73044ca0ea71343ddb371
+  - enabled: 1
+    path: Assets/Scenes/Personal/Linus/3. Linus Boss.unity
+    guid: 75e699419e08dba47828500593a6a183
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

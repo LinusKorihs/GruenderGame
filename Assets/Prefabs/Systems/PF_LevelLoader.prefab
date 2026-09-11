@@ -171,7 +171,7 @@ GameObject:
   - component: {fileID: 5367537686721114115}
   - component: {fileID: 835457721649708555}
   m_Layer: 0
-  m_Name: PF_LevelLoader
+  m_Name: LevelLoader
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -206,11 +206,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d88fcd0b8bd74699ad642dca67374217, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelProfileLoader
-  levelProfile: {fileID: 11400000, guid: 4e7e70680ebe95b41a630ffa07591089, type: 2}
+  levelProfile: {fileID: 0}
   roomAssemblerGenerator: {fileID: 3625664821535609580}
   levelContentSpawner: {fileID: 4025584229303623266}
   directionalLight: {fileID: 7053228346721676121}
-  generateAfterApply: 1
+  generateAfterApply: 0
   logProfileApplication: 1
   useGeneratedLevelHierarchy: 1
   parentDirectionalLightUnderLevel: 1
