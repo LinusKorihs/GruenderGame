@@ -1,11 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 [CreateAssetMenu(menuName = "SO/PCG/Profiles/PCG Config Profile", fileName = "PCGConfigProfile")]
 public class PCGConfigProfile : ScriptableObject
 {
     [Header("Room Assembler")]
     [Tooltip("Base asset that keeps stable Unity references like rooms, pools, cap rooms, and layer masks.")]
+    [HideInInspector]
     public RoomAssemblerConfig roomAssemblerBaseConfig;
 
     [Tooltip("Optional runtime tuning. If missing, the base assembler config values are used unchanged.")]
@@ -13,10 +17,37 @@ public class PCGConfigProfile : ScriptableObject
 
     [Header("Content Spawner")]
     [Tooltip("Base asset that keeps stable Unity references like player, minion, enemy, and item prefabs.")]
+    [HideInInspector]
     public LevelContentSpawnConfig spawnBaseConfig;
 
     [Tooltip("Optional runtime tuning. If missing, the base spawn config values are used unchanged.")]
     public SpawnTuningProfile spawnTuningProfile;
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        bool changed = false;
+        RoomAssemblerConfig resolvedRoomAssemblerBaseConfig = FindRoomAssemblerBaseConfig();
+        LevelContentSpawnConfig resolvedSpawnBaseConfig = FindSpawnBaseConfig();
+
+        if (roomAssemblerBaseConfig != resolvedRoomAssemblerBaseConfig)
+        {
+            roomAssemblerBaseConfig = resolvedRoomAssemblerBaseConfig;
+            changed = true;
+        }
+
+        if (spawnBaseConfig != resolvedSpawnBaseConfig)
+        {
+            spawnBaseConfig = resolvedSpawnBaseConfig;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            EditorUtility.SetDirty(this);
+        }
+    }
+#endif
 
     public RoomAssemblerConfig CreateRuntimeRoomAssemblerConfig(Object logContext = null)
     {
@@ -97,4 +128,18 @@ public class PCGConfigProfile : ScriptableObject
             $"level {budget.minPerLevel}-{budget.maxPerLevel}, " +
             $"growth +{budget.additionalMinPerLevel}/+{budget.additionalMaxPerLevel}";
     }
+
+#if UNITY_EDITOR
+    private static RoomAssemblerConfig FindRoomAssemblerBaseConfig()
+    {
+        return AssetDatabase.LoadAssetAtPath<RoomAssemblerConfig>(
+            "Assets/ScriptableObjects/PCG/Base/SO_Base_Assembler.asset");
+    }
+
+    private static LevelContentSpawnConfig FindSpawnBaseConfig()
+    {
+        return AssetDatabase.LoadAssetAtPath<LevelContentSpawnConfig>(
+            "Assets/ScriptableObjects/PCG/Base/SO_Base_SpawnConfig.asset");
+    }
+#endif
 }

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b53d80b3656a4ea7b295492600ebd59a, type: 3}
   m_Name: SO_PCG_Level2
   m_EditorClassIdentifier: Assembly-CSharp::PCGConfigProfile
-  roomAssemblerBaseConfig: {fileID: 11400000, guid: 6beceaf6854115c489ef5f89625387aa, type: 2}
+  roomAssemblerBaseConfig: {fileID: 11400000, guid: 8ac41c59633ddb14fa732bcbb2edc7a1, type: 2}
   roomAssemblerTuningProfile: {fileID: 11400000, guid: aaec5cf91bfd3d2428cdc9042e51091a, type: 2}
-  spawnBaseConfig: {fileID: 11400000, guid: 0f74c6f38ba20fd468cd2c00d7646a67, type: 2}
+  spawnBaseConfig: {fileID: 11400000, guid: 68d23a9aba38b604ea143c4ec7fd0329, type: 2}
   spawnTuningProfile: {fileID: 11400000, guid: 6384bc70fc04ba5488d2424ed641f5fc, type: 2}

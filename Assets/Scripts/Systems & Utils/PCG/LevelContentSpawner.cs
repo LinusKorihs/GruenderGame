@@ -6,10 +6,15 @@ using UnityEngine;
 public class LevelContentSpawner : MonoBehaviour
 {
     private const string GeneratedContentRootName = "PCG_Content";
+    private const string PlayerRootName = "Player";
+    private const string MinionsRootName = "Minions";
+    private const string EnemiesRootName = "Enemies";
+    private const string ItemsRootName = "Items";
 
     [SerializeField] private LevelContentSpawnConfig config;
     [SerializeField, Min(1)] private int levelIndex = 1;
     [SerializeField] private Transform contentParent;
+    [SerializeField] private bool useContentParentAsGeneratedRoot;
     [SerializeField] private bool forceSpawnedObjectsActive = true;
     [SerializeField] private bool reuseExistingPlayer = true;
 
@@ -26,6 +31,10 @@ public class LevelContentSpawner : MonoBehaviour
     private readonly List<GameObject> spawnedObjects = new List<GameObject>();
     private readonly List<SpawnedObjectState> spawnedObjectStates = new List<SpawnedObjectState>();
     private Transform generatedContentRoot;
+    private Transform playerRoot;
+    private Transform minionsRoot;
+    private Transform enemiesRoot;
+    private Transform itemsRoot;
 
     public IReadOnlyList<GameObject> SpawnedObjects => spawnedObjects;
     public GameObject CurrentPlayer { get; private set; }
@@ -39,6 +48,13 @@ public class LevelContentSpawner : MonoBehaviour
     public void SetRuntimeConfig(LevelContentSpawnConfig runtimeConfig)
     {
         config = runtimeConfig;
+    }
+
+    public void SetContentParent(Transform parent, bool useAsGeneratedRoot = false)
+    {
+        contentParent = parent;
+        useContentParentAsGeneratedRoot = useAsGeneratedRoot;
+        ResetHierarchyCache();
     }
 
     private void Update()
@@ -205,7 +221,9 @@ public class LevelContentSpawner : MonoBehaviour
         }
 
         Transform host = contentParent != null ? contentParent : transform;
-        generatedContentRoot = host.Find(GeneratedContentRootName);
+        generatedContentRoot = contentParent != null && useContentParentAsGeneratedRoot
+            ? contentParent
+            : host.Find(GeneratedContentRootName);
         if (generatedContentRoot != null)
         {
             for (int i = 0; i < generatedContentRoot.childCount; i++)
@@ -251,6 +269,7 @@ public class LevelContentSpawner : MonoBehaviour
 
         spawnedObjects.Clear();
         spawnedObjectStates.Clear();
+        ResetCategoryRoots();
 
         if (LogsEnabled && objectsToDestroy.Count > 0)
             Log($"[PCG Content] Cleared {objectsToDestroy.Count} generated object(s).");
@@ -278,7 +297,7 @@ public class LevelContentSpawner : MonoBehaviour
 
         if (config.playerPrefab == null) return null;
 
-        return SpawnPrefab(config.playerPrefab, point, "Player");
+        return SpawnPrefab(config.playerPrefab, point, "Player", PCGSpawnPointKind.Player);
     }
 
     private void SpawnMinions(IReadOnlyList<PlacedRoom> rooms, System.Random rng, GameObject player)
@@ -328,8 +347,8 @@ public class LevelContentSpawner : MonoBehaviour
 
             int fallbackSlot = fallbackIndex++;
             GameObject minionObject = point != null
-                ? SpawnPrefab(entry.prefab, point, roleId)
-                : SpawnPrefabNearPlayer(entry.prefab, playerBody, roleId, fallbackSlot, fallbackTotal);
+                ? SpawnPrefab(entry.prefab, point, roleId, PCGSpawnPointKind.Minion)
+                : SpawnPrefabNearPlayer(entry.prefab, playerBody, roleId, fallbackSlot, fallbackTotal, PCGSpawnPointKind.Minion);
 
             if (minionObject == null) continue;
 
@@ -416,7 +435,7 @@ public class LevelContentSpawner : MonoBehaviour
             WeightedSpawnEntry entry = PickWeightedEntry(pool, rng, point, null);
             if (point == null || entry == null || entry.prefab == null) break;
 
-            GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id);
+            GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id, kind);
             afterSpawn?.Invoke(spawnedObject);
             room.SpawnedCount++;
             spawned++;
@@ -451,7 +470,7 @@ public class LevelContentSpawner : MonoBehaviour
                 WeightedSpawnEntry entry = PickWeightedEntry(pool, rng, point, null);
                 if (entry == null || entry.prefab == null) continue;
 
-                GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id);
+                GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id, point.kind);
                 afterSpawn?.Invoke(spawnedObject);
                 room.SpawnedCount++;
                 spawned++;
@@ -479,7 +498,7 @@ public class LevelContentSpawner : MonoBehaviour
                 WeightedSpawnEntry entry = PickWeightedEntry(pool, rng, point, null);
                 if (point == null || entry == null || entry.prefab == null) break;
 
-                GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id);
+                GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id, point.kind);
                 afterSpawn?.Invoke(spawnedObject);
                 room.SpawnedCount++;
                 spawned++;
@@ -512,15 +531,21 @@ public class LevelContentSpawner : MonoBehaviour
         stats.SetHealth(stats.GetStat(CombatStatType.MaxHealth));
     }
 
-    private GameObject SpawnPrefab(GameObject prefab, PCGSpawnPoint point, string contentId)
+    private GameObject SpawnPrefab(GameObject prefab, PCGSpawnPoint point, string contentId, PCGSpawnPointKind kind)
     {
-        GameObject go = Instantiate(prefab, point.transform.position, point.transform.rotation, GetOrCreateGeneratedContentRoot());
+        GameObject go = Instantiate(prefab, point.transform.position, point.transform.rotation, GetOrCreateCategoryRoot(kind));
         go.name = string.IsNullOrWhiteSpace(contentId) ? prefab.name : $"{prefab.name}_{contentId}";
         RegisterSpawnedObject(go, prefab, point);
         return go;
     }
 
-    private GameObject SpawnPrefabNearPlayer(GameObject prefab, Transform playerBody, string contentId, int indexInGroup, int groupCount)
+    private GameObject SpawnPrefabNearPlayer(
+        GameObject prefab,
+        Transform playerBody,
+        string contentId,
+        int indexInGroup,
+        int groupCount,
+        PCGSpawnPointKind kind)
     {
         if (prefab == null || playerBody == null) return null;
 
@@ -547,12 +572,12 @@ public class LevelContentSpawner : MonoBehaviour
             }
         }
 
-        return SpawnPrefabAt(prefab, position, playerBody.rotation, contentId);
+        return SpawnPrefabAt(prefab, position, playerBody.rotation, contentId, kind);
     }
 
-    private GameObject SpawnPrefabAt(GameObject prefab, Vector3 position, Quaternion rotation, string contentId)
+    private GameObject SpawnPrefabAt(GameObject prefab, Vector3 position, Quaternion rotation, string contentId, PCGSpawnPointKind kind)
     {
-        GameObject go = Instantiate(prefab, position, rotation, GetOrCreateGeneratedContentRoot());
+        GameObject go = Instantiate(prefab, position, rotation, GetOrCreateCategoryRoot(kind));
         go.name = string.IsNullOrWhiteSpace(contentId) ? prefab.name : $"{prefab.name}_{contentId}";
         RegisterSpawnedObject(go, prefab, null);
         return go;
@@ -686,6 +711,12 @@ public class LevelContentSpawner : MonoBehaviour
             return generatedContentRoot;
 
         Transform host = contentParent != null ? contentParent : transform;
+        if (contentParent != null && useContentParentAsGeneratedRoot)
+        {
+            generatedContentRoot = contentParent;
+            return generatedContentRoot;
+        }
+
         generatedContentRoot = host.Find(GeneratedContentRootName);
         if (generatedContentRoot != null)
             return generatedContentRoot;
@@ -694,6 +725,56 @@ public class LevelContentSpawner : MonoBehaviour
         generatedContentRoot = rootObject.transform;
         generatedContentRoot.SetParent(host, false);
         return generatedContentRoot;
+    }
+
+    private Transform GetOrCreateCategoryRoot(PCGSpawnPointKind kind)
+    {
+        Transform root = GetOrCreateGeneratedContentRoot();
+        switch (kind)
+        {
+            case PCGSpawnPointKind.Player:
+                return playerRoot = GetOrCreateChild(root, PlayerRootName, playerRoot);
+            case PCGSpawnPointKind.Minion:
+                return minionsRoot = GetOrCreateChild(root, MinionsRootName, minionsRoot);
+            case PCGSpawnPointKind.Enemy:
+                return enemiesRoot = GetOrCreateChild(root, EnemiesRootName, enemiesRoot);
+            case PCGSpawnPointKind.Item:
+                return itemsRoot = GetOrCreateChild(root, ItemsRootName, itemsRoot);
+            default:
+                return root;
+        }
+    }
+
+    private static Transform GetOrCreateChild(Transform parent, string childName, Transform cached)
+    {
+        if (cached != null)
+            return cached;
+
+        if (parent == null)
+            return null;
+
+        Transform child = parent.Find(childName);
+        if (child != null)
+            return child;
+
+        GameObject childObject = new GameObject(childName);
+        child = childObject.transform;
+        child.SetParent(parent, false);
+        return child;
+    }
+
+    private void ResetHierarchyCache()
+    {
+        generatedContentRoot = null;
+        ResetCategoryRoots();
+    }
+
+    private void ResetCategoryRoots()
+    {
+        playerRoot = null;
+        minionsRoot = null;
+        enemiesRoot = null;
+        itemsRoot = null;
     }
 
     private bool MatchesConfiguredPrefabName(string instanceName)

@@ -99,6 +99,7 @@ public class SpawnTuningProfile : ScriptableObject
         }
 
         HashSet<string> appliedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        List<WeightedSpawnEntry> tunedRuntimePool = new List<WeightedSpawnEntry>();
         for (int i = 0; i < tuningPool.Count; i++)
         {
             WeightedSpawnEntryTuning tuning = tuningPool[i];
@@ -121,10 +122,48 @@ public class SpawnTuningProfile : ScriptableObject
                 continue;
             }
 
-            target.weight = Mathf.Max(0, tuning.weight);
-            target.minLevel = Mathf.Max(1, tuning.minLevel);
-            target.maxLevel = Mathf.Max(target.minLevel, tuning.maxLevel);
-            target.maxPerLevel = Mathf.Max(0, tuning.maxPerLevel);
+            ApplyEntryTuning(target, tuning);
+            tunedRuntimePool.Add(target);
+        }
+
+        if (tunedRuntimePool.Count == 0)
+        {
+            Debug.LogWarning(
+                $"[Level Profile] {poolLabel} tuning had no valid matching ids. Keeping the full base {poolLabel} pool as fallback.",
+                context);
+            return;
+        }
+
+        int originalCount = targetPool.Count;
+        targetPool.Clear();
+        targetPool.AddRange(tunedRuntimePool);
+
+        Debug.Log(
+            $"[Level Profile] {poolLabel} runtime pool restricted to {tunedRuntimePool.Count}/{originalCount} tuned entries.",
+            context);
+    }
+
+    private static void ApplyEntryTuning(WeightedSpawnEntry target, WeightedSpawnEntryTuning tuning)
+    {
+        if (tuning.weight > 0)
+        {
+            target.weight = tuning.weight;
+        }
+
+        if (tuning.minLevel > 0)
+        {
+            target.minLevel = tuning.minLevel;
+        }
+
+        if (tuning.maxLevel > 0)
+        {
+            int effectiveMinLevel = Mathf.Max(1, target.minLevel);
+            target.maxLevel = Mathf.Max(effectiveMinLevel, tuning.maxLevel);
+        }
+
+        if (tuning.maxPerLevel > 0)
+        {
+            target.maxPerLevel = tuning.maxPerLevel;
         }
     }
 

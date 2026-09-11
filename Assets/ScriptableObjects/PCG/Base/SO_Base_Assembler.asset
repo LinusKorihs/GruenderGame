@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 38aaed3d5c2d5004d878334ee9af568d, type: 3}
-  m_Name: SO_AssemblerLayer2
+  m_Name: SO_Base_Assembler
   m_EditorClassIdentifier: Assembly-CSharp::RoomAssemblerConfig
   startRoom: {fileID: 11400000, guid: 5f11bf5df2a08a040ac334e8244303d1, type: 2}
   endRoom: {fileID: 11400000, guid: e7563cdf260b5fe4a958bf41d828cde5, type: 2}
@@ -28,8 +28,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 833103c004d1e6a4aac51cc8ba2d09a9, type: 2}
   - {fileID: 11400000, guid: 7524bb6857f37874b905bb5ba78a1adb, type: 2}
   wallCapRoom: {fileID: 11400000, guid: 683f4ae77d082e644b510e8cc8550017, type: 2}
-  minRooms: 9
-  maxRooms: 12
+  minRooms: 6
+  maxRooms: 8
   useEndDistanceRange: 0
   minEndDistanceRooms: 5
   maxEndDistanceRooms: 10

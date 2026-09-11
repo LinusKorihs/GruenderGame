@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PCGConfigProfile
   roomAssemblerBaseConfig: {fileID: 11400000, guid: 8ac41c59633ddb14fa732bcbb2edc7a1, type: 2}
   roomAssemblerTuningProfile: {fileID: 11400000, guid: 11aa1af149ceb53498eb00c57c3d9e2c, type: 2}
-  spawnBaseConfig: {fileID: 11400000, guid: be47624b42f60d14f979c628b28ddc68, type: 2}
+  spawnBaseConfig: {fileID: 11400000, guid: 68d23a9aba38b604ea143c4ec7fd0329, type: 2}
   spawnTuningProfile: {fileID: 11400000, guid: f1a9721380acd304a90749f36a187bb8, type: 2}
