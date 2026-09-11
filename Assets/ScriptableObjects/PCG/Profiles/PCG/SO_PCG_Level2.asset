@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b53d80b3656a4ea7b295492600ebd59a, type: 3}
+  m_Name: SO_PCG_Level2
+  m_EditorClassIdentifier: Assembly-CSharp::PCGConfigProfile
+  roomAssemblerBaseConfig: {fileID: 11400000, guid: 6beceaf6854115c489ef5f89625387aa, type: 2}
+  roomAssemblerTuningProfile: {fileID: 11400000, guid: aaec5cf91bfd3d2428cdc9042e51091a, type: 2}
+  spawnBaseConfig: {fileID: 11400000, guid: 0f74c6f38ba20fd468cd2c00d7646a67, type: 2}
+  spawnTuningProfile: {fileID: 11400000, guid: 6384bc70fc04ba5488d2424ed641f5fc, type: 2}

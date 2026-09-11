@@ -105,6 +105,14 @@ public class RoomAssemblerTuningProfile : ScriptableObject
         target.randomSeed = randomSeed;
         target.seed = seed;
         target.log = log;
+
+        Debug.Log(
+            $"[Level Profile] Applied RoomAssemblerTuning '{name}' to '{target.name}'. " +
+            $"Rooms={target.minRooms}-{target.maxRooms}, EndDistance={target.minEndDistanceRooms}-{target.maxEndDistanceRooms}, " +
+            $"AttemptsPerSocket={target.attemptsPerOpenSocket}, Retries={target.maxGenerationRetries}, " +
+            $"EmergencyFallback={target.useEmergencyFallback}, Loops={target.allowLoops}, Capping={target.capOpenSocketsAfterEnd}, " +
+            $"Seed={(target.randomSeed ? "random" : target.seed.ToString())}.",
+            logContext != null ? logContext : this);
     }
 
     private void OnValidate()

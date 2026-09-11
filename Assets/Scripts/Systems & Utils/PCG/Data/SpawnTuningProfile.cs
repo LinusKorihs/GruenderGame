@@ -74,6 +74,13 @@ public class SpawnTuningProfile : ScriptableObject
         ApplyPoolTuning(target.minionPool, minionPool, "Minion", context);
         ApplyPoolTuning(target.enemyPool, enemyPool, "Enemy", context);
         ApplyPoolTuning(target.itemPool, itemPool, "Item", context);
+
+        Debug.Log(
+            $"[Level Profile] Applied SpawnTuning '{name}' to '{target.name}'. " +
+            $"Spawn(Player={target.spawnPlayer}, Minions={target.spawnMinions}, Enemies={target.spawnEnemies}, Items={target.spawnItems}), " +
+            $"EnemyBudget={FormatBudget(target.enemyBudget)}, ItemBudget={FormatBudget(target.itemBudget)}, Scaling={target.scalingMode}, " +
+            $"PoolTuning(Minions={CountEntries(minionPool)}, Enemies={CountEntries(enemyPool)}, Items={CountEntries(itemPool)}).",
+            context);
     }
 
     private static void ApplyPoolTuning(
@@ -132,5 +139,20 @@ public class SpawnTuningProfile : ScriptableObject
         }
 
         return null;
+    }
+
+    private static int CountEntries(List<WeightedSpawnEntryTuning> entries)
+    {
+        return entries != null ? entries.Count : 0;
+    }
+
+    private static string FormatBudget(SpawnBudget budget)
+    {
+        if (budget == null) return "missing";
+
+        return
+            $"room {budget.minPerRoom}-{budget.maxPerRoom}, " +
+            $"level {budget.minPerLevel}-{budget.maxPerLevel}, " +
+            $"growth +{budget.additionalMinPerLevel}/+{budget.additionalMaxPerLevel}";
     }
 }

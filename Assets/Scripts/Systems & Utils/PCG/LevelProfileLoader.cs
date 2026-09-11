@@ -12,6 +12,7 @@ public class LevelProfileLoader : MonoBehaviour
     [Header("Runtime")]
     [SerializeField] private bool applyOnAwake = true;
     [SerializeField] private bool autoFindMissingTargets = true;
+    [SerializeField] private bool logProfileApplication = true;
 
     public LevelConfigProfile LevelProfile => levelProfile;
     public RoomAssemblerConfig RuntimeRoomAssemblerConfig { get; private set; }
@@ -37,10 +38,17 @@ public class LevelProfileLoader : MonoBehaviour
             return;
         }
 
+        Log(
+            $"Applying '{levelProfile.DisplayName}' (Id='{levelProfile.levelId}', Index={levelProfile.levelIndex}, Type={levelProfile.levelType}).");
+
         if (autoFindMissingTargets)
         {
             ResolveMissingTargets();
         }
+
+        Log(
+            $"Targets: RoomAssemblerGenerator={(roomAssemblerGenerator != null ? roomAssemblerGenerator.name : "missing")}, " +
+            $"LevelContentSpawner={(levelContentSpawner != null ? levelContentSpawner.name : "missing")}.");
 
         ApplyLevelIndex();
 
@@ -56,7 +64,13 @@ public class LevelProfileLoader : MonoBehaviour
         if (roomAssemblerGenerator != null && levelContentSpawner != null && roomAssemblerGenerator.contentSpawner == null)
         {
             roomAssemblerGenerator.contentSpawner = levelContentSpawner;
+            Log($"Linked '{levelContentSpawner.name}' as content spawner on '{roomAssemblerGenerator.name}'.");
         }
+
+        Log(
+            $"Finished '{levelProfile.DisplayName}'. " +
+            $"AssemblerRuntime={(RuntimeRoomAssemblerConfig != null ? RuntimeRoomAssemblerConfig.name : "none")}, " +
+            $"SpawnRuntime={(RuntimeSpawnConfig != null ? RuntimeSpawnConfig.name : "none")}.");
     }
 
     public void SetLevelProfile(LevelConfigProfile profile, bool applyImmediately = true)
@@ -88,6 +102,7 @@ public class LevelProfileLoader : MonoBehaviour
         }
 
         roomAssemblerGenerator.SetRuntimeConfig(RuntimeRoomAssemblerConfig);
+        Log($"Applied runtime assembler config '{RuntimeRoomAssemblerConfig.name}' to '{roomAssemblerGenerator.name}'.");
     }
 
     private void ApplySpawnConfig(PCGConfigProfile pcgConfigProfile)
@@ -111,6 +126,7 @@ public class LevelProfileLoader : MonoBehaviour
 
         levelContentSpawner.SetRuntimeConfig(RuntimeSpawnConfig);
         levelContentSpawner.LevelIndex = levelProfile.levelIndex;
+        Log($"Applied runtime spawn config '{RuntimeSpawnConfig.name}' to '{levelContentSpawner.name}' with LevelIndex={levelContentSpawner.LevelIndex}.");
     }
 
     private void ApplyLevelIndex()
@@ -118,6 +134,7 @@ public class LevelProfileLoader : MonoBehaviour
         if (levelContentSpawner != null)
         {
             levelContentSpawner.LevelIndex = levelProfile.levelIndex;
+            Log($"Set '{levelContentSpawner.name}' LevelIndex={levelContentSpawner.LevelIndex}.");
         }
     }
 
@@ -142,5 +159,11 @@ public class LevelProfileLoader : MonoBehaviour
         {
             levelContentSpawner = FindFirstObjectByType<LevelContentSpawner>();
         }
+    }
+
+    private void Log(string message)
+    {
+        if (!logProfileApplication) return;
+        Debug.Log($"[Level Profile] {message}", this);
     }
 }

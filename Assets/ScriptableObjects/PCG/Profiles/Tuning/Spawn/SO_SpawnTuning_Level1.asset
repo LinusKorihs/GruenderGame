@@ -15,12 +15,12 @@ MonoBehaviour:
   spawnPlayer: 1
   spawnMinions: 1
   spawnEnemies: 1
-  spawnItems: 1
+  spawnItems: 0
   enemyBudget:
     minPerRoom: 0
     maxPerRoom: 3
     minPerLevel: 5
-    maxPerLevel: 15
+    maxPerLevel: 8
     additionalMinPerLevel: 0
     additionalMaxPerLevel: 2
   itemBudget:
@@ -30,10 +30,30 @@ MonoBehaviour:
     maxPerLevel: 5
     additionalMinPerLevel: 0
     additionalMaxPerLevel: 2
-  minionPool: []
-  enemyPool: []
+  minionPool:
+  - id: Melee
+    weight: 0
+    minLevel: 0
+    maxLevel: 0
+    maxPerLevel: 0
+  - id: Ranged
+    weight: 0
+    minLevel: 0
+    maxLevel: 0
+    maxPerLevel: 0
+  - id: Support
+    weight: 0
+    minLevel: 0
+    maxLevel: 0
+    maxPerLevel: 0
+  enemyPool:
+  - id: Lunger
+    weight: 0
+    minLevel: 0
+    maxLevel: 0
+    maxPerLevel: 0
   itemPool: []
-  scalingMode: 1
+  scalingMode: 2
   enemyStatMultiplierByLevel:
     serializedVersion: 2
     m_Curve:

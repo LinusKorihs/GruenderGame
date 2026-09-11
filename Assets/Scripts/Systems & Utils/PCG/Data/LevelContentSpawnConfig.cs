@@ -13,11 +13,22 @@ public enum LevelDifficultyScalingMode
 [Serializable]
 public class WeightedSpawnEntry
 {
+    [Tooltip("Stable id used by SpawnTuningProfile entries and spawnpoint allowedContentIds.")]
     public string id;
+
+    [Tooltip("Stable prefab reference kept on the base spawn config.")]
     public GameObject prefab;
+
+    [HideInInspector]
     [Min(0)] public int weight = 10;
+
+    [HideInInspector]
     [Min(1)] public int minLevel = 1;
+
+    [HideInInspector]
     [Min(1)] public int maxLevel = 999;
+
+    [HideInInspector]
     [Min(0)] public int maxPerLevel = 999;
 }
 
@@ -58,28 +69,37 @@ public class LevelContentSpawnConfig : ScriptableObject
 {
     [Header("Player")]
     public GameObject playerPrefab;
+    [HideInInspector]
     public bool spawnPlayer = true;
 
     [Header("Minions")]
+    [HideInInspector]
     public bool spawnMinions = true;
     public List<WeightedSpawnEntry> minionPool = new List<WeightedSpawnEntry>();
 
     [Header("Enemies")]
+    [HideInInspector]
     public bool spawnEnemies = true;
+    [HideInInspector]
     public SpawnBudget enemyBudget = new SpawnBudget { minPerRoom = 0, maxPerRoom = 3, minPerLevel = 5, maxPerLevel = 15 };
     public List<WeightedSpawnEntry> enemyPool = new List<WeightedSpawnEntry>();
 
     [Header("Items")]
+    [HideInInspector]
     public bool spawnItems = true;
+    [HideInInspector]
     public SpawnBudget itemBudget = new SpawnBudget { minPerRoom = 0, maxPerRoom = 1, minPerLevel = 1, maxPerLevel = 5 };
     public List<WeightedSpawnEntry> itemPool = new List<WeightedSpawnEntry>();
 
     [Header("Difficulty Scaling")]
+    [HideInInspector]
     public LevelDifficultyScalingMode scalingMode = LevelDifficultyScalingMode.SpawnAmounts;
 
     [Tooltip("Enemy stat multipliers applied once to spawned enemies when enemy stat scaling is enabled. X = level, Y = multiplier.")]
+    [HideInInspector]
     public AnimationCurve enemyStatMultiplierByLevel = AnimationCurve.Linear(1f, 1f, 10f, 2f);
 
+    [HideInInspector]
     public List<CombatStatType> scaledEnemyStats = new List<CombatStatType>
     {
         CombatStatType.MaxHealth,
@@ -87,6 +107,7 @@ public class LevelContentSpawnConfig : ScriptableObject
     };
 
     [Header("Debug")]
+    [HideInInspector]
     public bool log;
 
     public bool ScalesSpawnAmounts =>

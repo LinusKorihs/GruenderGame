@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5e31f34b76d24c4aa3156e2a4afad1c3, type: 3}
-  m_Name: SO_RoomTuning_Level1
+  m_Name: SO_RoomTuning_Level2
   m_EditorClassIdentifier: Assembly-CSharp::RoomAssemblerTuningProfile
-  minRooms: 6
-  maxRooms: 8
+  minRooms: 9
+  maxRooms: 12
   useEndDistanceRange: 0
   minEndDistanceRooms: 5
   maxEndDistanceRooms: 10
