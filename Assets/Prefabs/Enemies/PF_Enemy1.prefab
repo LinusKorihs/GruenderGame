@@ -148,6 +148,14 @@ MonoBehaviour:
   lungeAttackTrigger: LungeAttack
   idleBreakTrigger: IdleBreak
   isDeadParameter: IsDead
+  logAnimatorCalls: 0
+  logSetupWarnings: 0
+  playStatesDirectly: 1
+  directTransitionDuration: 0.05
+  mainAttackState: E1_MainAttack
+  lungeAttackState: E1_LungeAttack
+  idleBreakState: E1_IdleBreak
+  deathState: E1_Death
 --- !u!114 &7338932931011781118
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -160,6 +168,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6aca8608347c8449bb0b5361502625b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAnimationEvents
+  lungerEnemy: {fileID: 0}
+  logEvents: 0
 --- !u!114 &5188964303770291845
 MonoBehaviour:
   m_ObjectHideFlags: 0

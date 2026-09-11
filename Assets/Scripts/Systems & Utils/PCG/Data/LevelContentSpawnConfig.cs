@@ -53,7 +53,7 @@ public class SpawnBudget
     }
 }
 
-[CreateAssetMenu(menuName = "SO/PCG/Level Content Spawn Config", fileName = "LevelContentSpawnConfig")]
+[CreateAssetMenu(menuName = "SO/PCG/Base/Level Content Spawn Config", fileName = "LevelContentSpawnConfig")]
 public class LevelContentSpawnConfig : ScriptableObject
 {
     [Header("Player")]

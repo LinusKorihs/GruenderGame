@@ -33,6 +33,11 @@ public class RoomAssemblerGenerator : MonoBehaviour
     public IReadOnlyList<PlacedRoom> LastPlacedRooms => placed;
     public bool IsGenerating => isGenerating;
 
+    public void SetRuntimeConfig(RoomAssemblerConfig runtimeConfig)
+    {
+        config = runtimeConfig;
+    }
+
     private System.Random rng;
     private bool isGenerating;
 

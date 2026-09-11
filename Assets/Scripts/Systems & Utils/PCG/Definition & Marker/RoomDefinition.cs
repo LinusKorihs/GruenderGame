@@ -26,7 +26,7 @@ public enum PCGResearchRoomType
     Cap
 }
 
-[CreateAssetMenu(menuName = "SO/PCG/Room Definition")]
+[CreateAssetMenu(menuName = "SO/PCG/Base/Room Definition", fileName = "RoomDefinition")]
 public class RoomDefinition : ScriptableObject
 {
     public string id;

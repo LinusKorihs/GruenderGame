@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "SO/PCG/Room Assembler", fileName = "RoomAssemblerConfig")]
+[CreateAssetMenu(menuName = "SO/PCG/Base/Room Assembler Config", fileName = "RoomAssemblerConfig")]
 public class RoomAssemblerConfig : ScriptableObject
 {
     public const int MinimumEmergencyRooms = 5;

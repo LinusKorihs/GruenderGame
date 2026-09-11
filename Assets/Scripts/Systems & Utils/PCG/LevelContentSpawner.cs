@@ -25,10 +25,16 @@ public class LevelContentSpawner : MonoBehaviour
 
     public IReadOnlyList<GameObject> SpawnedObjects => spawnedObjects;
     public GameObject CurrentPlayer { get; private set; }
+    public LevelContentSpawnConfig Config => config;
     public int LevelIndex
     {
         get => levelIndex;
         set => levelIndex = Mathf.Max(1, value);
+    }
+
+    public void SetRuntimeConfig(LevelContentSpawnConfig runtimeConfig)
+    {
+        config = runtimeConfig;
     }
 
     private void Update()

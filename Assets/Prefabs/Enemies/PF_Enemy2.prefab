@@ -97,7 +97,18 @@ MonoBehaviour:
   spinAttackTrigger: SpinAttack
   idleBreakTrigger: IdleBreak
   isDeadParameter: IsDead
+  needsTurnParameter: NeedsTurn
+  continueShootingParameter: ContinueShooting
+  continueSpinningParameter: ContinueSpinning
+  logAnimatorCalls: 0
+  logSetupWarnings: 0
+  playStatesDirectly: 1
+  directTransitionDuration: 0.05
   idleStateName: E2_Idle
+  projectileAttackState: E2_ProjectilAttack_1_3
+  spinAttackState: E2_SpinAttack_1_4
+  idleBreakState: E2_IdleBreak
+  deathState: E2_Death
 --- !u!114 &5390945857484835847
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -110,19 +121,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8d4d341b7dc1264b920cf18a1ca9e5e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy2AnimatorAutoTester
-  enemyAnimator: {fileID: 4729572047849723175}
+  shellSpinnerAnimator: {fileID: 0}
   autoRunOnStart: 0
   loopTest: 0
   testIdle: 1
   testWalk: 1
-  testProjectileAttack: 1
-  testSpinAttack: 1
+  testProjectileAttackWithoutTurn: 1
+  testProjectileAttackWithTurn: 1
+  testProjectileAttackWithTurnAndRepeatShot: 0
+  testSpinAttackNormal: 1
+  testSpinAttackLong: 1
   testIdleBreak: 1
   testDeath: 1
   idleWait: 1.5
   walkDuration: 2
-  projectileAttackWait: 3
-  spinAttackWait: 4
+  projectileAttackWithoutTurnWait: 2.5
+  projectileAttackWithTurnWait: 3.2
+  projectileAttackRepeatWait: 4
+  spinAttackNormalWait: 4
+  longSpinHoldTime: 3
+  spinAttackFinishWait: 2
   idleBreakWait: 1.5
   deathWait: 2
   delayBetweenLoops: 1
@@ -139,7 +157,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f58c2afe6ca048488aaa82e827019aa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy2AnimationEvents
-  showDebugLogs: 1
+  shellSpinnerEnemy: {fileID: 0}
+  showDebugLogs: 0
 --- !u!95 &7697423804773407408 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 243a48c8556323948ad0865f3bb683b3, type: 3}
