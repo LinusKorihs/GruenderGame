@@ -35,7 +35,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.12643, y: 0.26, z: 0.66187}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -151,6 +151,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyCursorHighlight
   renderers:
   - {fileID: 7470426654782078142}
+  autoRefreshRenderers: 1
   highlightColor: {r: 0.042452812, g: 0.20989934, b: 1, a: 1}
   intensity: 2
   addToExistingEmission: 1
@@ -210,6 +211,19 @@ MonoBehaviour:
   shellObject: {fileID: 0}
   targetingLine: {fileID: 0}
   projectileSpawnPoint: {fileID: 0}
+  animationBridge: {fileID: 0}
+  visualRoot: {fileID: 0}
+  animatedVisualPrefab: {fileID: 3997299068231096944, guid: edccc61c675c901449defa6500c1d1d6, type: 3}
+  animatedVisualParent: {fileID: 0}
+  animatedVisualLocalPosition: {x: 0, y: 0, z: 0}
+  animatedVisualLocalEulerAngles: {x: 0, y: 0, z: 0}
+  animatedVisualLocalScale: {x: 1, y: 1, z: 1}
+  hidePlaceholderMeshWhenVisualSpawned: 1
+  applyVisualYawOffset: 0
+  visualYawOffset: 0
+  projectilesDrivenByAnimationEvents: 1
+  projectileAnimationEventFallbackDelay: 0.75
+  deathDestroyDelay: 1.5
   enableLogs: 1
   currentState: 0
 --- !u!120 &8147322639375545203

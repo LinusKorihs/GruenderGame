@@ -11,10 +11,13 @@ public class MinionRowUI : MonoBehaviour
     private int value = 0;
     private RunStartUI manager;
 
-    public void Setup(RunStartUI ui)
+    public void Setup(RunStartUI ui, int initialValue = 0)
     {
         manager = ui;
+        value = Mathf.Max(0, initialValue);
 
+        plusButton.onClick.RemoveListener(Add);
+        minusButton.onClick.RemoveListener(Remove);
         plusButton.onClick.AddListener(Add);
         minusButton.onClick.AddListener(Remove);
 
@@ -51,4 +54,10 @@ public class MinionRowUI : MonoBehaviour
         return value;
     }
 
+    public void SetValue(int newValue)
+    {
+        value = Mathf.Max(0, newValue);
+        UpdateUI();
+        manager?.OnValueChanged();
+    }
 }

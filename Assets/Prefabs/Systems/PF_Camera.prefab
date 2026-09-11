@@ -183,6 +183,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraCM
   settings: {fileID: 11400000, guid: 84c003c997edcb54f9febaf5b8cf0500, type: 2}
+  startingStage: 1
   orbital: {fileID: 8159341117810746658}
   toggleAction: {fileID: 0}
   zoomAction: {fileID: 0}

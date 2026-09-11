@@ -12,7 +12,14 @@ public class RunStartTrigger : MonoBehaviour
         {
             triggered = true;
 
-            RunStartUI.Instance.Open();
+            if (LevelStartRunFlowController.Instance != null)
+            {
+                LevelStartRunFlowController.Instance.OpenSelectionUI();
+            }
+            else if (RunStartUI.Instance != null)
+            {
+                RunStartUI.Instance.Open();
+            }
         }
     }
 }

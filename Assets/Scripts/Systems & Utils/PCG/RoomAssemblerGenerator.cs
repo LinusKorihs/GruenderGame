@@ -6,6 +6,7 @@ using PCG.RoomAssembler.Data;
 using PCG.RoomAssembler.Logic;
 using PCG.RoomAssembler.Metrics;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Stopwatch = System.Diagnostics.Stopwatch;
 
 public class RoomAssemblerGenerator : MonoBehaviour
@@ -15,6 +16,7 @@ public class RoomAssemblerGenerator : MonoBehaviour
     [Header("Output")]
     public Transform parent;
     public bool clearBeforeGenerate = true;
+    public bool autoGenerateOnStart = true;
 
     [Header("Content")]
     [Tooltip("Optional runtime NavMesh build step. Runs after layout generation and before content spawning.")]
@@ -28,6 +30,7 @@ public class RoomAssemblerGenerator : MonoBehaviour
     public string LastGenerationFailureSummary { get; private set; }
     public bool LastGenerationSucceeded { get; private set; }
     public PCGGenerationMetrics LastGenerationMetrics { get; private set; }
+    public IReadOnlyList<PlacedRoom> LastPlacedRooms => placed;
     public bool IsGenerating => isGenerating;
 
     private System.Random rng;
@@ -42,7 +45,13 @@ public class RoomAssemblerGenerator : MonoBehaviour
     private RoomPlacer roomPlacer;
     private Capping capping;
 
-    private void Start() => Generate();
+    private void Start()
+    {
+        if (!autoGenerateOnStart) return;
+        if (LevelStartRunFlowController.ShouldDeferAutoGeneration(SceneManager.GetActiveScene())) return;
+
+        Generate();
+    }
 
     [ContextMenu("Generate")]
     public void Generate()

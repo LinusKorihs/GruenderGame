@@ -206,7 +206,7 @@
                 {
                     "name": "",
                     "id": "143bb1cd-cc10-4eca-a2f0-a3664166fe91",
-                    "path": "<Gamepad>/buttonWest",
+                    "path": "<Gamepad>/rightShoulder",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
@@ -217,7 +217,7 @@
                 {
                     "name": "",
                     "id": "05f6913d-c316-48b2-a6bb-e225f14c7960",
-                    "path": "<Mouse>/leftButton",
+                    "path": "<Keyboard>/space",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
@@ -260,6 +260,17 @@
                 },
                 {
                     "name": "",
+                    "id": "b28c80cd-514d-4bf8-9917-cc5b5d68e21c",
+                    "path": "<Gamepad>/leftShoulder",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Gamepad",
+                    "action": "Punch",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
                     "id": "1c04ea5f-b012-41d1-a6f7-02e963b52893",
                     "path": "<Keyboard>/e",
                     "interactions": "",
@@ -272,7 +283,7 @@
                 {
                     "name": "",
                     "id": "b3f66d0b-7751-423f-908b-a11c5bd95930",
-                    "path": "<Gamepad>/buttonEast",
+                    "path": "<XInputController>/buttonSouth",
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
@@ -294,7 +305,7 @@
                 {
                     "name": "",
                     "id": "3f46eadf-f097-4734-8334-fa19f1679a58",
-                    "path": "<Gamepad>/buttonSouth",
+                    "path": "<XInputController>/buttonWest",
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
@@ -305,7 +316,7 @@
                 {
                     "name": "",
                     "id": "16b6929f-5294-4b87-be78-6ec6cc1ad1e3",
-                    "path": "<Keyboard>/c",
+                    "path": "<Mouse>/leftButton",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
@@ -316,7 +327,7 @@
                 {
                     "name": "",
                     "id": "d47d6d5d-0353-4b32-a0f4-7e52f757b343",
-                    "path": "",
+                    "path": "<XInputController>/buttonEast",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
@@ -338,10 +349,10 @@
                 {
                     "name": "",
                     "id": "3683bfa9-dd8f-42e6-83ab-08d7a56831ab",
-                    "path": "",
+                    "path": "<XInputController>/buttonSouth",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Gamepad",
                     "action": "MinionCall",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -360,10 +371,10 @@
                 {
                     "name": "",
                     "id": "81e0a394-553c-48a5-864a-03f98fb0ac12",
-                    "path": "",
+                    "path": "<XInputController>/buttonNorth",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Gamepad",
                     "action": "MinionDismiss",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -396,7 +407,7 @@
                     "name": "Attack",
                     "type": "Button",
                     "id": "1ee2d47c-0373-4c5e-b3c9-cc5428409518",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -1455,28 +1466,6 @@
                 },
                 {
                     "name": "",
-                    "id": "6d662165-5d96-4ce6-8439-3091fc630283",
-                    "path": "<Gamepad>/rightShoulder",
-                    "interactions": "",
-                    "processors": "Scale",
-                    "groups": ";Gamepad",
-                    "action": "Zoom",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "37888bbd-cb0a-46f9-9086-40bc5995472a",
-                    "path": "<Gamepad>/leftShoulder",
-                    "interactions": "",
-                    "processors": "Scale(factor=-1)",
-                    "groups": ";Gamepad",
-                    "action": "Zoom",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
                     "id": "404bd049-031f-4aeb-b0e6-61a5456115da",
                     "path": "<Mouse>/scroll/y",
                     "interactions": "",
@@ -1500,10 +1489,10 @@
                 {
                     "name": "",
                     "id": "c54ff32a-4cec-4e81-9048-dc02e447f460",
-                    "path": "<Gamepad>/buttonNorth",
+                    "path": "<XInputController>/rightStickPress",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Gamepad",
                     "action": "Toggle",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -1511,10 +1500,10 @@
                 {
                     "name": "",
                     "id": "850300f0-9224-4e02-8b63-34030ad33cd1",
-                    "path": "<Gamepad>/rightStickPress",
+                    "path": "<XInputController>/rightTrigger",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Gamepad",
                     "action": "LockOn",
                     "isComposite": false,
                     "isPartOfComposite": false

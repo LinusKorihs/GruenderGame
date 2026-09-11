@@ -11,7 +11,8 @@ public class RunStartUI : MonoBehaviour
     public MinionRowUI rowC;
 
     public TMP_Text totalText;
-    public int maxTotal = 15;
+    public int maxTotal = RunSetupData.DefaultMaxTotal;
+    public string fallbackRunSceneName = "LevelStart";
 
     private void Awake()
     {
@@ -21,12 +22,15 @@ public class RunStartUI : MonoBehaviour
 
     public void Open()
     {
+        RunSetupData data = RunSetupData.EnsureInstance();
+        maxTotal = Mathf.Max(1, data.maxTotal);
+
         gameObject.SetActive(true);
         Time.timeScale = 0f;
 
-        rowA.Setup(this);
-        rowB.Setup(this);
-        rowC.Setup(this);
+        rowA.Setup(this, data.typeA);
+        rowB.Setup(this, data.typeB);
+        rowC.Setup(this, data.typeC);
 
         UpdateTotal();
     }
@@ -53,13 +57,19 @@ public class RunStartUI : MonoBehaviour
 
     public void StartRun()
     {
-        // Save values
-        RunSetupData.Instance.typeA = rowA.GetValue();
-        RunSetupData.Instance.typeB = rowB.GetValue();
-        RunSetupData.Instance.typeC = rowC.GetValue();
+        RunSetupData data = RunSetupData.EnsureInstance();
+        data.levelIndex = 1;
+        data.SetMinionCounts(rowA.GetValue(), rowB.GetValue(), rowC.GetValue(), maxTotal);
 
         Time.timeScale = 1f;
+        gameObject.SetActive(false);
 
-        SceneManager.LoadScene("CaveScene"); // <-- your scene name
+        if (LevelStartRunFlowController.Instance != null)
+        {
+            LevelStartRunFlowController.Instance.StartSelectedRun(data.typeA, data.typeB, data.typeC);
+            return;
+        }
+
+        SceneManager.LoadScene(fallbackRunSceneName);
     }
 }

@@ -43,12 +43,12 @@ MonoBehaviour:
   RangedRecoveryDuration: 0.35
   ProjectileLifetime: 6
   UseHomingProjectiles: 0
-  FastProjectilePrefab: {fileID: 2292455647490666795, guid: ba4bfcecd66597f438d6879262eae445, type: 3}
+  FastProjectilePrefab: {fileID: 4717478648976455647, guid: 1dd73af9804f6e443a9a6bcba00329b9, type: 3}
   FastProjectileCount: 3
   FastProjectileInterval: 0.18
   FastProjectileDamage: 6
   FastProjectileSpeed: 12
-  HeavyProjectilePrefab: {fileID: 2292455647490666795, guid: ba4bfcecd66597f438d6879262eae445, type: 3}
+  HeavyProjectilePrefab: {fileID: 4717478648976455647, guid: 1dd73af9804f6e443a9a6bcba00329b9, type: 3}
   HeavyProjectileCount: 2
   HeavyProjectileInterval: 0.65
   HeavyProjectileDamage: 14

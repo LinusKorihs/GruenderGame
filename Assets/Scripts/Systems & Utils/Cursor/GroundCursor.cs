@@ -423,7 +423,7 @@ public class GroundCursor : MonoBehaviour
         // turn off old
         if (aimAssistTarget != null)
         {
-            var oldH = aimAssistTarget.GetComponent<ICursorHighlight>();
+            var oldH = FindCursorHighlight(aimAssistTarget);
             oldH?.SetHighlighted(false);
         }
 
@@ -432,9 +432,22 @@ public class GroundCursor : MonoBehaviour
         // turn on new
         if (aimAssistTarget != null && settings.highlightEnabled)
         {
-            var newH = aimAssistTarget.GetComponent<ICursorHighlight>();
+            var newH = FindCursorHighlight(aimAssistTarget);
             newH?.SetHighlighted(true);
         }
+    }
+
+    private static ICursorHighlight FindCursorHighlight(Transform target)
+    {
+        if (!target) return null;
+
+        ICursorHighlight highlight = target.GetComponent<ICursorHighlight>();
+        if (highlight != null) return highlight;
+
+        highlight = target.GetComponentInParent<ICursorHighlight>();
+        if (highlight != null) return highlight;
+
+        return target.GetComponentInChildren<ICursorHighlight>(true);
     }
 
     private Vector3 GetEnemyGroundSnapPos(Transform t)

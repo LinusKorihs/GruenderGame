@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [AddComponentMenu("Highlight/Damage Flash")]
@@ -29,8 +30,8 @@ public class DamageFlash : MonoBehaviour
     {
         mpb = new MaterialPropertyBlock();
 
-        if (renderers == null || renderers.Length == 0)
-            renderers = GetComponentsInChildren<Renderer>(includeInactive: false);
+        if (ShouldRefreshRenderers())
+            RefreshRenderers();
 
         CacheOriginalEmissions();
 
@@ -70,9 +71,28 @@ public class DamageFlash : MonoBehaviour
 
     private void OnDamageTaken(float _)
     {
+        if (ShouldRefreshRenderers())
+            RefreshRenderers();
+
         flashTimer = flashDuration;
         isFlashing = true;
         ApplyEmission(1f); // Snap to full flash immediately
+    }
+
+    public void RefreshRenderers()
+    {
+        List<Renderer> found = new List<Renderer>();
+        Renderer[] childRenderers = GetComponentsInChildren<Renderer>(includeInactive: false);
+        for (int i = 0; i < childRenderers.Length; i++)
+        {
+            Renderer renderer = childRenderers[i];
+            if (renderer == null || !renderer.enabled) continue;
+            if (renderer.name.Contains("Marker")) continue;
+            found.Add(renderer);
+        }
+
+        renderers = found.ToArray();
+        CacheOriginalEmissions();
     }
 
     // t = 1 → full flash color, t = 0 → original emission
@@ -102,6 +122,12 @@ public class DamageFlash : MonoBehaviour
 
     private void CacheOriginalEmissions()
     {
+        if (renderers == null)
+        {
+            originalEmission = new Color[0][];
+            return;
+        }
+
         originalEmission = new Color[renderers.Length][];
 
         for (int r = 0; r < renderers.Length; r++)
@@ -123,5 +149,20 @@ public class DamageFlash : MonoBehaviour
                     : Color.black;
             }
         }
+    }
+
+    private bool ShouldRefreshRenderers()
+    {
+        if (renderers == null || renderers.Length == 0) return true;
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null && renderers[i].enabled)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

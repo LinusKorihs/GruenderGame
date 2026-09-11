@@ -15,6 +15,7 @@ public class PlayerDodge : MonoBehaviour
     private float dodgeTimer;
 
     private PlayerMovementCC movement;
+    private KelpAnimatorBridge kelpAnimator;
 
     private void Awake()
     {
@@ -40,6 +41,25 @@ public class PlayerDodge : MonoBehaviour
 
         dodgeTimer = DodgeDuration;
         cooldownTimer = DodgeCooldown;
+        ResolveKelpAnimator()?.PlayDodge();
         return true;
+    }
+
+    private KelpAnimatorBridge ResolveKelpAnimator()
+    {
+        if (kelpAnimator != null) return kelpAnimator;
+
+        PlayerKelpVisualInstaller installer = GetComponentInParent<PlayerKelpVisualInstaller>();
+        if (installer != null && installer.Bridge != null)
+        {
+            kelpAnimator = installer.Bridge;
+        }
+
+        if (kelpAnimator == null)
+        {
+            kelpAnimator = transform.root.GetComponentInChildren<KelpAnimatorBridge>(true);
+        }
+
+        return kelpAnimator;
     }
 }

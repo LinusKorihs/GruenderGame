@@ -220,6 +220,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyCursorHighlight
   renderers:
   - {fileID: 7122657857581225033}
+  autoRefreshRenderers: 1
   highlightColor: {r: 0.042452812, g: 0.20989934, b: 1, a: 1}
   intensity: 2
   addToExistingEmission: 1
@@ -276,5 +277,17 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: f3f01acde258ee74cb55705d5037f4e8, type: 2}
   playerTransform: {fileID: 0}
   headAimPoint: {fileID: 3261952189200151757}
+  animationBridge: {fileID: 0}
+  visualRoot: {fileID: 0}
+  animatedVisualPrefab: {fileID: 8143464775878875282, guid: aeb40a3397583a940933d1f7e0fd377e, type: 3}
+  animatedVisualParent: {fileID: 0}
+  animatedVisualLocalPosition: {x: 0, y: 0, z: 0}
+  animatedVisualLocalEulerAngles: {x: 0, y: 0, z: 0}
+  animatedVisualLocalScale: {x: 1, y: 1, z: 1}
+  hidePlaceholderMeshWhenVisualSpawned: 1
+  applyVisualYawOffset: 1
+  visualYawOffset: 180
+  deathDestroyDelay: 1.5
+  airborneTargetSmoothing: 12
   enableLogs: 1
   currentState: 0

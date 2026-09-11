@@ -81,6 +81,12 @@ public class ShellSpinnerEnemy : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private ShellSpinnerAnimatorBridge animationBridge;
     [SerializeField] private Transform visualRoot;
+    [SerializeField] private GameObject animatedVisualPrefab;
+    [SerializeField] private Transform animatedVisualParent;
+    [SerializeField] private Vector3 animatedVisualLocalPosition;
+    [SerializeField] private Vector3 animatedVisualLocalEulerAngles;
+    [SerializeField] private Vector3 animatedVisualLocalScale = Vector3.one;
+    [SerializeField] private bool hidePlaceholderMeshWhenVisualSpawned = true;
     [SerializeField] private bool applyVisualYawOffset;
     [SerializeField] private float visualYawOffset;
     [SerializeField] private bool projectilesDrivenByAnimationEvents = true;
@@ -135,6 +141,8 @@ public class ShellSpinnerEnemy : MonoBehaviour
         stats.Died += OnDied;
         stats.DamageTaken += OnDamageTaken;
 
+        EnsureAnimatedVisual();
+
         if (animationBridge == null)
             animationBridge = GetComponentInChildren<ShellSpinnerAnimatorBridge>(true);
 
@@ -185,6 +193,36 @@ public class ShellSpinnerEnemy : MonoBehaviour
             stats.Died -= OnDied;
             stats.DamageTaken -= OnDamageTaken;
         }
+    }
+
+    private void EnsureAnimatedVisual()
+    {
+        if (animationBridge == null)
+            animationBridge = GetComponentInChildren<ShellSpinnerAnimatorBridge>(true);
+
+        if (animationBridge != null || animatedVisualPrefab == null) return;
+
+        Transform parent = animatedVisualParent != null ? animatedVisualParent : transform;
+        GameObject spawnedVisual = Instantiate(animatedVisualPrefab, parent);
+        spawnedVisual.name = animatedVisualPrefab.name;
+        spawnedVisual.transform.localPosition = animatedVisualLocalPosition;
+        spawnedVisual.transform.localRotation = Quaternion.Euler(animatedVisualLocalEulerAngles);
+        spawnedVisual.transform.localScale = animatedVisualLocalScale;
+
+        animationBridge = spawnedVisual.GetComponentInChildren<ShellSpinnerAnimatorBridge>(true);
+        if (visualRoot == null)
+            visualRoot = spawnedVisual.transform;
+
+        if (hidePlaceholderMeshWhenVisualSpawned)
+        {
+            MeshRenderer placeholderRenderer = GetComponent<MeshRenderer>();
+            if (placeholderRenderer != null)
+                placeholderRenderer.enabled = false;
+        }
+
+        EnemyCursorHighlight highlight = GetComponent<EnemyCursorHighlight>();
+        if (highlight != null)
+            highlight.RefreshRenderers();
     }
 
     private void Update()
@@ -847,7 +885,8 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
     public void OnSpinAttackStartFrame()
     {
-        SetContinueSpinningAnimation(true);
+        if (currentState == SpinnerState.Spinning)
+            SetContinueSpinningAnimation(true);
     }
 
     public void OnSpinAttackHitFrame()
@@ -857,6 +896,12 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
     public void OnSpinAttackEndFrame()
     {
+        if (currentState == SpinnerState.Windup || currentState == SpinnerState.Spinning)
+        {
+            SetContinueSpinningAnimation(true);
+            return;
+        }
+
         StopSpinningAnimation();
     }
 

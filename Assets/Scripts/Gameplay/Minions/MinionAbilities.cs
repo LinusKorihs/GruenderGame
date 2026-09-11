@@ -82,6 +82,8 @@ public class MeleeAttackAbility : AbilityBase
 // otherwise falls back to instant-hit damage.
 public class RangedAttackAbility : AbilityBase
 {
+    private const float ProjectileVisualScale = 3f;
+
     private readonly GameObject projectilePrefab;
     private readonly bool       useHoming;
     private readonly float      projectileSpeed;
@@ -108,9 +110,11 @@ public class RangedAttackAbility : AbilityBase
 
         if (projectilePrefab != null)
         {
-            Vector3 spawnPos            = caster.position + Vector3.up * 0.5f;
-            MinionProjectile projectile = Object.Instantiate(projectilePrefab, spawnPos, Quaternion.identity)
-                .GetComponent<MinionProjectile>();
+            Vector3 spawnPos = caster.position + Vector3.up * 0.5f;
+            GameObject projectileObject = Object.Instantiate(projectilePrefab, spawnPos, Quaternion.identity);
+            projectileObject.transform.localScale *= ProjectileVisualScale;
+
+            MinionProjectile projectile = projectileObject.GetComponent<MinionProjectile>();
 
             if (projectile != null)
             {

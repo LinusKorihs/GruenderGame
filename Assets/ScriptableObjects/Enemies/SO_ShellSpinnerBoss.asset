@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b74501dd4fe64974d964bf8838834d3e, type: 3}
+  m_Name: SO_ShellSpinnerBoss
+  m_EditorClassIdentifier: Assembly-CSharp::ShellSpinnerEnemySettings
+  PlayerTag: Player
+  MinionTag: Ally
+  DetectRadius: 10
+  ForgetRadius: 16
+  DetectMask:
+    serializedVersion: 2
+    m_Bits: 520
+  RequireLOSToDetect: 1
+  LosBlockMask:
+    serializedVersion: 2
+    m_Bits: 192
+  LosHeightOffset: 0.8
+  RotationSpeed: 0
+  WindupDuration: 3
+  GroundMask:
+    serializedVersion: 2
+    m_Bits: 192
+  RangedAttackChance: 0.5
+  MaxSameAttackRepeats: 2
+  SpinSpeed: 10
+  SpinDamage: 20
+  SpinUntilWall: 1
+  MaxSpinRange: 30
+  HitPauseDuration: 0.15
+  SpinCollisionGrace: 0.11
+  KnockbackForce: 15
+  ProjectileSpawnOffset: {x: 0, y: 0.6, z: 0.5}
+  RangedWindupDuration: 0.35
+  RangedRecoveryDuration: 0.35
+  ProjectileLifetime: 6
+  UseHomingProjectiles: 0
+  FastProjectilePrefab: {fileID: 4717478648976455647, guid: 1dd73af9804f6e443a9a6bcba00329b9, type: 3}
+  FastProjectileCount: 6
+  FastProjectileInterval: 0.18
+  FastProjectileDamage: 10
+  FastProjectileSpeed: 12
+  HeavyProjectilePrefab: {fileID: 4717478648976455647, guid: 1dd73af9804f6e443a9a6bcba00329b9, type: 3}
+  HeavyProjectileCount: 3
+  HeavyProjectileInterval: 0.65
+  HeavyProjectileDamage: 20
+  HeavyProjectileSpeed: 7
+  HeavyShotRecoilForce: 2
+  ExitShellDuration: 3
+  DizzyDuration: 2.5
+  DizzyProjDuration: 1
+  WakeUpDuration: 2

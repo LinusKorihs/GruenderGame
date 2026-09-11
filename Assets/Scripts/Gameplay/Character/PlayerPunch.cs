@@ -23,6 +23,7 @@ public class PlayerPunch : MonoBehaviour
 
     private PlayerMovementCC movement;
     private PlayerAim aim;
+    private KelpAnimatorBridge kelpAnimator;
 
     public bool IsPunching => punchLockTimer > 0f;
 
@@ -70,6 +71,7 @@ public class PlayerPunch : MonoBehaviour
 
         punchLockTimer = config.punchLockDuration;
         cooldownTimer = Cooldown;
+        ResolveKelpAnimator()?.PlayPunch();
         return true;
     }
 
@@ -94,5 +96,23 @@ public class PlayerPunch : MonoBehaviour
 
         Gizmos.DrawWireSphere(center, Radius);
         Gizmos.DrawLine(origin + Vector3.up * HitboxBufferUpwards, center);
+    }
+
+    private KelpAnimatorBridge ResolveKelpAnimator()
+    {
+        if (kelpAnimator != null) return kelpAnimator;
+
+        PlayerKelpVisualInstaller installer = GetComponentInParent<PlayerKelpVisualInstaller>();
+        if (installer != null && installer.Bridge != null)
+        {
+            kelpAnimator = installer.Bridge;
+        }
+
+        if (kelpAnimator == null)
+        {
+            kelpAnimator = transform.root.GetComponentInChildren<KelpAnimatorBridge>(true);
+        }
+
+        return kelpAnimator;
     }
 }

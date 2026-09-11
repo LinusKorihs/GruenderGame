@@ -54,6 +54,7 @@ public class PlayerMinionCommander : MonoBehaviour
 
     private float nextAutoFindRefreshTime;
     private PlayerAim playerAim;
+    private KelpAnimatorBridge kelpAnimator;
     private MaterialPropertyBlock previewPropertyBlock;
     private Color lastAppliedPreviewColor;
     private bool hasAppliedPreviewColor;
@@ -127,6 +128,23 @@ public class PlayerMinionCommander : MonoBehaviour
         runtimeMinions.Add(minion);
         runtimeListDirty = true;
         minion.Died += OnMinionDied;
+    }
+
+    public void ClearRegisteredMinions()
+    {
+        for (int i = runtimeMinions.Count - 1; i >= 0; i--)
+        {
+            MinionCore minion = runtimeMinions[i];
+            if (minion != null)
+            {
+                minion.Died -= OnMinionDied;
+            }
+        }
+
+        runtimeMinions.Clear();
+        activeFormationSlots.Clear();
+        cachedRuntimeArray = System.Array.Empty<MinionCore>();
+        runtimeListDirty = true;
     }
 
     private void UnregisterMinion(MinionCore minion)
@@ -239,6 +257,7 @@ public class PlayerMinionCommander : MonoBehaviour
             if (chosen != null)
             {
                 chosen.SetAttackEnemyCommand(target);
+                ResolveKelpAnimator()?.PlayOrderMinions();
                 Log($"[MinionCommander] Order: {chosen.name} ({chosen.RoleType}) → attack enemy '{target.name}'.");
             }
             else
@@ -255,6 +274,7 @@ public class PlayerMinionCommander : MonoBehaviour
             if (chosen != null)
             {
                 chosen.SetAttackObjectCommand(target);
+                ResolveKelpAnimator()?.PlayOrderMinions();
                 Log($"[MinionCommander] Order: {chosen.name} ({chosen.RoleType}) → attack object '{target.name}'.");
             }
 
@@ -272,6 +292,7 @@ public class PlayerMinionCommander : MonoBehaviour
                 if (minion.CanAcceptSupportTarget(target))
                 {
                     minion.SetSupportCommand(target);
+                    ResolveKelpAnimator()?.PlayOrderMinions();
                     Log($"[MinionCommander] Order: {minion.name} (Support) → support ally '{target.name}'.");
                     return;
                 }
@@ -348,6 +369,7 @@ public class PlayerMinionCommander : MonoBehaviour
         Log($"[MinionCommander] Call wave fired — {count} minion(s) recalled (range: {settings.callRange}m).");
         if (count > 0)
         {
+            ResolveKelpAnimator()?.PlayCallMinions();
             PlayCallDismissPulse(settings.callPulseColor);
         }
 
@@ -405,6 +427,7 @@ public class PlayerMinionCommander : MonoBehaviour
         SendGroupToFormation(rangedGroup,  rangedCentre,  forward, right,  0f);
         SendGroupToFormation(supportGroup, supportCentre, forward, right, +gs);
 
+        ResolveKelpAnimator()?.PlayDismiss();
         PlayCallDismissPulse(settings.dismissPulseColor);
 
         Log($"[MinionCommander] Dismiss: {totalCount} minion(s) sent to formation " +
@@ -849,6 +872,24 @@ public class PlayerMinionCommander : MonoBehaviour
     {
         if (dismissAction != null) return dismissAction.action.WasPressedThisFrame();
         return Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame;
+    }
+
+    private KelpAnimatorBridge ResolveKelpAnimator()
+    {
+        if (kelpAnimator != null) return kelpAnimator;
+
+        PlayerKelpVisualInstaller installer = GetComponentInParent<PlayerKelpVisualInstaller>();
+        if (installer != null && installer.Bridge != null)
+        {
+            kelpAnimator = installer.Bridge;
+        }
+
+        if (kelpAnimator == null)
+        {
+            kelpAnimator = transform.root.GetComponentInChildren<KelpAnimatorBridge>(true);
+        }
+
+        return kelpAnimator;
     }
 
     // LOS check from the player to a potential command target.

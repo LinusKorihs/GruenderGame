@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1273055997037786594}
   - component: {fileID: 8642570167466743387}
   - component: {fileID: 1808837662234277016}
+  - component: {fileID: 1927158227120683071}
   m_Layer: 3
   m_Name: PF_Player
   m_TagString: Player
@@ -92,6 +93,26 @@ MonoBehaviour:
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 3296467166676520069}
+--- !u!114 &1927158227120683071
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3093259835440501442}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f2f9971b68c4c4e9d01f4a4f45008c1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerKelpVisualInstaller
+  visualRoot: {fileID: 2151853351454571588}
+  kelpPrefab: {fileID: 3941533600511582443, guid: 7ae36a385fa118042a2790abb21408d8, type: 3}
+  spawnedVisualName: PF_Kelp_Visual
+  localPosition: {x: 0, y: 0, z: 0}
+  localEulerAngles: {x: 0, y: 0, z: 0}
+  localScale: {x: 1, y: 1, z: 1}
+  disablePlaceholderRenderer: 1
+  placeholderRenderer: {fileID: 2488087701667082845}
 --- !u!1 &5486953873702722013
 GameObject:
   m_ObjectHideFlags: 0
@@ -409,6 +430,7 @@ GameObject:
   - component: {fileID: 7388677436742357913}
   - component: {fileID: 2488087701667082845}
   - component: {fileID: 7575410052766950279}
+  - component: {fileID: 8847731206094003011}
   m_Layer: 3
   m_Name: P_Mesh
   m_TagString: Player
@@ -516,6 +538,24 @@ CharacterController:
   m_SkinWidth: 0.07
   m_MinMoveDistance: 0
   m_Center: {x: 0, y: 0.59, z: 0.1}
+--- !u!114 &8847731206094003011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8325294067539546729}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c0a968e169a2054bbd52398182abfa0, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::DamageFlash
+  renderers:
+  - {fileID: 2488087701667082845}
+  flashColor: {r: 1, g: 0.05, b: 0.05, a: 1}
+  flashIntensity: 3
+  flashDuration: 0.2
+  stats: {fileID: 5543834454630587138}
 --- !u!1 &8803991097369859890
 GameObject:
   m_ObjectHideFlags: 0

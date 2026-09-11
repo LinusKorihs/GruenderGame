@@ -11,6 +11,7 @@ public class LevelContentSpawner : MonoBehaviour
     [SerializeField, Min(1)] private int levelIndex = 1;
     [SerializeField] private Transform contentParent;
     [SerializeField] private bool forceSpawnedObjectsActive = true;
+    [SerializeField] private bool reuseExistingPlayer = true;
 
     [Header("Run Setup")]
     [SerializeField] private bool useRunSetupData = true;
@@ -23,6 +24,7 @@ public class LevelContentSpawner : MonoBehaviour
     private Transform generatedContentRoot;
 
     public IReadOnlyList<GameObject> SpawnedObjects => spawnedObjects;
+    public GameObject CurrentPlayer { get; private set; }
     public int LevelIndex
     {
         get => levelIndex;
@@ -99,7 +101,8 @@ public class LevelContentSpawner : MonoBehaviour
         System.Random enemyRng = CreateChildRandom(layoutSeed, 303);
         System.Random itemRng = CreateChildRandom(layoutSeed, 404);
 
-        GameObject player = config.spawnPlayer ? SpawnPlayer(placedRooms, playerRng) : null;
+        GameObject player = config.spawnPlayer ? SpawnPlayer(placedRooms, playerRng) : FindExistingPlayer();
+        CurrentPlayer = player;
 
         if (config.spawnMinions)
         {
@@ -127,13 +130,56 @@ public class LevelContentSpawner : MonoBehaviour
         }
     }
 
+    public void SpawnMinionPartyNearPlayer(GameObject player, int melee, int ranged, int support, int seed, bool clearExistingGeneratedContent = true)
+    {
+        if (config == null)
+        {
+            Debug.LogWarning($"{name}: LevelContentSpawnConfig missing.", this);
+            return;
+        }
+
+        if (player == null)
+        {
+            player = FindExistingPlayer();
+        }
+        else
+        {
+            player = PlayerRootResolver.FromGameObject(player);
+        }
+
+        if (player == null)
+        {
+            Debug.LogWarning($"{name}: no player found for minion party spawn.", this);
+            return;
+        }
+
+        if (clearExistingGeneratedContent)
+        {
+            ClearSpawnedObjects();
+        }
+
+        CurrentPlayer = player;
+        Transform playerBody = PlayerRootResolver.BodyTransform(player);
+        PlayerMinionCommander commander = player.GetComponentInChildren<PlayerMinionCommander>();
+        if (commander == null) commander = FindFirstObjectByType<PlayerMinionCommander>();
+        if (commander != null) commander.ClearRegisteredMinions();
+
+        System.Random rng = CreateChildRandom(seed, 202);
+        int fallbackIndex = 0;
+        int fallbackTotal = Mathf.Max(1, Mathf.Max(0, melee) + Mathf.Max(0, ranged) + Mathf.Max(0, support));
+        SpawnMinionGroup("Melee", melee, null, rng, commander, playerBody, fallbackTotal, ref fallbackIndex);
+        SpawnMinionGroup("Ranged", ranged, null, rng, commander, playerBody, fallbackTotal, ref fallbackIndex);
+        SpawnMinionGroup("Support", support, null, rng, commander, playerBody, fallbackTotal, ref fallbackIndex);
+    }
+
     public void ClearSpawnedObjects()
     {
         HashSet<GameObject> objectsToDestroy = new HashSet<GameObject>();
+        GameObject protectedPlayer = reuseExistingPlayer ? FindExistingPlayer() : null;
 
         for (int i = 0; i < spawnedObjects.Count; i++)
         {
-            if (spawnedObjects[i] != null)
+            if (spawnedObjects[i] != null && !IsProtectedPlayerObject(spawnedObjects[i], protectedPlayer))
                 objectsToDestroy.Add(spawnedObjects[i]);
         }
 
@@ -144,7 +190,7 @@ public class LevelContentSpawner : MonoBehaviour
         for (int i = 0; i < markers.Length; i++)
         {
             PCGGeneratedContentMarker marker = markers[i];
-            if (marker != null && marker.Owner == this)
+            if (marker != null && marker.Owner == this && !IsProtectedPlayerObject(marker.gameObject, protectedPlayer))
                 objectsToDestroy.Add(marker.gameObject);
         }
 
@@ -153,7 +199,11 @@ public class LevelContentSpawner : MonoBehaviour
         if (generatedContentRoot != null)
         {
             for (int i = 0; i < generatedContentRoot.childCount; i++)
-                objectsToDestroy.Add(generatedContentRoot.GetChild(i).gameObject);
+            {
+                GameObject childObject = generatedContentRoot.GetChild(i).gameObject;
+                if (!IsProtectedPlayerObject(childObject, protectedPlayer))
+                    objectsToDestroy.Add(childObject);
+            }
         }
 
         // Older generated content was parented directly below the configured host.
@@ -162,6 +212,9 @@ public class LevelContentSpawner : MonoBehaviour
         {
             Transform child = host.GetChild(i);
             if (child == generatedContentRoot)
+                continue;
+
+            if (IsProtectedPlayerObject(child.gameObject, protectedPlayer))
                 continue;
 
             if (MatchesConfiguredPrefabName(child.name))
@@ -195,14 +248,25 @@ public class LevelContentSpawner : MonoBehaviour
 
     private GameObject SpawnPlayer(IReadOnlyList<PlacedRoom> rooms, System.Random rng)
     {
-        if (config.playerPrefab == null) return null;
-
         PCGSpawnPoint point = PickSpawnPoint(CollectSpawnPoints(rooms, PCGSpawnPointKind.Player), rng, includeRequiredOnly: false);
         if (point == null)
         {
             Debug.LogWarning($"{name}: no player spawnpoint found. Player content not spawned.", this);
             return null;
         }
+
+        if (reuseExistingPlayer)
+        {
+            GameObject existingPlayer = FindExistingPlayer();
+            if (existingPlayer != null)
+            {
+                MoveExistingPlayer(existingPlayer, point.transform.position, point.transform.rotation);
+                point.occupied = true;
+                return existingPlayer;
+            }
+        }
+
+        if (config.playerPrefab == null) return null;
 
         return SpawnPrefab(config.playerPrefab, point, "Player");
     }
@@ -225,23 +289,46 @@ public class LevelContentSpawner : MonoBehaviour
 
         List<PCGSpawnPoint> points = CollectSpawnPoints(rooms, PCGSpawnPointKind.Minion);
         PlayerMinionCommander commander = player != null ? player.GetComponentInChildren<PlayerMinionCommander>() : FindFirstObjectByType<PlayerMinionCommander>();
+        if (commander != null) commander.ClearRegisteredMinions();
+        Transform playerBody = PlayerRootResolver.BodyTransform(player);
 
-        SpawnMinionGroup("Melee", melee, points, rng, commander);
-        SpawnMinionGroup("Ranged", ranged, points, rng, commander);
-        SpawnMinionGroup("Support", support, points, rng, commander);
+        int fallbackIndex = 0;
+        int fallbackTotal = Mathf.Max(1, total);
+        SpawnMinionGroup("Melee", melee, points, rng, commander, playerBody, fallbackTotal, ref fallbackIndex);
+        SpawnMinionGroup("Ranged", ranged, points, rng, commander, playerBody, fallbackTotal, ref fallbackIndex);
+        SpawnMinionGroup("Support", support, points, rng, commander, playerBody, fallbackTotal, ref fallbackIndex);
     }
 
-    private void SpawnMinionGroup(string roleId, int count, List<PCGSpawnPoint> points, System.Random rng, PlayerMinionCommander commander)
+    private void SpawnMinionGroup(
+        string roleId,
+        int count,
+        List<PCGSpawnPoint> points,
+        System.Random rng,
+        PlayerMinionCommander commander,
+        Transform playerBody,
+        int fallbackTotal,
+        ref int fallbackIndex)
     {
         for (int i = 0; i < count; i++)
         {
             PCGSpawnPoint point = PickSpawnPoint(points, rng, includeRequiredOnly: false);
             WeightedSpawnEntry entry = PickWeightedEntry(config.minionPool, rng, point, roleId);
 
-            if (point == null || entry == null || entry.prefab == null) return;
+            if (entry == null || entry.prefab == null) return;
 
-            GameObject minionObject = SpawnPrefab(entry.prefab, point, roleId);
+            int fallbackSlot = fallbackIndex++;
+            GameObject minionObject = point != null
+                ? SpawnPrefab(entry.prefab, point, roleId)
+                : SpawnPrefabNearPlayer(entry.prefab, playerBody, roleId, fallbackSlot, fallbackTotal);
+
+            if (minionObject == null) continue;
+
             MinionCore minion = minionObject.GetComponentInChildren<MinionCore>();
+            if (minion != null && playerBody != null)
+            {
+                minion.SetFollowTarget(playerBody);
+            }
+
             if (commander != null && minion != null)
             {
                 commander.RegisterMinion(minion);
@@ -419,7 +506,50 @@ public class LevelContentSpawner : MonoBehaviour
     {
         GameObject go = Instantiate(prefab, point.transform.position, point.transform.rotation, GetOrCreateGeneratedContentRoot());
         go.name = string.IsNullOrWhiteSpace(contentId) ? prefab.name : $"{prefab.name}_{contentId}";
+        RegisterSpawnedObject(go, prefab, point);
+        return go;
+    }
 
+    private GameObject SpawnPrefabNearPlayer(GameObject prefab, Transform playerBody, string contentId, int indexInGroup, int groupCount)
+    {
+        if (prefab == null || playerBody == null) return null;
+
+        Vector3 basePosition = playerBody.position;
+        Vector3 forward = playerBody.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+        forward.Normalize();
+
+        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+        float angle = groupCount <= 1 ? 0f : (indexInGroup / (float)groupCount) * Mathf.PI * 2f;
+        float radius = 1.6f + Mathf.Floor(indexInGroup / 8f) * 0.7f;
+        Vector3 radial = right * Mathf.Cos(angle) - forward * Mathf.Sin(angle);
+        Vector3 position = basePosition - forward * 1.75f + radial * radius;
+
+        const float navSampleRadius = 0.85f;
+        if (UnityEngine.AI.NavMesh.SamplePosition(position, out UnityEngine.AI.NavMeshHit hit, navSampleRadius, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            Vector3 navDelta = hit.position - position;
+            navDelta.y = 0f;
+            if (navDelta.sqrMagnitude <= navSampleRadius * navSampleRadius)
+            {
+                position = hit.position;
+            }
+        }
+
+        return SpawnPrefabAt(prefab, position, playerBody.rotation, contentId);
+    }
+
+    private GameObject SpawnPrefabAt(GameObject prefab, Vector3 position, Quaternion rotation, string contentId)
+    {
+        GameObject go = Instantiate(prefab, position, rotation, GetOrCreateGeneratedContentRoot());
+        go.name = string.IsNullOrWhiteSpace(contentId) ? prefab.name : $"{prefab.name}_{contentId}";
+        RegisterSpawnedObject(go, prefab, null);
+        return go;
+    }
+
+    private void RegisterSpawnedObject(GameObject go, GameObject prefab, PCGSpawnPoint point)
+    {
         PCGGeneratedContentMarker marker = go.GetComponent<PCGGeneratedContentMarker>();
         if (marker == null)
             marker = go.AddComponent<PCGGeneratedContentMarker>();
@@ -431,7 +561,11 @@ public class LevelContentSpawner : MonoBehaviour
             go.SetActive(true);
         }
 
-        point.occupied = true;
+        if (point != null)
+        {
+            point.occupied = true;
+        }
+
         spawnedObjects.Add(go);
 
         int inactiveChildCount = CountInactiveChildren(go);
@@ -453,13 +587,87 @@ public class LevelContentSpawner : MonoBehaviour
                     go);
             }
 
+            string pointName = point != null ? point.name : "player fallback";
             Debug.Log(
-                $"[PCG Content] Spawned {go.name} at {point.name} " +
+                $"[PCG Content] Spawned {go.name} at {pointName} " +
                 $"activeSelf={go.activeSelf}, activeInHierarchy={go.activeInHierarchy}, inactiveChildren={inactiveChildCount}.",
                 go);
         }
+    }
 
-        return go;
+    private static GameObject FindExistingPlayer()
+    {
+        PlayerMinionCommander commander = FindFirstObjectByType<PlayerMinionCommander>();
+        if (commander != null)
+        {
+            return PlayerRootResolver.FromCommander(commander);
+        }
+
+        try
+        {
+            GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
+            if (taggedPlayer != null)
+            {
+                return PlayerRootResolver.FromTransform(taggedPlayer.transform);
+            }
+        }
+        catch
+        {
+            // The Player tag may not exist in isolated test scenes.
+        }
+
+        return null;
+    }
+
+    private static bool IsProtectedPlayerObject(GameObject candidate, GameObject protectedPlayer)
+    {
+        if (candidate == null || protectedPlayer == null) return false;
+
+        Transform candidateTransform = candidate.transform;
+        Transform protectedTransform = protectedPlayer.transform;
+
+        return candidateTransform == protectedTransform
+            || candidateTransform.IsChildOf(protectedTransform)
+            || protectedTransform.IsChildOf(candidateTransform);
+    }
+
+    private static void MoveExistingPlayer(GameObject player, Vector3 position, Quaternion rotation)
+    {
+        if (player == null) return;
+
+        CharacterController[] controllers = player.GetComponentsInChildren<CharacterController>();
+        bool[] controllerStates = new bool[controllers.Length];
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            controllerStates[i] = controllers[i] != null && controllers[i].enabled;
+            if (controllers[i] != null) controllers[i].enabled = false;
+        }
+
+        Transform body = PlayerRootResolver.BodyTransform(player);
+        player.transform.SetPositionAndRotation(position, rotation);
+        if (body != null && body != player.transform)
+        {
+            body.localPosition = Vector3.zero;
+            body.localRotation = Quaternion.identity;
+        }
+
+        Rigidbody[] rigidbodies = player.GetComponentsInChildren<Rigidbody>();
+        for (int i = 0; i < rigidbodies.Length; i++)
+        {
+            Rigidbody rb = rigidbodies[i];
+            if (rb == null) continue;
+            if (rb.isKinematic) continue;
+
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        Physics.SyncTransforms();
+
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            if (controllers[i] != null) controllers[i].enabled = controllerStates[i];
+        }
     }
 
     private Transform GetOrCreateGeneratedContentRoot()

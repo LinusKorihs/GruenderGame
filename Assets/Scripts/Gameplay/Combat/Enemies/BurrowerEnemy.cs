@@ -63,9 +63,18 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
     [Header("Animation")]
     [SerializeField] private BurrowerAnimatorBridge animationBridge;
     [SerializeField] private Transform visualRoot;
+    [SerializeField] private GameObject animatedVisualPrefab;
+    [SerializeField] private Transform animatedVisualParent;
+    [SerializeField] private Vector3 animatedVisualLocalPosition;
+    [SerializeField] private Vector3 animatedVisualLocalEulerAngles;
+    [SerializeField] private Vector3 animatedVisualLocalScale = Vector3.one;
+    [SerializeField] private bool hidePlaceholderMeshWhenVisualSpawned = true;
     [SerializeField] private bool applyVisualYawOffset;
     [SerializeField] private float visualYawOffset;
     [SerializeField, Min(0f)] private float deathDestroyDelay = 1.5f;
+
+    [Header("Air Movement")]
+    [SerializeField, Min(0f)] private float airborneTargetSmoothing = 12f;
 
     [Header("Debug")]
     [SerializeField] private bool enableLogs;
@@ -90,6 +99,8 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
     private float noTargetHoverTimer;
 
     private Vector3 frame3DVelocity;
+    private Vector3 smoothedDiveTargetPosition;
+    private bool hasSmoothedDiveTargetPosition;
 
     private Collider myCollider;    // own collider cached for Physics.IgnoreCollision
     private Collider activeDiveCollider;    // target's collider; collision is restored after dive
@@ -105,6 +116,8 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
         stats = GetComponent<CombatantStats>();
         stats.Died += OnDied;
         stats.DamageTaken += OnDamageTaken;
+
+        EnsureAnimatedVisual();
 
         if (animationBridge == null)
             animationBridge = GetComponentInChildren<BurrowerAnimatorBridge>(true);
@@ -150,6 +163,36 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
             stats.Died -= OnDied;
             stats.DamageTaken -= OnDamageTaken;
         }
+    }
+
+    private void EnsureAnimatedVisual()
+    {
+        if (animationBridge == null)
+            animationBridge = GetComponentInChildren<BurrowerAnimatorBridge>(true);
+
+        if (animationBridge != null || animatedVisualPrefab == null) return;
+
+        Transform parent = animatedVisualParent != null ? animatedVisualParent : transform;
+        GameObject spawnedVisual = Instantiate(animatedVisualPrefab, parent);
+        spawnedVisual.name = animatedVisualPrefab.name;
+        spawnedVisual.transform.localPosition = animatedVisualLocalPosition;
+        spawnedVisual.transform.localRotation = Quaternion.Euler(animatedVisualLocalEulerAngles);
+        spawnedVisual.transform.localScale = animatedVisualLocalScale;
+
+        animationBridge = spawnedVisual.GetComponentInChildren<BurrowerAnimatorBridge>(true);
+        if (visualRoot == null)
+            visualRoot = spawnedVisual.transform;
+
+        if (hidePlaceholderMeshWhenVisualSpawned)
+        {
+            MeshRenderer placeholderRenderer = GetComponent<MeshRenderer>();
+            if (placeholderRenderer != null)
+                placeholderRenderer.enabled = false;
+        }
+
+        EnemyCursorHighlight highlight = GetComponent<EnemyCursorHighlight>();
+        if (highlight != null)
+            highlight.RefreshRenderers();
     }
 
     private void Update()
@@ -306,7 +349,8 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                 float hitDist = settings != null ? settings.DiveHitDistance : 1.2f;
 
                 // Move toward the target (both horizontally and vertically).
-                Vector3 toTarget = diveTarget.position - transform.position;
+                Vector3 targetPosition = GetSmoothedDiveTargetPosition(diveTarget.position);
+                Vector3 toTarget = targetPosition - transform.position;
                 float dist = toTarget.magnitude;
 
                 if (dist <= hitDist)
@@ -594,9 +638,32 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
         transform.rotation   = Quaternion.Slerp(transform.rotation, targetRot, rs * Time.deltaTime);
     }
 
+    private Vector3 GetSmoothedDiveTargetPosition(Vector3 targetPosition)
+    {
+        if (!hasSmoothedDiveTargetPosition || airborneTargetSmoothing <= 0f)
+        {
+            smoothedDiveTargetPosition = targetPosition;
+            hasSmoothedDiveTargetPosition = true;
+            return smoothedDiveTargetPosition;
+        }
+
+        float t = 1f - Mathf.Exp(-airborneTargetSmoothing * Time.deltaTime);
+        smoothedDiveTargetPosition = Vector3.Lerp(smoothedDiveTargetPosition, targetPosition, t);
+        return smoothedDiveTargetPosition;
+    }
+
+    private void StopAirVelocity()
+    {
+        frame3DVelocity = Vector3.zero;
+        if (rb != null && !rb.isKinematic)
+            rb.linearVelocity = Vector3.zero;
+    }
+
     private void SetState(BurrowerState newState)
     {
         if (newState == currentState) return;
+        StopAirVelocity();
+        hasSmoothedDiveTargetPosition = false;
         Log($"State: {currentState} → {newState}");
         // Ground / underground phases move via direct transform — keep kinematic
         if (rb != null)

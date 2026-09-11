@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // Set IsTrigger on the attached Collider so it registers hits on contact.
-[RequireComponent(typeof(Collider))]
+[RequireComponent(typeof(Collider), typeof(Rigidbody))]
 public class MinionProjectile : MonoBehaviour
 {
     [Header("Collision")]
@@ -17,6 +17,18 @@ public class MinionProjectile : MonoBehaviour
     private string playerTag;   // tag of the player — projectiles pass through them
     private float lifetime;
     private float spawnTime;
+
+    private void Awake()
+    {
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+            col.isTrigger = true;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity = false;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+    }
 
     // Called immediately after Instantiate to configure the projectile. Owner tag is optional but prevents the projectile from hitting the shooter team.
     public void Initialize(
@@ -113,7 +125,7 @@ public class MinionProjectile : MonoBehaviour
         if (!string.IsNullOrEmpty(playerTag) &&
             (other.CompareTag(playerTag) || other.transform.root.CompareTag(playerTag))) return;
 
-        CombatantStats stats = other.GetComponentInParent<CombatantStats>();
+        CombatantStats stats = EnemyTargetUtility.GetStats(other.transform);
         if (stats == null) return;   // No damageable target — pass through (triggers, environment, etc.)
 
         if (!stats.IsDead)

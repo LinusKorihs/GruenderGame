@@ -3,6 +3,7 @@ using UnityEngine;
 public class EnemyCursorHighlight : MonoBehaviour, ICursorHighlight
 {
     [SerializeField] private Renderer[] renderers;
+    [SerializeField] private bool autoRefreshRenderers = true;
 
     [Header("Highlight Look")]
     [SerializeField] private Color highlightColor = new Color(1f, 1f, 1f, 1f); // can be overridden per enemy prefab
@@ -21,7 +22,33 @@ public class EnemyCursorHighlight : MonoBehaviour, ICursorHighlight
     private void Awake()
     {
         mpb = new MaterialPropertyBlock();
-        if (renderers == null || renderers.Length == 0) renderers = GetComponentsInChildren<Renderer>();
+        if (autoRefreshRenderers || renderers == null || renderers.Length == 0)
+            RefreshRenderers(reapplyHighlight: false);
+        else
+            CacheOriginalEmission();
+    }
+
+    public void RefreshRenderers()
+    {
+        RefreshRenderers(reapplyHighlight: true);
+    }
+
+    private void RefreshRenderers(bool reapplyHighlight)
+    {
+        renderers = GetComponentsInChildren<Renderer>(true);
+        CacheOriginalEmission();
+
+        if (reapplyHighlight && isHighlighted)
+            ApplyHighlight();
+    }
+
+    private void CacheOriginalEmission()
+    {
+        if (mpb == null)
+            mpb = new MaterialPropertyBlock();
+
+        if (renderers == null)
+            renderers = GetComponentsInChildren<Renderer>(true);
 
         originalEmission = new Color[renderers.Length][];
 
@@ -52,6 +79,14 @@ public class EnemyCursorHighlight : MonoBehaviour, ICursorHighlight
     {
         isHighlighted = on;
 
+        if (renderers == null || renderers.Length == 0 || originalEmission == null || originalEmission.Length != renderers.Length)
+            RefreshRenderers(reapplyHighlight: false);
+
+        ApplyHighlight();
+    }
+
+    private void ApplyHighlight()
+    {
         for (int r = 0; r < renderers.Length; r++)
         {
             var ren = renderers[r];
@@ -68,7 +103,7 @@ public class EnemyCursorHighlight : MonoBehaviour, ICursorHighlight
                 Color baseE = (originalEmission[r] != null && m < originalEmission[r].Length) ? originalEmission[r][m] : Color.black;
                 Color addE  = highlightColor * intensity;
 
-                Color final = on
+                Color final = isHighlighted
                     ? (addToExistingEmission ? (baseE + addE) : addE)
                     : baseE;
 
