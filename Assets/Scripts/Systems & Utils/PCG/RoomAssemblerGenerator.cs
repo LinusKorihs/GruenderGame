@@ -25,6 +25,10 @@ public class RoomAssemblerGenerator : MonoBehaviour
     [Tooltip("Optional second pass that fills generated rooms with player, minions, enemies, and items.")]
     public LevelContentSpawner contentSpawner;
 
+    [Header("Debug")]
+    [SerializeField, Tooltip("Enables non-critical PCG status and diagnostic logs for this generator.")]
+    private bool enableLogs;
+
     public int LastRunSeed { get; private set; }
     public int LastGenerationFailedAttempts { get; private set; }
     public string LastGenerationFailureSummary { get; private set; }
@@ -81,7 +85,7 @@ public class RoomAssemblerGenerator : MonoBehaviour
 
         if (isGenerating)
         {
-            Debug.LogWarning("[PCG] Generate ignored because generation is already running.", this);
+            LogWarning("[PCG] Generate ignored because generation is already running.");
             totalStopwatch.Stop();
             metrics.success = false;
             metrics.failureCategory = GenerationFailureReason.AlreadyGenerating.ToString();
@@ -132,10 +136,9 @@ public class RoomAssemblerGenerator : MonoBehaviour
 
                 if (emergencyFallback && attempt == normalRetries)
                 {
-                    Debug.LogWarning(
+                    LogWarning(
                         $"[PCG] Normal generation failed after {normalRetries} attempts. " +
-                        $"Starting {fallbackRetries} bounded emergency fallback attempt(s) with relaxed constraints.",
-                        this);
+                        $"Starting {fallbackRetries} bounded emergency fallback attempt(s) with relaxed constraints.");
                 }
 
                 int runSeed = initialSeed + attempt;
@@ -151,7 +154,7 @@ public class RoomAssemblerGenerator : MonoBehaviour
                     overlapPadding: config.overlapPadding,
                     widthToleranceFallback: config.widthToleranceFallback,
                     wallCapInset: config.wallCapInset,
-                    log: config.log
+                    log: LogsEnabled
                 );
                 capping = new Capping(roomPicker, roomPlacer);
 
@@ -222,31 +225,30 @@ public class RoomAssemblerGenerator : MonoBehaviour
                     LastGenerationFailureSummary = runDiagnostics.FormatSummary();
                     LastGenerationSucceeded = metrics.success;
 
-                    Debug.Log(
+                    Log(
                         $"[PCG] Layout succeeded. Seed={runSeed}, Rooms={placed.Count}, " +
                         $"FailedAttempts={attempt}, EmergencyFallback={emergencyFallback}, " +
                         $"MetricSuccess={metrics.success}. " +
-                        LastGenerationFailureSummary,
-                        this);
+                        LastGenerationFailureSummary);
 
                     if (navMeshBuilder != null)
                     {
-                        Debug.Log("[PCG] Building NavMesh.", this);
+                        Log("[PCG] Building NavMesh.");
                         Stopwatch navMeshStopwatch = Stopwatch.StartNew();
                         navMeshBuilder.Build(parent);
                         navMeshStopwatch.Stop();
                         metrics.navMeshMs += navMeshStopwatch.Elapsed.TotalMilliseconds;
-                        Debug.Log("[PCG] NavMesh build complete.", this);
+                        Log("[PCG] NavMesh build complete.");
                     }
 
                     if (contentSpawner != null)
                     {
-                        Debug.Log("[PCG] Spawning generated level content.", this);
+                        Log("[PCG] Spawning generated level content.");
                         Stopwatch contentStopwatch = Stopwatch.StartNew();
                         contentSpawner.SpawnForGeneratedRooms(placed, runSeed);
                         contentStopwatch.Stop();
                         metrics.contentSpawningMs += contentStopwatch.Elapsed.TotalMilliseconds;
-                        Debug.Log("[PCG] Content spawning complete.", this);
+                        Log("[PCG] Content spawning complete.");
                     }
                     return metrics;
                 }
@@ -254,11 +256,10 @@ public class RoomAssemblerGenerator : MonoBehaviour
                 lastFailureReason = failureReason;
                 PCGGenerationMetrics.Increment(metrics.generationFailureCounts, failureReason.ToString(), 1);
                 runDiagnostics.Record(failureReason, attemptDiagnostics);
-                Debug.LogWarning(
+                LogWarning(
                     $"[PCG] {(emergencyFallback ? "Emergency fallback" : "Normal")} attempt " +
                     $"{displayAttempt}/{displayAttemptLimit} failed. " +
-                    attemptDiagnostics.FormatAttempt(failureReason, placed.Count, openSockets.Count),
-                    this);
+                    attemptDiagnostics.FormatAttempt(failureReason, placed.Count, openSockets.Count));
             }
 
             LastGenerationFailedAttempts = totalRetries;
@@ -452,7 +453,7 @@ public class RoomAssemblerGenerator : MonoBehaviour
                     }
 
                     metrics.openSocketsBeforeCapping = openSockets.Count;
-                    Debug.Log($"[PCG] Capping {openSockets.Count} remaining open socket(s).", this);
+                    Log($"[PCG] Capping {openSockets.Count} remaining open socket(s).");
                     Stopwatch cappingStopwatch = Stopwatch.StartNew();
                     capping.CapAllOpenSockets(
                         openSockets: openSockets,
@@ -466,7 +467,7 @@ public class RoomAssemblerGenerator : MonoBehaviour
                         roomOverlapMask: config.roomOverlapMask,
                         preventCapOverlappingCaps: config.preventCapOverlappingCaps,
                         capOverlapMask: config.capOverlapMask,
-                        log: config.log
+                        log: LogsEnabled
                     );
                     cappingStopwatch.Stop();
                     metrics.cappingMs += cappingStopwatch.Elapsed.TotalMilliseconds;
@@ -478,7 +479,7 @@ public class RoomAssemblerGenerator : MonoBehaviour
                     metrics.logicalOnlyCaps = cappingResult.LogicalClosures;
                     metrics.remainingOpenSocketsAfterCapping = cappingResult.RemainingOpenSockets;
                     metrics.actualRoomsAfterCapping = placed.Count;
-                    Debug.Log($"[PCG] Capping complete. RemainingOpen={openSockets.Count}.", this);
+                    Log($"[PCG] Capping complete. RemainingOpen={openSockets.Count}.");
                 }
                 else
                 {
@@ -504,6 +505,20 @@ public class RoomAssemblerGenerator : MonoBehaviour
         {
             DestroyImmediate(target.GetChild(i).gameObject);
         }
+    }
+
+    private bool LogsEnabled => enableLogs && config != null && config.log;
+
+    private void Log(string message)
+    {
+        if (LogsEnabled)
+            Debug.Log(message, this);
+    }
+
+    private void LogWarning(string message)
+    {
+        if (LogsEnabled)
+            Debug.LogWarning(message, this);
     }
 
     private void PopulateLayoutMetrics(PCGGenerationMetrics metrics)

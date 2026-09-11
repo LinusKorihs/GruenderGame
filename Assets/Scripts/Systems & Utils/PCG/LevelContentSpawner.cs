@@ -13,6 +13,10 @@ public class LevelContentSpawner : MonoBehaviour
     [SerializeField] private bool forceSpawnedObjectsActive = true;
     [SerializeField] private bool reuseExistingPlayer = true;
 
+    [Header("Debug")]
+    [SerializeField, Tooltip("Enables non-critical PCG content status and diagnostic logs for this spawner.")]
+    private bool enableLogs;
+
     [Header("Run Setup")]
     [SerializeField] private bool useRunSetupData = true;
     [SerializeField, Min(0)] private int fallbackMeleeMinions;
@@ -39,7 +43,7 @@ public class LevelContentSpawner : MonoBehaviour
 
     private void Update()
     {
-        if (config == null || !config.log) return;
+        if (!LogsEnabled) return;
 
         for (int i = spawnedObjectStates.Count - 1; i >= 0; i--)
         {
@@ -55,7 +59,7 @@ public class LevelContentSpawner : MonoBehaviour
 
             if (state.WasActiveSelf != activeSelf || state.WasActiveInHierarchy != activeInHierarchy)
             {
-                Debug.Log(
+                Log(
                     $"[PCG Content] Active state changed: {state.Object.name} " +
                     $"activeSelf {state.WasActiveSelf}->{activeSelf}, " +
                     $"activeInHierarchy {state.WasActiveInHierarchy}->{activeInHierarchy}. " +
@@ -71,7 +75,7 @@ public class LevelContentSpawner : MonoBehaviour
             int inactiveChildCount = CountInactiveChildren(state.Object);
             if (state.InactiveChildCount != inactiveChildCount)
             {
-                Debug.Log(
+                Log(
                     $"[PCG Content] Child active state changed: {state.Object.name} " +
                     $"inactive children {state.InactiveChildCount}->{inactiveChildCount}. " +
                     "This is usually enemy behaviour toggling visuals/hitboxes, not the whole enemy being disabled.",
@@ -130,9 +134,9 @@ public class LevelContentSpawner : MonoBehaviour
             SpawnBudgetedContent(placedRooms, PCGSpawnPointKind.Item, config.itemBudget, config.itemPool, itemRng, null);
         }
 
-        if (config.log)
+        if (LogsEnabled)
         {
-            Debug.Log($"[PCG Content] Seed={layoutSeed}, Level={levelIndex}, Spawned={spawnedObjects.Count}", this);
+            Log($"[PCG Content] Seed={layoutSeed}, Level={levelIndex}, Spawned={spawnedObjects.Count}");
         }
     }
 
@@ -248,8 +252,8 @@ public class LevelContentSpawner : MonoBehaviour
         spawnedObjects.Clear();
         spawnedObjectStates.Clear();
 
-        if (config != null && config.log && objectsToDestroy.Count > 0)
-            Debug.Log($"[PCG Content] Cleared {objectsToDestroy.Count} generated object(s).", this);
+        if (LogsEnabled && objectsToDestroy.Count > 0)
+            Log($"[PCG Content] Cleared {objectsToDestroy.Count} generated object(s).");
     }
 
     private GameObject SpawnPlayer(IReadOnlyList<PlacedRoom> rooms, System.Random rng)
@@ -257,7 +261,7 @@ public class LevelContentSpawner : MonoBehaviour
         PCGSpawnPoint point = PickSpawnPoint(CollectSpawnPoints(rooms, PCGSpawnPointKind.Player), rng, includeRequiredOnly: false);
         if (point == null)
         {
-            Debug.LogWarning($"{name}: no player spawnpoint found. Player content not spawned.", this);
+            LogWarning($"{name}: no player spawnpoint found. Player content not spawned.");
             return null;
         }
 
@@ -352,20 +356,20 @@ public class LevelContentSpawner : MonoBehaviour
     {
         if (budget == null)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: budget missing.", this);
+            LogWarning($"[PCG Content] {kind}: budget missing.");
             return;
         }
 
         if (pool == null || pool.Count == 0)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: pool is empty.", this);
+            LogWarning($"[PCG Content] {kind}: pool is empty.");
             return;
         }
 
         List<RoomSpawnContext> roomContexts = BuildRoomContexts(rooms, kind);
         if (roomContexts.Count == 0)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: no valid spawnpoints found for level {levelIndex}. Add PCGSpawnPoint components with kind {kind} to generated room prefabs.", this);
+            LogWarning($"[PCG Content] {kind}: no valid spawnpoints found for level {levelIndex}. Add PCGSpawnPoint components with kind {kind} to generated room prefabs.");
             return;
         }
 
@@ -377,7 +381,7 @@ public class LevelContentSpawner : MonoBehaviour
 
         if (capacity <= 0)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: capacity is 0. Check {kind} budget maxPerRoom. Current maxPerRoom={budget.maxPerRoom}, valid rooms={roomContexts.Count}.", this);
+            LogWarning($"[PCG Content] {kind}: capacity is 0. Check {kind} budget maxPerRoom. Current maxPerRoom={budget.maxPerRoom}, valid rooms={roomContexts.Count}.");
             return;
         }
 
@@ -392,7 +396,7 @@ public class LevelContentSpawner : MonoBehaviour
         maxTotal = Mathf.Max(minTotal, maxTotal);
         if (maxTotal <= 0)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: scaled level max is 0. Check min/max per level.", this);
+            LogWarning($"[PCG Content] {kind}: scaled level max is 0. Check min/max per level.");
             return;
         }
 
@@ -420,7 +424,7 @@ public class LevelContentSpawner : MonoBehaviour
 
         if (spawned < totalToSpawn)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: spawned {spawned}/{totalToSpawn}. Check pool entry level ranges, maxPerLevel, prefab assignments, and spawnpoint allowedContentIds.", this);
+            LogWarning($"[PCG Content] {kind}: spawned {spawned}/{totalToSpawn}. Check pool entry level ranges, maxPerLevel, prefab assignments, and spawnpoint allowedContentIds.");
         }
     }
 
@@ -583,18 +587,18 @@ public class LevelContentSpawner : MonoBehaviour
             InactiveChildCount = inactiveChildCount
         });
 
-        if (config != null && config.log)
+        if (LogsEnabled)
         {
             if (prefabSpawnedInactive)
             {
-                Debug.LogWarning(
+                LogWarning(
                     $"[PCG Content] {go.name} was instantiated inactive because prefab '{prefab.name}' root is inactive. " +
                     $"forceSpawnedObjectsActive={forceSpawnedObjectsActive}.",
                     go);
             }
 
             string pointName = point != null ? point.name : "player fallback";
-            Debug.Log(
+            Log(
                 $"[PCG Content] Spawned {go.name} at {pointName} " +
                 $"activeSelf={go.activeSelf}, activeInHierarchy={go.activeInHierarchy}, inactiveChildren={inactiveChildCount}.",
                 go);
@@ -741,6 +745,20 @@ public class LevelContentSpawner : MonoBehaviour
         return count;
     }
 
+    private bool LogsEnabled => enableLogs && config != null && config.log;
+
+    private void Log(string message, UnityEngine.Object context = null)
+    {
+        if (LogsEnabled)
+            Debug.Log(message, context != null ? context : this);
+    }
+
+    private void LogWarning(string message, UnityEngine.Object context = null)
+    {
+        if (LogsEnabled)
+            Debug.LogWarning(message, context != null ? context : this);
+    }
+
     private List<RoomSpawnContext> BuildRoomContexts(IReadOnlyList<PlacedRoom> rooms, PCGSpawnPointKind kind)
     {
         List<RoomSpawnContext> result = new List<RoomSpawnContext>();
@@ -758,7 +776,7 @@ public class LevelContentSpawner : MonoBehaviour
                 if (point == null || point.kind != kind || point.occupied || !point.IsValidForLevel(levelIndex)) continue;
                 if (!IsSpawnPointInsideRoomBounds(rooms[i], point))
                 {
-                    Debug.LogWarning(
+                    LogWarning(
                         $"[PCG Content] Ignoring {kind} spawnpoint '{point.name}' because it is " +
                         $"outside room '{rooms[i].root.name}' Bounds.",
                         point);
@@ -792,7 +810,7 @@ public class LevelContentSpawner : MonoBehaviour
                 if (point == null || point.kind != kind || point.occupied || !point.IsValidForLevel(levelIndex)) continue;
                 if (!IsSpawnPointInsideRoomBounds(rooms[i], point))
                 {
-                    Debug.LogWarning(
+                    LogWarning(
                         $"[PCG Content] Ignoring {kind} spawnpoint '{point.name}' because it is " +
                         $"outside room '{rooms[i].root.name}' Bounds.",
                         point);

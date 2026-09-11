@@ -54,6 +54,7 @@ MonoBehaviour:
   autoGenerateOnStart: 1
   navMeshBuilder: {fileID: 5126942003098301774}
   contentSpawner: {fileID: 6081870863342178339}
+  enableLogs: 0
 --- !u!114 &3135967114009463569
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -91,6 +92,7 @@ MonoBehaviour:
   contentParent: {fileID: 8735502233327984575}
   forceSpawnedObjectsActive: 1
   reuseExistingPlayer: 1
+  enableLogs: 0
   useRunSetupData: 1
   fallbackMeleeMinions: 0
   fallbackRangedMinions: 0
