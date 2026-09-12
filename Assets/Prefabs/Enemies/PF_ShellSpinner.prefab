@@ -224,7 +224,7 @@ MonoBehaviour:
   projectilesDrivenByAnimationEvents: 1
   projectileAnimationEventFallbackDelay: 0.75
   deathDestroyDelay: 1.5
-  enableLogs: 1
+  enableLogs: 0
   currentState: 0
 --- !u!120 &8147322639375545203
 LineRenderer:

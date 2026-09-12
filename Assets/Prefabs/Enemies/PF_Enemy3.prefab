@@ -105,9 +105,20 @@ MonoBehaviour:
   digDownTrigger: DigDown
   deathFlyingTrigger: DeathFlying
   deathDiggingTrigger: DeathDigging
+  logAnimatorCalls: 0
+  logSetupWarnings: 0
+  playStatesDirectly: 1
+  directTransitionDuration: 0.05
   hiddenStateName: E3_HiddenArmed
   walkBaseStateName: E3_Walk
   hoverStateName: E3_Hover
+  wakeUpState: E3_FirstAttack
+  secondAttackState: E3_SecondAttack
+  grabAttackState: E3_SecondAttack
+  flyDownState: E3_FlyDown
+  digDownState: E3_DiggingAndDown
+  deathFlyingState: E3_DeathWhileFlying
+  deathDiggingState: E3_DeathWhileDigging
   updateAnimatorAfterReset: 1
 --- !u!114 &1486419762922202939
 MonoBehaviour:
@@ -121,7 +132,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0c45cfa67f31b6e4ea3bfc57d9b23c86, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy3AnimatorAutoTester
-  enemyAnimator: {fileID: 857642183101590936}
+  burrowerAnimator: {fileID: 0}
   objectToReset: {fileID: 8811493597264921128}
   captureOriginOnStart: 1
   resetTransformBeforeAutoTest: 1
@@ -150,7 +161,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91ff4d35cf05e004ab02ee7f73ef5683, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy3AnimationEvents
-  showDebugLogs: 1
+  burrowerEnemy: {fileID: 0}
+  showDebugLogs: 0
 --- !u!4 &8811493597264921128 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 95c823d24dc540647a47c3e19317e077, type: 3}

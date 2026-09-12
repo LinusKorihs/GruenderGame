@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0665e59a9dc40c3af41bb5d3ffebd32, type: 3}
+  m_Name: SO_Level1
+  m_EditorClassIdentifier: Assembly-CSharp::LevelConfigProfile
+  levelId: level_01
+  levelName: Level 1
+  levelIndex: 2
+  levelType: 0
+  pcgConfigProfile: {fileID: 11400000, guid: f8bc97090ca5c644aa7418a65f59e981, type: 2}

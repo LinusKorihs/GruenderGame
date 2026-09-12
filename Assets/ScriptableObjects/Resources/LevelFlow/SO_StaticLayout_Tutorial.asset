@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8f9c4643694515888391b1b938d198, type: 3}
+  m_Name: SO_StaticLayout_Tutorial
+  m_EditorClassIdentifier: 
+  rooms:
+  - roomId: tutorial_start
+    roomDefinition: {fileID: 11400000, guid: 5f11bf5df2a08a040ac334e8244303d1, type: 2}
+    scale: {x: 2, y: 2, z: 2}
+    attachToRoomId: 
+    targetSocketName: 
+    roomSocketName: 
+  wallCapRoom: {fileID: 11400000, guid: 683f4ae77d082e644b510e8cc8550017, type: 2}
+  capOpenSockets: 1
+  matchCapScaleToRoom: 1
+  wallCapScaleOverride: {x: 0.65, y: 2, z: 0.05}
+  wallCapInset: 0.02
+  clearBeforeBuild: 1
+  buildNavMesh: 1
+  spawnPlayer: 1
+  reuseExistingPlayer: 1
+  playerPrefab: {fileID: 3093259835440501442, guid: e72bb5ab3a57424408c939924b8a72f0, type: 3}
+  playerRoomId: tutorial_start
+  playerFallbackLocalPosition: {x: 0, y: 1, z: 0}
+  spawnBoss: 0
+  bossPrefab: {fileID: 0}
+  bossRoomId: 
+  bossFallbackLocalPosition: {x: 0, y: 1, z: 0}

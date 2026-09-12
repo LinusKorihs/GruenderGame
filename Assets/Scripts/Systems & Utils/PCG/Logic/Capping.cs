@@ -101,10 +101,13 @@ namespace PCG.RoomAssembler.Logic
                         ? $"{blockingCollider.name} (layer={LayerMask.LayerToName(blockingCollider.gameObject.layer)})"
                         : "none";
 
-                    Debug.LogWarning(
-                        $"[PCG Capping] Wall cap failed at {target.marker.name}. " +
-                        $"Reason={wallFailure}, BlockingCollider={blocker}.",
-                        target.marker);
+                    if (log)
+                    {
+                        Debug.LogWarning(
+                            $"[PCG Capping] Wall cap failed at {target.marker.name}. " +
+                            $"Reason={wallFailure}, BlockingCollider={blocker}.",
+                            target.marker);
+                    }
 
                     // Keep generation state consistent, but report that no physical cap exists.
                     target.owner.connectedSocketInstanceIds.Add(target.marker.GetInstanceID());
@@ -113,9 +116,12 @@ namespace PCG.RoomAssembler.Logic
                 }
             }
 
-            Debug.Log(
-                $"[PCG Capping] DeadEnds={deadEndCaps}, Walls={wallCaps}, " +
-                $"LogicalOnly={logicalClosures}, RemainingOpen={openSockets.Count}.");
+            if (log)
+            {
+                Debug.Log(
+                    $"[PCG Capping] DeadEnds={deadEndCaps}, Walls={wallCaps}, " +
+                    $"LogicalOnly={logicalClosures}, RemainingOpen={openSockets.Count}.");
+            }
 
             LastResult = new CappingResult
             {
@@ -126,7 +132,7 @@ namespace PCG.RoomAssembler.Logic
                 RemainingOpenSockets = openSockets.Count
             };
 
-            if (logicalClosures > 0 || openSockets.Count > 0)
+            if (log && (logicalClosures > 0 || openSockets.Count > 0))
             {
                 Debug.LogWarning(
                     $"[PCG Capping] {logicalClosures} socket(s) were closed only logically and " +

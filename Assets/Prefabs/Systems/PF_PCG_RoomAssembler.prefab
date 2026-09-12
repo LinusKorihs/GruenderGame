@@ -51,8 +51,10 @@ MonoBehaviour:
   config: {fileID: 11400000, guid: 8ac41c59633ddb14fa732bcbb2edc7a1, type: 2}
   parent: {fileID: 6868674088188798315}
   clearBeforeGenerate: 1
+  autoGenerateOnStart: 1
   navMeshBuilder: {fileID: 5126942003098301774}
   contentSpawner: {fileID: 6081870863342178339}
+  enableLogs: 0
 --- !u!114 &3135967114009463569
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -89,6 +91,8 @@ MonoBehaviour:
   levelIndex: 1
   contentParent: {fileID: 8735502233327984575}
   forceSpawnedObjectsActive: 1
+  reuseExistingPlayer: 1
+  enableLogs: 0
   useRunSetupData: 1
   fallbackMeleeMinions: 0
   fallbackRangedMinions: 0
@@ -112,9 +116,8 @@ MonoBehaviour:
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  geometry: 1
   defaultArea: 0
-  log: 1
+  log: 0
 --- !u!1 &5355710263612989429
 GameObject:
   m_ObjectHideFlags: 0

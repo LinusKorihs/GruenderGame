@@ -91,7 +91,13 @@ public class RuntimeNavMeshBuilder : MonoBehaviour
 
     private NavMeshSurface ResolveSurface(Transform generatedRoot)
     {
-        if (surface != null) return surface;
+        if (surface != null)
+        {
+            if (surface.transform == generatedRoot)
+                return surface;
+
+            surface = null;
+        }
 
         NavMeshSurface existing = generatedRoot.GetComponent<NavMeshSurface>();
         if (existing != null)

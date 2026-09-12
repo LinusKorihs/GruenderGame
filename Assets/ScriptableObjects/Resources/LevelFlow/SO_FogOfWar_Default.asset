@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ef1fe6f83064a2b84be4cf65245d798, type: 3}
+  m_Name: SO_FogOfWar_Default
+  m_EditorClassIdentifier: Assembly-CSharp::LevelFogOfWarProfile
+  enabled: 1
+  renderMode: 0
+  clearOnApply: 1
+  updateEveryFrame: 1
+  updateInterval: 0.08
+  usePlayerDistanceFog: 1
+  revealRadius: 14
+  edgeSoftness: 12
+  visibleAlpha: 0
+  exploredAlpha: 0.25
+  unexploredAlpha: 0.72
+  fogColor: {r: 0, g: 0, b: 0, a: 1}
+  useDepthTextureFog: 1
+  lockScreenRevealToViewCenter: 1
+  projectScreenFogOnWorldPlane: 0
+  screenUpdateThreshold: 0.01
+  screenRevealRadius: 0.28
+  screenSortingOrder: 120
+  screenDistancePlaneYOffset: 0
+  worldCenter: {x: 0, y: 0, z: 0}
+  worldSize: {x: 140, y: 140}
+  overlayHeight: 0.15
+  textureResolution: 192
+  autoFindPlayerByTag: 1
+  playerTag: Player
+  hideOverlayUntilRevealTargetFound: 1
+  drawDebugGizmos: 1

@@ -316,7 +316,7 @@ MonoBehaviour:
   visualYawOffset: 180
   damageDrivenByAnimationEvents: 1
   deathDestroyDelay: 1.5
-  enableLogs: 1
+  enableLogs: 0
   currentState: 0
 --- !u!136 &1172384545012472642
 CapsuleCollider:
@@ -918,8 +918,8 @@ MonoBehaviour:
   lungeAttackTrigger: LungeAttack
   idleBreakTrigger: IdleBreak
   isDeadParameter: IsDead
-  logAnimatorCalls: 1
-  logSetupWarnings: 1
+  logAnimatorCalls: 0
+  logSetupWarnings: 0
   playStatesDirectly: 1
   directTransitionDuration: 0.05
   mainAttackState: E1_MainAttack

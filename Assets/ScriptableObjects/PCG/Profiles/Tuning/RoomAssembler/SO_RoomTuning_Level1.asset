@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e31f34b76d24c4aa3156e2a4afad1c3, type: 3}
+  m_Name: SO_RoomTuning_Level1
+  m_EditorClassIdentifier: Assembly-CSharp::RoomAssemblerTuningProfile
+  minRooms: 6
+  maxRooms: 8
+  useEndDistanceRange: 0
+  minEndDistanceRooms: 5
+  maxEndDistanceRooms: 10
+  roomUnitWorldOverride: 0
+  attemptsPerOpenSocket: 40
+  maxGenerationRetries: 10
+  useEmergencyFallback: 1
+  emergencyFallbackRetries: 15
+  emergencyMinimumRooms: 8
+  emergencyAdditionalMaxRooms: 15
+  emergencyIgnoreEndDistance: 0
+  emergencyForceEndRoom: 0
+  allowLoops: 1
+  autoCloseMatchingSockets: 1
+  centerSnapTolerance: 0.02
+  forwardDotTolerance: 0.95
+  widthToleranceFallback: 0.05
+  overlapPadding: 0.02
+  capOpenSocketsAfterEnd: 1
+  useDeadEndsToCap: 1
+  maxCapsAfterEnd: 999
+  capExtraPadding: 0.03
+  preventCapOverlappingCaps: 1
+  wallCapInset: 0
+  randomSeed: 1
+  seed: 12345
+  log: 0

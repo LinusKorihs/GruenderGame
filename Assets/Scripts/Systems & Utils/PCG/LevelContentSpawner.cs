@@ -6,12 +6,21 @@ using UnityEngine;
 public class LevelContentSpawner : MonoBehaviour
 {
     private const string GeneratedContentRootName = "PCG_Content";
+    private const string PlayerRootName = "Player";
+    private const string MinionsRootName = "Minions";
+    private const string EnemiesRootName = "Enemies";
+    private const string ItemsRootName = "Items";
 
     [SerializeField] private LevelContentSpawnConfig config;
     [SerializeField, Min(1)] private int levelIndex = 1;
     [SerializeField] private Transform contentParent;
+    [SerializeField] private bool useContentParentAsGeneratedRoot;
     [SerializeField] private bool forceSpawnedObjectsActive = true;
     [SerializeField] private bool reuseExistingPlayer = true;
+
+    [Header("Debug")]
+    [SerializeField, Tooltip("Enables non-critical PCG content status and diagnostic logs for this spawner.")]
+    private bool enableLogs;
 
     [Header("Run Setup")]
     [SerializeField] private bool useRunSetupData = true;
@@ -22,18 +31,35 @@ public class LevelContentSpawner : MonoBehaviour
     private readonly List<GameObject> spawnedObjects = new List<GameObject>();
     private readonly List<SpawnedObjectState> spawnedObjectStates = new List<SpawnedObjectState>();
     private Transform generatedContentRoot;
+    private Transform playerRoot;
+    private Transform minionsRoot;
+    private Transform enemiesRoot;
+    private Transform itemsRoot;
 
     public IReadOnlyList<GameObject> SpawnedObjects => spawnedObjects;
     public GameObject CurrentPlayer { get; private set; }
+    public LevelContentSpawnConfig Config => config;
     public int LevelIndex
     {
         get => levelIndex;
         set => levelIndex = Mathf.Max(1, value);
     }
 
+    public void SetRuntimeConfig(LevelContentSpawnConfig runtimeConfig)
+    {
+        config = runtimeConfig;
+    }
+
+    public void SetContentParent(Transform parent, bool useAsGeneratedRoot = false)
+    {
+        contentParent = parent;
+        useContentParentAsGeneratedRoot = useAsGeneratedRoot;
+        ResetHierarchyCache();
+    }
+
     private void Update()
     {
-        if (config == null || !config.log) return;
+        if (!LogsEnabled) return;
 
         for (int i = spawnedObjectStates.Count - 1; i >= 0; i--)
         {
@@ -49,7 +75,7 @@ public class LevelContentSpawner : MonoBehaviour
 
             if (state.WasActiveSelf != activeSelf || state.WasActiveInHierarchy != activeInHierarchy)
             {
-                Debug.Log(
+                Log(
                     $"[PCG Content] Active state changed: {state.Object.name} " +
                     $"activeSelf {state.WasActiveSelf}->{activeSelf}, " +
                     $"activeInHierarchy {state.WasActiveInHierarchy}->{activeInHierarchy}. " +
@@ -65,7 +91,7 @@ public class LevelContentSpawner : MonoBehaviour
             int inactiveChildCount = CountInactiveChildren(state.Object);
             if (state.InactiveChildCount != inactiveChildCount)
             {
-                Debug.Log(
+                Log(
                     $"[PCG Content] Child active state changed: {state.Object.name} " +
                     $"inactive children {state.InactiveChildCount}->{inactiveChildCount}. " +
                     "This is usually enemy behaviour toggling visuals/hitboxes, not the whole enemy being disabled.",
@@ -124,9 +150,23 @@ public class LevelContentSpawner : MonoBehaviour
             SpawnBudgetedContent(placedRooms, PCGSpawnPointKind.Item, config.itemBudget, config.itemPool, itemRng, null);
         }
 
-        if (config.log)
+        if (spawnedObjects.Count == 0)
         {
-            Debug.Log($"[PCG Content] Seed={layoutSeed}, Level={levelIndex}, Spawned={spawnedObjects.Count}", this);
+            Debug.LogWarning(
+                $"[PCG Content] No generated content spawned. " +
+                $"Rooms={placedRooms.Count}, Level={levelIndex}, " +
+                $"Spawn(Player={config.spawnPlayer}, Minions={config.spawnMinions}, Enemies={config.spawnEnemies}, Items={config.spawnItems}), " +
+                $"SpawnPoints(Player={CountSpawnPoints(placedRooms, PCGSpawnPointKind.Player)}, " +
+                $"Minions={CountSpawnPoints(placedRooms, PCGSpawnPointKind.Minion)}, " +
+                $"Enemies={CountSpawnPoints(placedRooms, PCGSpawnPointKind.Enemy)}, " +
+                $"Items={CountSpawnPoints(placedRooms, PCGSpawnPointKind.Item)}), " +
+                $"Pools(Minions={CountPoolEntries(config.minionPool)}, Enemies={CountPoolEntries(config.enemyPool)}, Items={CountPoolEntries(config.itemPool)}).",
+                this);
+        }
+
+        if (LogsEnabled)
+        {
+            Log($"[PCG Content] Seed={layoutSeed}, Level={levelIndex}, Spawned={spawnedObjects.Count}");
         }
     }
 
@@ -195,14 +235,32 @@ public class LevelContentSpawner : MonoBehaviour
         }
 
         Transform host = contentParent != null ? contentParent : transform;
-        generatedContentRoot = host.Find(GeneratedContentRootName);
+        generatedContentRoot = contentParent != null && useContentParentAsGeneratedRoot
+            ? contentParent
+            : host.Find(GeneratedContentRootName);
         if (generatedContentRoot != null)
         {
             for (int i = 0; i < generatedContentRoot.childCount; i++)
             {
-                GameObject childObject = generatedContentRoot.GetChild(i).gameObject;
-                if (!IsProtectedPlayerObject(childObject, protectedPlayer))
-                    objectsToDestroy.Add(childObject);
+                Transform child = generatedContentRoot.GetChild(i);
+                GameObject childObject = child.gameObject;
+                if (IsProtectedPlayerObject(childObject, protectedPlayer))
+                    continue;
+
+                if (IsGeneratedCategoryRoot(child))
+                {
+                    childObject.SetActive(true);
+                    for (int c = 0; c < child.childCount; c++)
+                    {
+                        GameObject categoryChild = child.GetChild(c).gameObject;
+                        if (!IsProtectedPlayerObject(categoryChild, protectedPlayer))
+                            objectsToDestroy.Add(categoryChild);
+                    }
+
+                    continue;
+                }
+
+                objectsToDestroy.Add(childObject);
             }
         }
 
@@ -215,6 +273,9 @@ public class LevelContentSpawner : MonoBehaviour
                 continue;
 
             if (IsProtectedPlayerObject(child.gameObject, protectedPlayer))
+                continue;
+
+            if (IsGeneratedCategoryRoot(child))
                 continue;
 
             if (MatchesConfiguredPrefabName(child.name))
@@ -241,9 +302,10 @@ public class LevelContentSpawner : MonoBehaviour
 
         spawnedObjects.Clear();
         spawnedObjectStates.Clear();
+        ResetCategoryRoots();
 
-        if (config != null && config.log && objectsToDestroy.Count > 0)
-            Debug.Log($"[PCG Content] Cleared {objectsToDestroy.Count} generated object(s).", this);
+        if (LogsEnabled && objectsToDestroy.Count > 0)
+            Log($"[PCG Content] Cleared {objectsToDestroy.Count} generated object(s).");
     }
 
     private GameObject SpawnPlayer(IReadOnlyList<PlacedRoom> rooms, System.Random rng)
@@ -251,7 +313,7 @@ public class LevelContentSpawner : MonoBehaviour
         PCGSpawnPoint point = PickSpawnPoint(CollectSpawnPoints(rooms, PCGSpawnPointKind.Player), rng, includeRequiredOnly: false);
         if (point == null)
         {
-            Debug.LogWarning($"{name}: no player spawnpoint found. Player content not spawned.", this);
+            LogWarning($"{name}: no player spawnpoint found. Player content not spawned.");
             return null;
         }
 
@@ -268,7 +330,7 @@ public class LevelContentSpawner : MonoBehaviour
 
         if (config.playerPrefab == null) return null;
 
-        return SpawnPrefab(config.playerPrefab, point, "Player");
+        return SpawnPrefab(config.playerPrefab, point, "Player", PCGSpawnPointKind.Player);
     }
 
     private void SpawnMinions(IReadOnlyList<PlacedRoom> rooms, System.Random rng, GameObject player)
@@ -318,8 +380,8 @@ public class LevelContentSpawner : MonoBehaviour
 
             int fallbackSlot = fallbackIndex++;
             GameObject minionObject = point != null
-                ? SpawnPrefab(entry.prefab, point, roleId)
-                : SpawnPrefabNearPlayer(entry.prefab, playerBody, roleId, fallbackSlot, fallbackTotal);
+                ? SpawnPrefab(entry.prefab, point, roleId, PCGSpawnPointKind.Minion)
+                : SpawnPrefabNearPlayer(entry.prefab, playerBody, roleId, fallbackSlot, fallbackTotal, PCGSpawnPointKind.Minion);
 
             if (minionObject == null) continue;
 
@@ -346,20 +408,20 @@ public class LevelContentSpawner : MonoBehaviour
     {
         if (budget == null)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: budget missing.", this);
+            LogWarning($"[PCG Content] {kind}: budget missing.");
             return;
         }
 
         if (pool == null || pool.Count == 0)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: pool is empty.", this);
+            LogWarning($"[PCG Content] {kind}: pool is empty.");
             return;
         }
 
         List<RoomSpawnContext> roomContexts = BuildRoomContexts(rooms, kind);
         if (roomContexts.Count == 0)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: no valid spawnpoints found for level {levelIndex}. Add PCGSpawnPoint components with kind {kind} to generated room prefabs.", this);
+            LogWarning($"[PCG Content] {kind}: no valid spawnpoints found for level {levelIndex}. Add PCGSpawnPoint components with kind {kind} to generated room prefabs.");
             return;
         }
 
@@ -371,7 +433,7 @@ public class LevelContentSpawner : MonoBehaviour
 
         if (capacity <= 0)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: capacity is 0. Check {kind} budget maxPerRoom. Current maxPerRoom={budget.maxPerRoom}, valid rooms={roomContexts.Count}.", this);
+            LogWarning($"[PCG Content] {kind}: capacity is 0. Check {kind} budget maxPerRoom. Current maxPerRoom={budget.maxPerRoom}, valid rooms={roomContexts.Count}.");
             return;
         }
 
@@ -386,7 +448,7 @@ public class LevelContentSpawner : MonoBehaviour
         maxTotal = Mathf.Max(minTotal, maxTotal);
         if (maxTotal <= 0)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: scaled level max is 0. Check min/max per level.", this);
+            LogWarning($"[PCG Content] {kind}: scaled level max is 0. Check min/max per level.");
             return;
         }
 
@@ -406,7 +468,7 @@ public class LevelContentSpawner : MonoBehaviour
             WeightedSpawnEntry entry = PickWeightedEntry(pool, rng, point, null);
             if (point == null || entry == null || entry.prefab == null) break;
 
-            GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id);
+            GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id, kind);
             afterSpawn?.Invoke(spawnedObject);
             room.SpawnedCount++;
             spawned++;
@@ -414,7 +476,7 @@ public class LevelContentSpawner : MonoBehaviour
 
         if (spawned < totalToSpawn)
         {
-            Debug.LogWarning($"[PCG Content] {kind}: spawned {spawned}/{totalToSpawn}. Check pool entry level ranges, maxPerLevel, prefab assignments, and spawnpoint allowedContentIds.", this);
+            LogWarning($"[PCG Content] {kind}: spawned {spawned}/{totalToSpawn}. Check pool entry level ranges, maxPerLevel, prefab assignments, and spawnpoint allowedContentIds.");
         }
     }
 
@@ -441,7 +503,7 @@ public class LevelContentSpawner : MonoBehaviour
                 WeightedSpawnEntry entry = PickWeightedEntry(pool, rng, point, null);
                 if (entry == null || entry.prefab == null) continue;
 
-                GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id);
+                GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id, point.kind);
                 afterSpawn?.Invoke(spawnedObject);
                 room.SpawnedCount++;
                 spawned++;
@@ -469,7 +531,7 @@ public class LevelContentSpawner : MonoBehaviour
                 WeightedSpawnEntry entry = PickWeightedEntry(pool, rng, point, null);
                 if (point == null || entry == null || entry.prefab == null) break;
 
-                GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id);
+                GameObject spawnedObject = SpawnPrefab(entry.prefab, point, entry.id, point.kind);
                 afterSpawn?.Invoke(spawnedObject);
                 room.SpawnedCount++;
                 spawned++;
@@ -502,15 +564,21 @@ public class LevelContentSpawner : MonoBehaviour
         stats.SetHealth(stats.GetStat(CombatStatType.MaxHealth));
     }
 
-    private GameObject SpawnPrefab(GameObject prefab, PCGSpawnPoint point, string contentId)
+    private GameObject SpawnPrefab(GameObject prefab, PCGSpawnPoint point, string contentId, PCGSpawnPointKind kind)
     {
-        GameObject go = Instantiate(prefab, point.transform.position, point.transform.rotation, GetOrCreateGeneratedContentRoot());
+        GameObject go = Instantiate(prefab, point.transform.position, point.transform.rotation, GetOrCreateCategoryRoot(kind));
         go.name = string.IsNullOrWhiteSpace(contentId) ? prefab.name : $"{prefab.name}_{contentId}";
         RegisterSpawnedObject(go, prefab, point);
         return go;
     }
 
-    private GameObject SpawnPrefabNearPlayer(GameObject prefab, Transform playerBody, string contentId, int indexInGroup, int groupCount)
+    private GameObject SpawnPrefabNearPlayer(
+        GameObject prefab,
+        Transform playerBody,
+        string contentId,
+        int indexInGroup,
+        int groupCount,
+        PCGSpawnPointKind kind)
     {
         if (prefab == null || playerBody == null) return null;
 
@@ -537,12 +605,12 @@ public class LevelContentSpawner : MonoBehaviour
             }
         }
 
-        return SpawnPrefabAt(prefab, position, playerBody.rotation, contentId);
+        return SpawnPrefabAt(prefab, position, playerBody.rotation, contentId, kind);
     }
 
-    private GameObject SpawnPrefabAt(GameObject prefab, Vector3 position, Quaternion rotation, string contentId)
+    private GameObject SpawnPrefabAt(GameObject prefab, Vector3 position, Quaternion rotation, string contentId, PCGSpawnPointKind kind)
     {
-        GameObject go = Instantiate(prefab, position, rotation, GetOrCreateGeneratedContentRoot());
+        GameObject go = Instantiate(prefab, position, rotation, GetOrCreateCategoryRoot(kind));
         go.name = string.IsNullOrWhiteSpace(contentId) ? prefab.name : $"{prefab.name}_{contentId}";
         RegisterSpawnedObject(go, prefab, null);
         return go;
@@ -577,18 +645,18 @@ public class LevelContentSpawner : MonoBehaviour
             InactiveChildCount = inactiveChildCount
         });
 
-        if (config != null && config.log)
+        if (LogsEnabled)
         {
             if (prefabSpawnedInactive)
             {
-                Debug.LogWarning(
+                LogWarning(
                     $"[PCG Content] {go.name} was instantiated inactive because prefab '{prefab.name}' root is inactive. " +
                     $"forceSpawnedObjectsActive={forceSpawnedObjectsActive}.",
                     go);
             }
 
             string pointName = point != null ? point.name : "player fallback";
-            Debug.Log(
+            Log(
                 $"[PCG Content] Spawned {go.name} at {pointName} " +
                 $"activeSelf={go.activeSelf}, activeInHierarchy={go.activeInHierarchy}, inactiveChildren={inactiveChildCount}.",
                 go);
@@ -629,6 +697,17 @@ public class LevelContentSpawner : MonoBehaviour
         return candidateTransform == protectedTransform
             || candidateTransform.IsChildOf(protectedTransform)
             || protectedTransform.IsChildOf(candidateTransform);
+    }
+
+    private static bool IsGeneratedCategoryRoot(Transform candidate)
+    {
+        if (candidate == null)
+            return false;
+
+        return string.Equals(candidate.name, PlayerRootName, StringComparison.Ordinal)
+            || string.Equals(candidate.name, MinionsRootName, StringComparison.Ordinal)
+            || string.Equals(candidate.name, EnemiesRootName, StringComparison.Ordinal)
+            || string.Equals(candidate.name, ItemsRootName, StringComparison.Ordinal);
     }
 
     private static void MoveExistingPlayer(GameObject player, Vector3 position, Quaternion rotation)
@@ -676,6 +755,12 @@ public class LevelContentSpawner : MonoBehaviour
             return generatedContentRoot;
 
         Transform host = contentParent != null ? contentParent : transform;
+        if (contentParent != null && useContentParentAsGeneratedRoot)
+        {
+            generatedContentRoot = contentParent;
+            return generatedContentRoot;
+        }
+
         generatedContentRoot = host.Find(GeneratedContentRootName);
         if (generatedContentRoot != null)
             return generatedContentRoot;
@@ -684,6 +769,56 @@ public class LevelContentSpawner : MonoBehaviour
         generatedContentRoot = rootObject.transform;
         generatedContentRoot.SetParent(host, false);
         return generatedContentRoot;
+    }
+
+    private Transform GetOrCreateCategoryRoot(PCGSpawnPointKind kind)
+    {
+        Transform root = GetOrCreateGeneratedContentRoot();
+        switch (kind)
+        {
+            case PCGSpawnPointKind.Player:
+                return playerRoot = GetOrCreateChild(root, PlayerRootName, playerRoot);
+            case PCGSpawnPointKind.Minion:
+                return minionsRoot = GetOrCreateChild(root, MinionsRootName, minionsRoot);
+            case PCGSpawnPointKind.Enemy:
+                return enemiesRoot = GetOrCreateChild(root, EnemiesRootName, enemiesRoot);
+            case PCGSpawnPointKind.Item:
+                return itemsRoot = GetOrCreateChild(root, ItemsRootName, itemsRoot);
+            default:
+                return root;
+        }
+    }
+
+    private static Transform GetOrCreateChild(Transform parent, string childName, Transform cached)
+    {
+        if (cached != null)
+            return cached;
+
+        if (parent == null)
+            return null;
+
+        Transform child = parent.Find(childName);
+        if (child != null)
+            return child;
+
+        GameObject childObject = new GameObject(childName);
+        child = childObject.transform;
+        child.SetParent(parent, false);
+        return child;
+    }
+
+    private void ResetHierarchyCache()
+    {
+        generatedContentRoot = null;
+        ResetCategoryRoots();
+    }
+
+    private void ResetCategoryRoots()
+    {
+        playerRoot = null;
+        minionsRoot = null;
+        enemiesRoot = null;
+        itemsRoot = null;
     }
 
     private bool MatchesConfiguredPrefabName(string instanceName)
@@ -735,6 +870,20 @@ public class LevelContentSpawner : MonoBehaviour
         return count;
     }
 
+    private bool LogsEnabled => enableLogs && config != null && config.log;
+
+    private void Log(string message, UnityEngine.Object context = null)
+    {
+        if (LogsEnabled)
+            Debug.Log(message, context != null ? context : this);
+    }
+
+    private void LogWarning(string message, UnityEngine.Object context = null)
+    {
+        if (LogsEnabled)
+            Debug.LogWarning(message, context != null ? context : this);
+    }
+
     private List<RoomSpawnContext> BuildRoomContexts(IReadOnlyList<PlacedRoom> rooms, PCGSpawnPointKind kind)
     {
         List<RoomSpawnContext> result = new List<RoomSpawnContext>();
@@ -752,7 +901,7 @@ public class LevelContentSpawner : MonoBehaviour
                 if (point == null || point.kind != kind || point.occupied || !point.IsValidForLevel(levelIndex)) continue;
                 if (!IsSpawnPointInsideRoomBounds(rooms[i], point))
                 {
-                    Debug.LogWarning(
+                    LogWarning(
                         $"[PCG Content] Ignoring {kind} spawnpoint '{point.name}' because it is " +
                         $"outside room '{rooms[i].root.name}' Bounds.",
                         point);
@@ -786,7 +935,7 @@ public class LevelContentSpawner : MonoBehaviour
                 if (point == null || point.kind != kind || point.occupied || !point.IsValidForLevel(levelIndex)) continue;
                 if (!IsSpawnPointInsideRoomBounds(rooms[i], point))
                 {
-                    Debug.LogWarning(
+                    LogWarning(
                         $"[PCG Content] Ignoring {kind} spawnpoint '{point.name}' because it is " +
                         $"outside room '{rooms[i].root.name}' Bounds.",
                         point);
@@ -831,6 +980,32 @@ public class LevelContentSpawner : MonoBehaviour
                 if (points[p] != null) points[p].occupied = false;
             }
         }
+    }
+
+    private static int CountSpawnPoints(IReadOnlyList<PlacedRoom> rooms, PCGSpawnPointKind kind)
+    {
+        if (rooms == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < rooms.Count; i++)
+        {
+            if (rooms[i]?.root == null) continue;
+
+            PCGSpawnPoint[] points = rooms[i].root.GetComponentsInChildren<PCGSpawnPoint>(true);
+            for (int p = 0; p < points.Length; p++)
+            {
+                if (points[p] != null && points[p].kind == kind)
+                    count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountPoolEntries(List<WeightedSpawnEntry> pool)
+    {
+        return pool != null ? pool.Count : 0;
     }
 
     private static PCGSpawnPoint PickSpawnPoint(List<PCGSpawnPoint> points, System.Random rng, bool includeRequiredOnly)

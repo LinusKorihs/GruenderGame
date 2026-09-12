@@ -12,16 +12,6 @@ public class RoomAssemblerGeneratorEditor : Editor
 
         var gen = (RoomAssemblerGenerator)target;
 
-        GUILayout.Space(10);
-
-        if (GUILayout.Button("Generate"))
-        {
-            gen.Generate();
-            EditorUtility.SetDirty(gen);
-        }
-
-        GUILayout.Space(6);
-
         if (GUILayout.Button("Enable NavMesh Mesh Read/Write"))
         {
             EnableNavMeshMeshReadWrite(gen);
@@ -108,6 +98,94 @@ public class RoomAssemblerGeneratorEditor : Editor
 
         definitions.Remove(null);
         return definitions;
+    }
+}
+
+[CustomEditor(typeof(LevelProfileLoader))]
+public class LevelProfileLoaderEditor : Editor
+{
+    private static bool runtimeFoldout = true;
+
+    private SerializedProperty levelProfile;
+    private SerializedProperty levelAtmosphereProfile;
+    private SerializedProperty generateAfterApply;
+    private SerializedProperty logProfileApplication;
+
+    private void OnEnable()
+    {
+        levelProfile = serializedObject.FindProperty("levelProfile");
+        levelAtmosphereProfile = serializedObject.FindProperty("levelAtmosphereProfile");
+        generateAfterApply = serializedObject.FindProperty("generateAfterApply");
+        logProfileApplication = serializedObject.FindProperty("logProfileApplication");
+    }
+
+    public override void OnInspectorGUI()
+    {
+        serializedObject.Update();
+
+        DrawProperty(levelProfile);
+        DrawProperty(levelAtmosphereProfile);
+
+        GUILayout.Space(8);
+        runtimeFoldout = EditorGUILayout.Foldout(runtimeFoldout, "Runtime", true);
+        if (runtimeFoldout)
+        {
+            EditorGUI.indentLevel++;
+            DrawProperty(generateAfterApply);
+            DrawProperty(logProfileApplication);
+            EditorGUI.indentLevel--;
+        }
+
+        serializedObject.ApplyModifiedProperties();
+
+        LevelProfileLoader loader = (LevelProfileLoader)target;
+
+        GUILayout.Space(10);
+
+        if (GUILayout.Button("Validate And Apply"))
+        {
+            loader.ValidateAndApplyLevelProfile();
+            EditorUtility.SetDirty(loader);
+        }
+
+        GUILayout.Space(4);
+
+        if (GUILayout.Button("Generate"))
+        {
+            loader.Generate();
+            EditorUtility.SetDirty(loader);
+        }
+
+        GUILayout.Space(4);
+
+        if (GUILayout.Button("Clear Generated Content"))
+        {
+            loader.ClearGeneratedLevelContent();
+            EditorUtility.SetDirty(loader);
+        }
+
+        GUILayout.Space(4);
+
+        if (GUILayout.Button("Move Player + Minions Near Exit"))
+        {
+            LevelStartRunFlowController controller = FindFirstObjectByType<LevelStartRunFlowController>();
+            if (controller != null)
+            {
+                controller.MovePlayerNearGeneratedExitForTesting();
+            }
+            else
+            {
+                Debug.LogWarning("[RunFlow] No LevelStartRunFlowController found for exit teleport test.", loader);
+            }
+        }
+    }
+
+    private static void DrawProperty(SerializedProperty property)
+    {
+        if (property != null)
+        {
+            EditorGUILayout.PropertyField(property);
+        }
     }
 }
 #endif

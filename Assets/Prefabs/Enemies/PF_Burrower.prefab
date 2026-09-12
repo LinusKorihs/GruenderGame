@@ -289,5 +289,5 @@ MonoBehaviour:
   visualYawOffset: 180
   deathDestroyDelay: 1.5
   airborneTargetSmoothing: 12
-  enableLogs: 1
+  enableLogs: 0
   currentState: 0
