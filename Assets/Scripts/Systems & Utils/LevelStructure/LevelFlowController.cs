@@ -22,6 +22,7 @@ public sealed class LevelFlowController : MonoBehaviour
     private const string DefaultBossSceneName = "3. Linus Boss";
     private const string DefaultFlowConfigResourcesPath = "LevelFlow/SO_LevelFlow_Linus";
     private const string LevelLoaderName = "LevelLoader";
+    private const string RuntimeSystemsRootName = "Runtime_Systems";
     private const string LevelLoaderPrefabPath = "Assets/Prefabs/Systems/PF_LevelLoader.prefab";
     private const string Level1ProfilePath = "Assets/ScriptableObjects/PCG/Profiles/Level/SO_Level1.asset";
     private const string Level2ProfilePath = "Assets/ScriptableObjects/PCG/Profiles/Level/SO_Level2.asset";
@@ -223,15 +224,24 @@ public sealed class LevelFlowController : MonoBehaviour
     private LevelProfileLoader EnsureLevelProfileLoader(RoomAssemblerGenerator assembler, LevelContentSpawner contentSpawner)
     {
         if (levelProfileLoader != null)
+        {
+            OrganizeKnownRuntimeObjects();
             return levelProfileLoader;
+        }
 
         levelProfileLoader = GetComponentInChildren<LevelProfileLoader>(true);
         if (levelProfileLoader != null)
+        {
+            OrganizeKnownRuntimeObjects();
             return levelProfileLoader;
+        }
 
         levelProfileLoader = FindFirstObjectByType<LevelProfileLoader>();
         if (levelProfileLoader != null)
+        {
+            OrganizeKnownRuntimeObjects();
             return levelProfileLoader;
+        }
 
         LevelProfileLoader prefab = ResolveLevelLoaderPrefab();
         if (instantiateLevelLoaderWhenMissing && prefab != null)
@@ -240,6 +250,7 @@ public sealed class LevelFlowController : MonoBehaviour
             levelProfileLoader.name = LevelLoaderName;
             DontDestroyOnLoad(levelProfileLoader.gameObject);
             levelProfileLoader.ConfigureTargets(assembler, contentSpawner, FindFirstDirectionalLightInScene());
+            OrganizeKnownRuntimeObjects();
             return levelProfileLoader;
         }
 
@@ -249,12 +260,27 @@ public sealed class LevelFlowController : MonoBehaviour
 
         levelProfileLoader = host.AddComponent<LevelProfileLoader>();
         levelProfileLoader.ConfigureTargets(assembler, contentSpawner, FindFirstDirectionalLightInScene());
+        OrganizeKnownRuntimeObjects();
         return levelProfileLoader;
     }
 
     public bool IsRuntimeLevelLoaderRoot(GameObject target)
     {
         return target != null && levelProfileLoader != null && target == levelProfileLoader.gameObject;
+    }
+
+    public void RegisterRuntimeObject(GameObject target)
+    {
+        if (target == null || levelProfileLoader == null || target == levelProfileLoader.gameObject)
+            return;
+
+        Transform targetTransform = target.transform;
+        Transform loaderTransform = levelProfileLoader.transform;
+        if (targetTransform.IsChildOf(loaderTransform) || loaderTransform.IsChildOf(targetTransform))
+            return;
+
+        Transform runtimeRoot = GetOrCreateChild(loaderTransform, RuntimeSystemsRootName);
+        targetTransform.SetParent(runtimeRoot, true);
     }
 
     private bool BuildStaticLayout(LevelFlowStep step)
@@ -267,6 +293,12 @@ public sealed class LevelFlowController : MonoBehaviour
         }
 
         bool built = builder.Build(step.staticLayoutProfile);
+        if (built && step.stepType == LevelFlowStepType.Boss)
+        {
+            LevelStartRunFlowController.Instance?.EnsureSelectedMinionsForCurrentScene();
+        }
+
+        OrganizeKnownRuntimeObjects();
         Log($"Prepared static step {currentStepIndex}: {DescribeStep(step)}. Built={built}.");
         return built;
     }
@@ -286,7 +318,19 @@ public sealed class LevelFlowController : MonoBehaviour
             staticLayoutBuilder = loader.gameObject.AddComponent<StaticLevelLayoutBuilder>();
         }
 
+        OrganizeKnownRuntimeObjects();
         return staticLayoutBuilder;
+    }
+
+    private void OrganizeKnownRuntimeObjects()
+    {
+        if (levelProfileLoader == null)
+            return;
+
+        RegisterRuntimeObject(gameObject);
+        RegisterRuntimeObject(FindNamedRoot(nameof(LevelStartRunFlowController)));
+        RegisterRuntimeObject(FindNamedRoot(nameof(RunSetupData)));
+        RegisterRuntimeObject(FindNamedRoot("Debug Updater"));
     }
 
     private LevelProfileLoader ResolveLevelLoaderPrefab()
@@ -503,6 +547,38 @@ public sealed class LevelFlowController : MonoBehaviour
         }
 
         return -1;
+    }
+
+    private static Transform GetOrCreateChild(Transform parent, string childName)
+    {
+        if (parent == null)
+            return null;
+
+        string safeName = string.IsNullOrWhiteSpace(childName) ? "Runtime" : childName;
+        Transform child = parent.Find(safeName);
+        if (child != null)
+            return child;
+
+        GameObject childObject = new GameObject(safeName);
+        child = childObject.transform;
+        child.SetParent(parent, false);
+        return child;
+    }
+
+    private static GameObject FindNamedRoot(string objectName)
+    {
+        if (string.IsNullOrWhiteSpace(objectName))
+            return null;
+
+        GameObject[] objects = FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < objects.Length; i++)
+        {
+            GameObject candidate = objects[i];
+            if (candidate != null && candidate.transform.parent == null && candidate.name == objectName)
+                return candidate;
+        }
+
+        return null;
     }
 
     private static Light FindFirstDirectionalLightInScene()

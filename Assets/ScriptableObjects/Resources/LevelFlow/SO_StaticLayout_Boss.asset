@@ -34,6 +34,7 @@ MonoBehaviour:
   wallCapRoom: {fileID: 11400000, guid: 683f4ae77d082e644b510e8cc8550017, type: 2}
   capOpenSockets: 1
   matchCapScaleToRoom: 1
+  wallCapScaleOverride: {x: 0, y: 0, z: 0}
   wallCapInset: 0.02
   clearBeforeBuild: 1
   buildNavMesh: 1

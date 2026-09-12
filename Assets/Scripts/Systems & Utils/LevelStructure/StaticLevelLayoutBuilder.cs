@@ -38,7 +38,7 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
         if (profile.clearBeforeBuild)
         {
             ClearChildren(roomsRoot);
-            ClearChildren(contentRoot);
+            ClearContentChildren(contentRoot);
         }
 
         if (profile.rooms == null || profile.rooms.Count == 0)
@@ -81,6 +81,8 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
             contentRoot,
             "Boss");
 
+        FaceActorTowards(LastBoss, LastPlayer);
+
         if (profile.buildNavMesh)
         {
             RuntimeNavMeshBuilder navMeshBuilder = GetComponentInChildren<RuntimeNavMeshBuilder>(true);
@@ -106,13 +108,13 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
 
         GameObject roomObject = Instantiate(entry.roomDefinition.prefab, roomsRoot);
         roomObject.name = string.IsNullOrWhiteSpace(entry.roomId) ? entry.roomDefinition.id : entry.roomId;
+        roomObject.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
         roomObject.transform.localScale = entry.scale == Vector3.zero ? Vector3.one : entry.scale;
 
         placedRoom = new PlacedRoom(entry.roomDefinition, roomObject);
 
         if (index == 0)
         {
-            roomObject.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
             return true;
         }
 
@@ -161,10 +163,17 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
 
                 GameObject cap = Instantiate(profile.wallCapRoom.prefab, roomsRoot);
                 cap.name = $"CAP_{profile.wallCapRoom.id}_{room.root.name}_{socket.name}";
+                Vector3 prefabScale = cap.transform.localScale;
+                cap.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
                 if (profile.matchCapScaleToRoom)
                 {
-                    cap.transform.localScale = room.root.transform.localScale;
+                    cap.transform.localScale = Vector3.Scale(prefabScale, room.root.transform.localScale);
+                }
+
+                if (profile.wallCapScaleOverride != Vector3.zero)
+                {
+                    cap.transform.localScale = profile.wallCapScaleOverride;
                 }
 
                 PlaceCap(cap.transform, socket, profile.wallCapInset);
@@ -206,7 +215,21 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
         Transform spawn = ResolveSpawnTransform(roomId, spawnKind, fallbackLocalPosition);
         GameObject actor = Instantiate(prefab, spawn.position, spawn.rotation, contentRoot);
         actor.name = actorName;
+        actor.transform.SetPositionAndRotation(spawn.position, spawn.rotation);
         return actor;
+    }
+
+    private static void FaceActorTowards(GameObject actor, GameObject target)
+    {
+        if (actor == null || target == null)
+            return;
+
+        Vector3 direction = target.transform.position - actor.transform.position;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.001f)
+            return;
+
+        actor.transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
     }
 
     private Transform ResolveSpawnTransform(string roomId, PCGSpawnPointKind spawnKind, Vector3 fallbackLocalPosition)
@@ -393,14 +416,46 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
         }
     }
 
+    private static void ClearContentChildren(Transform target)
+    {
+        for (int i = target.childCount - 1; i >= 0; i--)
+        {
+            Transform child = target.GetChild(i);
+            if (IsGeneratedContentCategoryRoot(child))
+            {
+                child.gameObject.SetActive(true);
+                ClearChildren(child);
+                continue;
+            }
+
+            DestroyRuntime(child.gameObject);
+        }
+    }
+
+    private static bool IsGeneratedContentCategoryRoot(Transform candidate)
+    {
+        if (candidate == null)
+            return false;
+
+        return string.Equals(candidate.name, "Player", StringComparison.Ordinal)
+            || string.Equals(candidate.name, "Minions", StringComparison.Ordinal)
+            || string.Equals(candidate.name, "Enemies", StringComparison.Ordinal)
+            || string.Equals(candidate.name, "Items", StringComparison.Ordinal);
+    }
+
     private static void DestroyRuntime(GameObject target)
     {
         if (target == null)
             return;
 
         if (Application.isPlaying)
+        {
+            target.SetActive(false);
             Destroy(target);
+        }
         else
+        {
             DestroyImmediate(target);
+        }
     }
 }

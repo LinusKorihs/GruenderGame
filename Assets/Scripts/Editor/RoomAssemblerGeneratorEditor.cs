@@ -181,6 +181,21 @@ public class LevelProfileLoaderEditor : Editor
             loader.ClearGeneratedLevelContent();
             EditorUtility.SetDirty(loader);
         }
+
+        GUILayout.Space(4);
+
+        if (GUILayout.Button("Move Player + Minions Near Exit"))
+        {
+            LevelStartRunFlowController controller = FindFirstObjectByType<LevelStartRunFlowController>();
+            if (controller != null)
+            {
+                controller.MovePlayerNearGeneratedExitForTesting();
+            }
+            else
+            {
+                Debug.LogWarning("[RunFlow] No LevelStartRunFlowController found for exit teleport test.", loader);
+            }
+        }
     }
 
     private static void DrawProperty(SerializedProperty property)

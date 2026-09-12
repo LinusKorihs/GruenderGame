@@ -3,6 +3,7 @@ using System.Collections;
 using PCG.RoomAssembler.Data;
 using TMPro;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
@@ -102,7 +103,9 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private void Start()
     {
-        LevelFlowController.EnsureInstance().PrepareStaticStepForScene(SceneManager.GetActiveScene());
+        LevelFlowController flow = LevelFlowController.EnsureInstance();
+        flow.PrepareStaticStepForScene(SceneManager.GetActiveScene());
+        flow.RegisterRuntimeObject(gameObject);
         ResolveSceneReferences();
         PrepareLobby();
     }
@@ -174,6 +177,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         // OnTriggerEnter is still inside Unity's physics callback. Waiting one frame
         // keeps the room clear/regenerate path out of that callback.
         yield return null;
+
+        UpdateRunSetupMinionCountsFromLiveParty("level exit");
 
         LevelFlowAdvanceAction flowAction = LevelFlowController.Instance != null
             ? LevelFlowController.Instance.AdvanceAfterCurrentLevelExit()
@@ -304,6 +309,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     {
         RunSetupData data = RunSetupData.EnsureInstance();
         data.ResetRun();
+        LevelFlowController.Instance?.RegisterRuntimeObject(data.gameObject);
 
         ResolveSceneReferences();
 
@@ -363,6 +369,9 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             return;
         }
 
+        RetryContentSpawningIfEmpty(data);
+        ResolveSceneReferences();
+        EnsureSelectedMinionPartyNearPlayer(data);
         ResolveSceneReferences();
         PlaceExitInEndRoom();
     }
@@ -378,10 +387,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             return;
         }
 
-        if (exitObject == null)
-        {
-            PlaceExitInEndRoom();
-        }
+        ClearExitObject();
+        PlaceExitInEndRoom();
 
         if (exitObject == null)
         {
@@ -389,18 +396,442 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             return;
         }
 
-        Vector3 offset = Vector3.back;
+        PlacedRoom endRoom = FindEndRoom();
+        Vector3 targetPosition = endRoom != null
+            ? GetConnectedRoomApproachPosition(endRoom, exitObject.transform.position)
+            : exitObject.transform.position + Vector3.back + Vector3.up * 0.25f;
+
+        Quaternion targetRotation = player.transform.rotation;
         Transform body = PlayerRootResolver.BodyTransform(player);
         if (body != null)
         {
-            offset = -body.forward;
-            offset.y = 0f;
-            if (offset.sqrMagnitude < 0.001f) offset = Vector3.back;
-            offset.Normalize();
+            Vector3 lookDirection = exitObject.transform.position - targetPosition;
+            lookDirection.y = 0f;
+            if (lookDirection.sqrMagnitude > 0.001f)
+                targetRotation = Quaternion.LookRotation(lookDirection.normalized, Vector3.up);
         }
 
-        player.transform.position = exitObject.transform.position + offset + Vector3.up * 0.25f;
-        Debug.Log("[RunFlow] Moved player near generated exit for flow testing.", this);
+        MoveActor(player, targetPosition, targetRotation);
+        MoveActiveMinionsNearPlayer(player, registerWithCommander: true);
+        Debug.Log("[RunFlow] Moved player and minions near generated exit for flow testing.", this);
+    }
+
+    public void EnsureSelectedMinionsForCurrentScene()
+    {
+        RunSetupData data = RunSetupData.Instance;
+        if (data == null || data.TotalMinions <= 0)
+            return;
+
+        ResolveSceneReferences();
+        EnsureSelectedMinionPartyNearPlayer(data);
+    }
+
+    private void RetryContentSpawningIfEmpty(RunSetupData data)
+    {
+        if (assembler == null || contentSpawner == null || contentSpawner.Config == null)
+            return;
+
+        if (CountActiveSpawnedObjects(contentSpawner) > 0)
+            return;
+
+        if (assembler.LastPlacedRooms == null || assembler.LastPlacedRooms.Count == 0)
+            return;
+
+        Debug.LogWarning(
+            $"[RunFlow] Level {Mathf.Max(1, data.levelIndex)} generated with empty Content. Retrying content spawn once.",
+            this);
+
+        contentSpawner.SpawnForGeneratedRooms(assembler.LastPlacedRooms, assembler.LastRunSeed);
+
+        if (CountActiveSpawnedObjects(contentSpawner) == 0)
+        {
+            Debug.LogWarning(
+                $"[RunFlow] Level {Mathf.Max(1, data.levelIndex)} Content is still empty after retry. " +
+                "Check spawnpoints, budgets, allowedContentIds, and the active SpawnTuningProfile.",
+                this);
+        }
+    }
+
+    private void EnsureSelectedMinionPartyNearPlayer(RunSetupData data)
+    {
+        int selectedMelee = Mathf.Max(0, data.typeA);
+        int selectedRanged = Mathf.Max(0, data.typeB);
+        int selectedSupport = Mathf.Max(0, data.typeC);
+        int selectedTotal = selectedMelee + selectedRanged + selectedSupport;
+        if (selectedTotal <= 0)
+            return;
+
+        if (player == null)
+        {
+            Debug.LogWarning("[RunFlow] Cannot ensure selected minions because no player was found.", this);
+            return;
+        }
+
+        CountActiveLiveMinions(out int activeMelee, out int activeRanged, out int activeSupport, out int activeTotal);
+        int missingMelee = Mathf.Max(0, selectedMelee - activeMelee);
+        int missingRanged = Mathf.Max(0, selectedRanged - activeRanged);
+        int missingSupport = Mathf.Max(0, selectedSupport - activeSupport);
+
+        if (missingMelee + missingRanged + missingSupport > 0)
+        {
+            if (contentSpawner == null || contentSpawner.Config == null)
+            {
+                Debug.LogWarning("[RunFlow] Cannot respawn missing selected minions because LevelContentSpawner config is missing.", this);
+                return;
+            }
+
+            contentSpawner.SpawnMinionPartyNearPlayer(
+                player,
+                missingMelee,
+                missingRanged,
+                missingSupport,
+                Environment.TickCount,
+                clearExistingGeneratedContent: false);
+
+            Debug.Log(
+                $"[RunFlow] Added missing minions for level {Mathf.Max(1, data.levelIndex)} " +
+                $"({missingMelee}/{missingRanged}/{missingSupport}).",
+                this);
+        }
+        else if (activeTotal > selectedTotal)
+        {
+            Debug.LogWarning(
+                $"[RunFlow] Found {activeTotal} live minions, but run setup selected {selectedTotal}. " +
+                "Keeping existing minions instead of deleting runtime state.",
+                this);
+        }
+
+        MoveActiveMinionsNearPlayer(player, registerWithCommander: true);
+    }
+
+    private void UpdateRunSetupMinionCountsFromLiveParty(string reason)
+    {
+        RunSetupData data = RunSetupData.Instance;
+        if (data == null || data.TotalMinions <= 0)
+            return;
+
+        CountActiveLiveMinions(out int liveMelee, out int liveRanged, out int liveSupport, out int liveTotal);
+        if (liveTotal >= data.TotalMinions &&
+            liveMelee == data.typeA &&
+            liveRanged == data.typeB &&
+            liveSupport == data.typeC)
+        {
+            return;
+        }
+
+        int oldMelee = data.typeA;
+        int oldRanged = data.typeB;
+        int oldSupport = data.typeC;
+        data.SetMinionCounts(liveMelee, liveRanged, liveSupport, data.maxTotal);
+
+        Debug.Log(
+            $"[RunFlow] Updated run minion survivors before {reason}: " +
+            $"{oldMelee}/{oldRanged}/{oldSupport} -> {data.typeA}/{data.typeB}/{data.typeC}.",
+            this);
+    }
+
+    private static int CountActiveSpawnedObjects(LevelContentSpawner spawner)
+    {
+        if (spawner == null || spawner.SpawnedObjects == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < spawner.SpawnedObjects.Count; i++)
+        {
+            GameObject spawnedObject = spawner.SpawnedObjects[i];
+            if (spawnedObject != null && spawnedObject.activeInHierarchy)
+                count++;
+        }
+
+        return count;
+    }
+
+    private static void CountActiveLiveMinions(out int melee, out int ranged, out int support, out int total)
+    {
+        melee = 0;
+        ranged = 0;
+        support = 0;
+        total = 0;
+
+        MinionCore[] minions = FindObjectsByType<MinionCore>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < minions.Length; i++)
+        {
+            MinionCore minion = minions[i];
+            if (!IsLiveMinion(minion))
+                continue;
+
+            total++;
+            switch (minion.RoleType)
+            {
+                case MinionRoleType.Ranged:
+                    ranged++;
+                    break;
+                case MinionRoleType.Support:
+                    support++;
+                    break;
+                default:
+                    melee++;
+                    break;
+            }
+        }
+    }
+
+    private void MoveActiveMinionsNearPlayer(GameObject playerRoot, bool registerWithCommander)
+    {
+        if (playerRoot == null)
+            return;
+
+        Transform playerBody = PlayerRootResolver.BodyTransform(playerRoot);
+        if (playerBody == null)
+            playerBody = playerRoot.transform;
+
+        PlayerMinionCommander targetCommander = playerRoot.GetComponentInChildren<PlayerMinionCommander>();
+        if (targetCommander == null)
+            targetCommander = FindFirstObjectByType<PlayerMinionCommander>();
+
+        if (registerWithCommander && targetCommander != null)
+            targetCommander.ClearRegisteredMinions();
+
+        MinionCore[] minions = FindObjectsByType<MinionCore>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        int total = 0;
+        for (int i = 0; i < minions.Length; i++)
+        {
+            if (IsLiveMinion(minions[i]))
+                total++;
+        }
+
+        int slot = 0;
+        for (int i = 0; i < minions.Length; i++)
+        {
+            MinionCore minion = minions[i];
+            if (!IsLiveMinion(minion))
+                continue;
+
+            GameObject root = ResolveGeneratedMinionRoot(minion);
+            Vector3 position = GetFormationPositionNearPlayer(playerBody, slot, Mathf.Max(1, total));
+            MoveActor(root, position, playerBody.rotation);
+            minion.SetFollowTarget(playerBody);
+            minion.SetRecallCommand();
+
+            if (registerWithCommander && targetCommander != null)
+                targetCommander.RegisterMinion(minion);
+
+            slot++;
+        }
+    }
+
+    private static Vector3 GetFormationPositionNearPlayer(Transform playerBody, int index, int total)
+    {
+        Vector3 forward = playerBody.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+        forward.Normalize();
+
+        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+        float angle = total <= 1 ? 0f : (index / (float)total) * Mathf.PI * 2f;
+        float radius = 1.4f + Mathf.Floor(index / 8f) * 0.7f;
+        Vector3 radial = right * Mathf.Cos(angle) - forward * Mathf.Sin(angle);
+        Vector3 position = playerBody.position - forward * 1.5f + radial * radius;
+
+        if (NavMesh.SamplePosition(position, out NavMeshHit hit, 1.1f, NavMesh.AllAreas))
+        {
+            Vector3 delta = hit.position - position;
+            delta.y = 0f;
+            if (delta.sqrMagnitude <= 1.1f * 1.1f)
+                position = hit.position;
+        }
+
+        return position;
+    }
+
+    private static Vector3 GetConnectedRoomApproachPosition(PlacedRoom endRoom, Vector3 exitPosition)
+    {
+        PlacedRoom connectedRoom = FindBestConnectedRoom(endRoom, exitPosition);
+        if (connectedRoom == null || connectedRoom.root == null)
+            return GetExitApproachPosition(endRoom, exitPosition);
+
+        SocketMarker endSocket = FindConnectedSocketClosestTo(endRoom, exitPosition);
+        Vector3 referencePosition = endSocket != null ? endSocket.CenterWorld : exitPosition;
+        SocketMarker connectedSocket = FindConnectedSocketClosestTo(connectedRoom, referencePosition);
+
+        Vector3 directionIntoConnectedRoom = Vector3.zero;
+        Vector3 position = connectedRoom.root.transform.position + Vector3.up * 0.25f;
+
+        if (connectedSocket != null)
+        {
+            directionIntoConnectedRoom = -connectedSocket.ForwardWorld;
+            directionIntoConnectedRoom.y = 0f;
+            if (directionIntoConnectedRoom.sqrMagnitude > 0.001f)
+            {
+                directionIntoConnectedRoom.Normalize();
+                position = connectedSocket.CenterWorld + directionIntoConnectedRoom * 1.2f + Vector3.up * 0.25f;
+            }
+        }
+
+        return ClampToRoomBounds(connectedRoom, position, 0.75f);
+    }
+
+    private static Vector3 GetExitApproachPosition(PlacedRoom endRoom, Vector3 exitPosition)
+    {
+        Vector3 directionFromEntrance = Vector3.zero;
+        SocketMarker[] sockets = endRoom.root.GetComponentsInChildren<SocketMarker>(true);
+        for (int i = 0; i < sockets.Length; i++)
+        {
+            SocketMarker socket = sockets[i];
+            if (socket == null)
+                continue;
+
+            if (endRoom.connectedSocketInstanceIds.Contains(socket.GetInstanceID()))
+            {
+                directionFromEntrance = exitPosition - socket.CenterWorld;
+                directionFromEntrance.y = 0f;
+                break;
+            }
+        }
+
+        if (directionFromEntrance.sqrMagnitude < 0.001f)
+        {
+            directionFromEntrance = endRoom.root.transform.forward;
+            directionFromEntrance.y = 0f;
+        }
+
+        if (directionFromEntrance.sqrMagnitude < 0.001f)
+            directionFromEntrance = Vector3.forward;
+
+        directionFromEntrance.Normalize();
+        Vector3 position = exitPosition - directionFromEntrance * 0.85f + Vector3.up * 0.25f;
+        return ClampToRoomBounds(endRoom, position, 0.75f);
+    }
+
+    private static PlacedRoom FindBestConnectedRoom(PlacedRoom endRoom, Vector3 exitPosition)
+    {
+        if (endRoom == null || endRoom.connectedRooms == null)
+            return null;
+
+        PlacedRoom bestRoom = null;
+        float bestDistance = float.PositiveInfinity;
+
+        for (int i = 0; i < endRoom.connectedRooms.Count; i++)
+        {
+            PlacedRoom candidate = endRoom.connectedRooms[i];
+            if (candidate == null || candidate.root == null || candidate.isCap)
+                continue;
+
+            float distance = (GetRoomCenter(candidate.root) - exitPosition).sqrMagnitude;
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestRoom = candidate;
+            }
+        }
+
+        return bestRoom;
+    }
+
+    private static SocketMarker FindConnectedSocketClosestTo(PlacedRoom room, Vector3 worldPosition)
+    {
+        if (room?.root == null)
+            return null;
+
+        SocketMarker bestSocket = null;
+        float bestDistance = float.PositiveInfinity;
+        SocketMarker[] sockets = room.root.GetComponentsInChildren<SocketMarker>(true);
+
+        for (int i = 0; i < sockets.Length; i++)
+        {
+            SocketMarker socket = sockets[i];
+            if (socket == null || !room.connectedSocketInstanceIds.Contains(socket.GetInstanceID()))
+                continue;
+
+            float distance = (socket.CenterWorld - worldPosition).sqrMagnitude;
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestSocket = socket;
+            }
+        }
+
+        return bestSocket;
+    }
+
+    private static Vector3 ClampToRoomBounds(PlacedRoom room, Vector3 position, float margin)
+    {
+        if (room?.root == null)
+            return position;
+
+        Transform boundsTransform = room.root.transform.Find("Bounds");
+        if (boundsTransform == null || !boundsTransform.TryGetComponent(out BoxCollider boundsCollider))
+            return position;
+
+        Vector3 local = boundsTransform.InverseTransformPoint(position);
+        Vector3 halfSize = boundsCollider.size * 0.5f;
+        float safeMargin = Mathf.Max(0f, margin);
+        local.x = Mathf.Clamp(local.x, boundsCollider.center.x - halfSize.x + safeMargin, boundsCollider.center.x + halfSize.x - safeMargin);
+        local.z = Mathf.Clamp(local.z, boundsCollider.center.z - halfSize.z + safeMargin, boundsCollider.center.z + halfSize.z - safeMargin);
+        return boundsTransform.TransformPoint(local);
+    }
+
+    private static void MoveActor(GameObject actor, Vector3 position, Quaternion rotation)
+    {
+        if (actor == null)
+            return;
+
+        CharacterController[] controllers = actor.GetComponentsInChildren<CharacterController>();
+        bool[] controllerStates = new bool[controllers.Length];
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            controllerStates[i] = controllers[i] != null && controllers[i].enabled;
+            if (controllers[i] != null) controllers[i].enabled = false;
+        }
+
+        NavMeshAgent[] agents = actor.GetComponentsInChildren<NavMeshAgent>();
+        bool[] agentStates = new bool[agents.Length];
+        for (int i = 0; i < agents.Length; i++)
+        {
+            agentStates[i] = agents[i] != null && agents[i].enabled;
+            if (agents[i] != null) agents[i].enabled = false;
+        }
+
+        actor.transform.SetPositionAndRotation(position, rotation);
+
+        Rigidbody[] rigidbodies = actor.GetComponentsInChildren<Rigidbody>();
+        for (int i = 0; i < rigidbodies.Length; i++)
+        {
+            Rigidbody rb = rigidbodies[i];
+            if (rb == null || rb.isKinematic) continue;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        Physics.SyncTransforms();
+
+        for (int i = 0; i < agents.Length; i++)
+        {
+            if (agents[i] != null) agents[i].enabled = agentStates[i];
+        }
+
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            if (controllers[i] != null) controllers[i].enabled = controllerStates[i];
+        }
+    }
+
+    private static GameObject ResolveGeneratedMinionRoot(MinionCore minion)
+    {
+        if (minion == null)
+            return null;
+
+        PCGGeneratedContentMarker marker = minion.GetComponentInParent<PCGGeneratedContentMarker>();
+        return marker != null ? marker.gameObject : minion.gameObject;
+    }
+
+    private static bool IsLiveMinion(MinionCore minion)
+    {
+        if (minion == null || !minion.gameObject.activeInHierarchy)
+            return false;
+
+        CombatantStats stats = minion.GetComponentInParent<CombatantStats>();
+        return stats == null || !stats.IsDead;
     }
 
     private void CreateStartButton()
@@ -546,6 +977,32 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         }
 
         return roomRoot.transform.position + Vector3.up * 0.75f;
+    }
+
+    private static Vector3 GetRoomCenter(GameObject roomRoot)
+    {
+        if (roomRoot == null)
+            return Vector3.zero;
+
+        Transform boundsTransform = roomRoot.transform.Find("Bounds");
+        if (boundsTransform != null && boundsTransform.TryGetComponent(out BoxCollider boundsCollider))
+        {
+            return boundsCollider.bounds.center;
+        }
+
+        Renderer[] renderers = roomRoot.GetComponentsInChildren<Renderer>();
+        if (renderers.Length > 0)
+        {
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            return bounds.center;
+        }
+
+        return roomRoot.transform.position;
     }
 
     private static void CreateExitBeacon(Transform parent, Material material)

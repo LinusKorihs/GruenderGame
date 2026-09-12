@@ -150,6 +150,20 @@ public class LevelContentSpawner : MonoBehaviour
             SpawnBudgetedContent(placedRooms, PCGSpawnPointKind.Item, config.itemBudget, config.itemPool, itemRng, null);
         }
 
+        if (spawnedObjects.Count == 0)
+        {
+            Debug.LogWarning(
+                $"[PCG Content] No generated content spawned. " +
+                $"Rooms={placedRooms.Count}, Level={levelIndex}, " +
+                $"Spawn(Player={config.spawnPlayer}, Minions={config.spawnMinions}, Enemies={config.spawnEnemies}, Items={config.spawnItems}), " +
+                $"SpawnPoints(Player={CountSpawnPoints(placedRooms, PCGSpawnPointKind.Player)}, " +
+                $"Minions={CountSpawnPoints(placedRooms, PCGSpawnPointKind.Minion)}, " +
+                $"Enemies={CountSpawnPoints(placedRooms, PCGSpawnPointKind.Enemy)}, " +
+                $"Items={CountSpawnPoints(placedRooms, PCGSpawnPointKind.Item)}), " +
+                $"Pools(Minions={CountPoolEntries(config.minionPool)}, Enemies={CountPoolEntries(config.enemyPool)}, Items={CountPoolEntries(config.itemPool)}).",
+                this);
+        }
+
         if (LogsEnabled)
         {
             Log($"[PCG Content] Seed={layoutSeed}, Level={levelIndex}, Spawned={spawnedObjects.Count}");
@@ -228,9 +242,25 @@ public class LevelContentSpawner : MonoBehaviour
         {
             for (int i = 0; i < generatedContentRoot.childCount; i++)
             {
-                GameObject childObject = generatedContentRoot.GetChild(i).gameObject;
-                if (!IsProtectedPlayerObject(childObject, protectedPlayer))
-                    objectsToDestroy.Add(childObject);
+                Transform child = generatedContentRoot.GetChild(i);
+                GameObject childObject = child.gameObject;
+                if (IsProtectedPlayerObject(childObject, protectedPlayer))
+                    continue;
+
+                if (IsGeneratedCategoryRoot(child))
+                {
+                    childObject.SetActive(true);
+                    for (int c = 0; c < child.childCount; c++)
+                    {
+                        GameObject categoryChild = child.GetChild(c).gameObject;
+                        if (!IsProtectedPlayerObject(categoryChild, protectedPlayer))
+                            objectsToDestroy.Add(categoryChild);
+                    }
+
+                    continue;
+                }
+
+                objectsToDestroy.Add(childObject);
             }
         }
 
@@ -243,6 +273,9 @@ public class LevelContentSpawner : MonoBehaviour
                 continue;
 
             if (IsProtectedPlayerObject(child.gameObject, protectedPlayer))
+                continue;
+
+            if (IsGeneratedCategoryRoot(child))
                 continue;
 
             if (MatchesConfiguredPrefabName(child.name))
@@ -666,6 +699,17 @@ public class LevelContentSpawner : MonoBehaviour
             || protectedTransform.IsChildOf(candidateTransform);
     }
 
+    private static bool IsGeneratedCategoryRoot(Transform candidate)
+    {
+        if (candidate == null)
+            return false;
+
+        return string.Equals(candidate.name, PlayerRootName, StringComparison.Ordinal)
+            || string.Equals(candidate.name, MinionsRootName, StringComparison.Ordinal)
+            || string.Equals(candidate.name, EnemiesRootName, StringComparison.Ordinal)
+            || string.Equals(candidate.name, ItemsRootName, StringComparison.Ordinal);
+    }
+
     private static void MoveExistingPlayer(GameObject player, Vector3 position, Quaternion rotation)
     {
         if (player == null) return;
@@ -936,6 +980,32 @@ public class LevelContentSpawner : MonoBehaviour
                 if (points[p] != null) points[p].occupied = false;
             }
         }
+    }
+
+    private static int CountSpawnPoints(IReadOnlyList<PlacedRoom> rooms, PCGSpawnPointKind kind)
+    {
+        if (rooms == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < rooms.Count; i++)
+        {
+            if (rooms[i]?.root == null) continue;
+
+            PCGSpawnPoint[] points = rooms[i].root.GetComponentsInChildren<PCGSpawnPoint>(true);
+            for (int p = 0; p < points.Length; p++)
+            {
+                if (points[p] != null && points[p].kind == kind)
+                    count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountPoolEntries(List<WeightedSpawnEntry> pool)
+    {
+        return pool != null ? pool.Count : 0;
     }
 
     private static PCGSpawnPoint PickSpawnPoint(List<PCGSpawnPoint> points, System.Random rng, bool includeRequiredOnly)

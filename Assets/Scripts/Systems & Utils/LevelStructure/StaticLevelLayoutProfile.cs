@@ -23,6 +23,8 @@ public sealed class StaticLevelLayoutProfile : ScriptableObject
     public RoomDefinition wallCapRoom;
     public bool capOpenSockets = true;
     public bool matchCapScaleToRoom = true;
+    [Tooltip("Optional explicit cap scale. Leave at 0/0/0 to keep the prefab scale or match the owning room scale.")]
+    public Vector3 wallCapScaleOverride;
     [Min(0f)] public float wallCapInset = 0.02f;
 
     [Header("Runtime")]
