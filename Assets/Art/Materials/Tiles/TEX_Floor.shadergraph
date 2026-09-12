@@ -64,9 +64,6 @@
         },
         {
             "m_Id": "b9aad2ca8d89434a89fc47c4fd1be9eb"
-        },
-        {
-            "m_Id": "fefc6eca314b4b6d8efb6e6bfd7efa3e"
         }
     ],
     "m_GroupDatas": [],
@@ -154,20 +151,6 @@
                     "m_Id": "cf9ecea621094ffcb6ddc71cf7459575"
                 },
                 "m_SlotId": 1
-            }
-        },
-        {
-            "m_OutputSlot": {
-                "m_Node": {
-                    "m_Id": "fefc6eca314b4b6d8efb6e6bfd7efa3e"
-                },
-                "m_SlotId": 0
-            },
-            "m_InputSlot": {
-                "m_Node": {
-                    "m_Id": "e642282e551a458ab5bf1a3d8218a81e"
-                },
-                "m_SlotId": 0
             }
         }
     ],
@@ -1774,31 +1757,6 @@
 
 {
     "m_SGVersion": 0,
-    "m_Type": "UnityEditor.ShaderGraph.Vector4MaterialSlot",
-    "m_ObjectId": "c470d21878484988a95769a9de3bbec9",
-    "m_Id": 0,
-    "m_DisplayName": "Out",
-    "m_SlotType": 1,
-    "m_Hidden": false,
-    "m_ShaderOutputName": "Out",
-    "m_StageCapability": 3,
-    "m_Value": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0,
-        "w": 0.0
-    },
-    "m_DefaultValue": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0,
-        "w": 0.0
-    },
-    "m_Labels": []
-}
-
-{
-    "m_SGVersion": 0,
     "m_Type": "UnityEditor.ShaderGraph.MultiplyNode",
     "m_ObjectId": "c648edab58bd41ffb5b84788b9edc96a",
     "m_Group": {
@@ -2111,43 +2069,5 @@
         "e32": 0.0,
         "e33": 1.0
     }
-}
-
-{
-    "m_SGVersion": 0,
-    "m_Type": "UnityEditor.ShaderGraph.UVNode",
-    "m_ObjectId": "fefc6eca314b4b6d8efb6e6bfd7efa3e",
-    "m_Group": {
-        "m_Id": ""
-    },
-    "m_Name": "UV",
-    "m_DrawState": {
-        "m_Expanded": true,
-        "m_Position": {
-            "serializedVersion": "2",
-            "x": -1008.7999877929688,
-            "y": 164.00001525878907,
-            "width": 208.00006103515626,
-            "height": 310.40008544921877
-        }
-    },
-    "m_Slots": [
-        {
-            "m_Id": "c470d21878484988a95769a9de3bbec9"
-        }
-    ],
-    "synonyms": [
-        "texcoords",
-        "coords",
-        "coordinates"
-    ],
-    "m_Precision": 0,
-    "m_PreviewExpanded": true,
-    "m_DismissedVersion": 0,
-    "m_PreviewMode": 0,
-    "m_CustomColors": {
-        "m_SerializableColors": []
-    },
-    "m_OutputChannel": 0
 }
 
