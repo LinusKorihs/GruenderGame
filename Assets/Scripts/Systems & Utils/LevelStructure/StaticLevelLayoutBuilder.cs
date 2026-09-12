@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using PCG.RoomAssembler.Data;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public sealed class StaticLevelLayoutBuilder : MonoBehaviour
 {
@@ -15,6 +16,13 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
     public IReadOnlyList<PlacedRoom> LastPlacedRooms => placedRooms;
     public GameObject LastPlayer { get; private set; }
     public GameObject LastBoss { get; private set; }
+
+    private Transform runtimeLevelRootOverride;
+
+    public void SetRuntimeLevelRoot(Transform levelRoot)
+    {
+        runtimeLevelRootOverride = levelRoot;
+    }
 
     public bool Build(StaticLevelLayoutProfile profile)
     {
@@ -201,8 +209,15 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
             if (existing != null)
             {
                 Transform target = ResolveSpawnTransform(roomId, spawnKind, fallbackLocalPosition);
-                existing.transform.SetPositionAndRotation(target.position, target.rotation);
-                return existing;
+                GameObject reusedActor = PlayerRootResolver.FromGameObject(existing);
+                if (reusedActor == null)
+                {
+                    reusedActor = existing;
+                }
+
+                reusedActor.transform.SetPositionAndRotation(target.position, target.rotation);
+                MoveActorToContentRoot(reusedActor, contentRoot);
+                return reusedActor;
             }
         }
 
@@ -259,7 +274,7 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
         }
 
         GameObject worldFallback = new GameObject($"{spawnKind}_FallbackSpawn");
-        worldFallback.transform.SetParent(transform, false);
+        worldFallback.transform.SetParent(GetRuntimeHierarchyRoot(), false);
         worldFallback.transform.localPosition = fallbackLocalPosition;
         worldFallback.transform.localRotation = Quaternion.identity;
         return worldFallback.transform;
@@ -351,10 +366,34 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
 
     private void ResolveRuntimeRoots(out Transform roomsRoot, out Transform contentRoot)
     {
-        Transform pcgRoot = GetOrCreateChild(transform, PCGRootName);
+        Transform pcgRoot = GetOrCreateChild(GetRuntimeHierarchyRoot(), PCGRootName);
         Transform generatedRoot = GetOrCreateChild(pcgRoot, GeneratedLevelRootName);
         roomsRoot = GetOrCreateChild(generatedRoot, RoomsRootName);
         contentRoot = GetOrCreateChild(generatedRoot, ContentRootName);
+    }
+
+    private Transform GetRuntimeHierarchyRoot()
+    {
+        return runtimeLevelRootOverride != null ? runtimeLevelRootOverride : transform;
+    }
+
+    private static void MoveActorToContentRoot(GameObject actor, Transform contentRoot)
+    {
+        if (actor == null || contentRoot == null)
+            return;
+
+        if (Application.isPlaying && actor.transform.parent != null)
+        {
+            actor.transform.SetParent(null, true);
+        }
+
+        Scene targetScene = contentRoot.gameObject.scene;
+        if (Application.isPlaying && actor.transform.parent == null && actor.scene != targetScene)
+        {
+            SceneManager.MoveGameObjectToScene(actor, targetScene);
+        }
+
+        actor.transform.SetParent(contentRoot, true);
     }
 
     private static Transform GetOrCreateChild(Transform parent, string childName)
@@ -373,7 +412,8 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
     {
         try
         {
-            return GameObject.FindGameObjectWithTag("Player");
+            GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
+            return taggedPlayer != null ? PlayerRootResolver.FromGameObject(taggedPlayer) : null;
         }
         catch
         {

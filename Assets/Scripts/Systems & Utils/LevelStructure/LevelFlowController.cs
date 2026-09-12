@@ -21,15 +21,26 @@ public sealed class LevelFlowController : MonoBehaviour
     private const string DefaultRunSceneName = "2. Linus Run";
     private const string DefaultBossSceneName = "3. Linus Boss";
     private const string DefaultFlowConfigResourcesPath = "LevelFlow/SO_LevelFlow_Linus";
+    private const string LevelFlowResourcesFolder = "LevelFlow";
     private const string LevelLoaderName = "LevelLoader";
     private const string RuntimeSystemsRootName = "Runtime_Systems";
-    private const string LevelLoaderPrefabPath = "Assets/Prefabs/Systems/PF_LevelLoader.prefab";
+    private const string LevelRuntimeRootName = "Level_Runtime";
+    private const string LevelLoaderPrefabPath = "Assets/Prefabs/Systems/Levels/PF_LevelLoader.prefab";
     private const string Level1ProfilePath = "Assets/ScriptableObjects/PCG/Profiles/Level/SO_Level1.asset";
     private const string Level2ProfilePath = "Assets/ScriptableObjects/PCG/Profiles/Level/SO_Level2.asset";
 
     public static LevelFlowController Instance { get; private set; }
 
+    [Header("Flow Source")]
     [SerializeField] private LevelFlowConfig flowConfig;
+    [SerializeField] private bool useInlineFlowSteps;
+    [SerializeField] private List<LevelFlowStep> inlineFlowSteps = new List<LevelFlowStep>();
+
+    [Header("Startup")]
+    [SerializeField] private bool loadFirstStepOnStart;
+    [SerializeField] private bool infiniteLevelFlow;
+
+    [Header("Debug / Fallback")]
     [SerializeField] private bool useEditorFallbackFlow = true;
     [SerializeField] private bool logFlow = true;
 
@@ -42,6 +53,12 @@ public sealed class LevelFlowController : MonoBehaviour
     private StaticLevelLayoutBuilder staticLayoutBuilder;
     private int currentStepIndex = -1;
     private bool runActive;
+    private bool firstStepLoadRequested;
+    private int lastBuiltStaticStepIndex = -1;
+    private string lastBuiltStaticSceneName;
+    private Scene activeRuntimeFlowScene;
+    private Scene pendingRuntimeSceneToUnload;
+    private Transform activeLevelSceneRoot;
 
     public LevelFlowStep CurrentStep
     {
@@ -52,10 +69,17 @@ public sealed class LevelFlowController : MonoBehaviour
         }
     }
 
+    public LevelFlowConfig FlowConfig => flowConfig;
+    public bool InfiniteLevelFlow => infiniteLevelFlow;
+    public GameObject RuntimeRoot => GetRuntimeRootGameObject();
+
     private IReadOnlyList<LevelFlowStep> Steps
     {
         get
         {
+            if (useInlineFlowSteps && inlineFlowSteps != null && inlineFlowSteps.Count > 0)
+                return inlineFlowSteps;
+
             ResolveFlowConfig();
             if (flowConfig != null && flowConfig.steps != null && flowConfig.steps.Count > 0)
                 return flowConfig.steps;
@@ -80,17 +104,25 @@ public sealed class LevelFlowController : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            Destroy(GetDuplicateDestroyTarget());
             return;
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        DontDestroyOnLoad(GetRuntimeRootGameObject());
         SceneManager.sceneLoaded += HandleSceneLoaded;
 
         if (levelProfileLoader == null)
         {
-            levelProfileLoader = GetComponent<LevelProfileLoader>();
+            levelProfileLoader = ResolveLevelLoaderInRuntimeRoot();
+        }
+    }
+
+    private void Start()
+    {
+        if (loadFirstStepOnStart)
+        {
+            LoadFirstStep();
         }
     }
 
@@ -123,6 +155,64 @@ public sealed class LevelFlowController : MonoBehaviour
         return true;
     }
 
+    public void ConfigureLevelLoader(LevelProfileLoader loader)
+    {
+        if (loader == null)
+            return;
+
+        levelProfileLoader = loader;
+        staticLayoutBuilder = null;
+        ApplyRuntimeSceneRootToLoader(levelProfileLoader);
+        OrganizeKnownRuntimeObjects();
+    }
+
+    [ContextMenu("Load First Flow Step")]
+    public bool LoadFirstStep()
+    {
+        if (firstStepLoadRequested)
+            return false;
+
+        IReadOnlyList<LevelFlowStep> steps = Steps;
+        int firstStep = FirstStepIndex(steps);
+        if (firstStep < 0)
+        {
+            Debug.LogWarning("[Level Flow] Cannot load first step because the flow has no steps.", this);
+            return false;
+        }
+
+        firstStepLoadRequested = true;
+        runActive = false;
+        currentStepIndex = firstStep;
+
+        LevelFlowStep step = CurrentStep;
+        ApplyRunSetupLevelIndex(step);
+        Log($"Loading first flow step {currentStepIndex}: {DescribeStep(step)}.");
+
+        string targetSceneName = ResolveTargetSceneName(step);
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (!string.IsNullOrWhiteSpace(targetSceneName) &&
+            !string.Equals(activeScene.name, targetSceneName, System.StringComparison.OrdinalIgnoreCase))
+        {
+            bool loading = LoadFlowScene(step);
+            if (!loading)
+            {
+                firstStepLoadRequested = false;
+            }
+
+            return loading;
+        }
+
+        if (step.staticLayoutProfile != null)
+        {
+            bool built = BuildStaticLayout(step);
+            firstStepLoadRequested = false;
+            return built;
+        }
+
+        firstStepLoadRequested = false;
+        return true;
+    }
+
     public bool PrepareStaticStepForScene(Scene scene)
     {
         IReadOnlyList<LevelFlowStep> steps = Steps;
@@ -140,7 +230,59 @@ public sealed class LevelFlowController : MonoBehaviour
             runActive = false;
         }
 
+        if (WasStaticStepBuiltForScene(stepIndex, scene.name))
+        {
+            Log($"Static step {stepIndex} already prepared for scene '{scene.name}'.");
+            return true;
+        }
+
         return BuildStaticLayout(step);
+    }
+
+    public bool PrepareCurrentStepSceneForGeneration(out string targetSceneName, out bool sceneLoadPending)
+    {
+        targetSceneName = null;
+        sceneLoadPending = false;
+
+        LevelFlowStep step = CurrentStep;
+        if (step == null)
+            return false;
+
+        targetSceneName = ResolveTargetSceneName(step);
+        if (string.IsNullOrWhiteSpace(targetSceneName))
+            return false;
+
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (string.Equals(activeScene.name, targetSceneName, System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (UsesRuntimeScene(step))
+            {
+                activeRuntimeFlowScene = activeScene;
+                activeLevelSceneRoot = GetOrCreateRuntimeSceneRoot(activeScene);
+                ApplyRuntimeSceneRootToLoader(levelProfileLoader);
+            }
+
+            return true;
+        }
+
+        if (UsesRuntimeScene(step))
+        {
+            Scene runtimeScene = CreateOrActivateRuntimeScene(step);
+            return runtimeScene.IsValid() && runtimeScene.isLoaded;
+        }
+
+        if (!Application.CanStreamedLevelBeLoaded(targetSceneName))
+        {
+            Debug.LogWarning(
+                $"[Level Flow] Cannot load scene '{targetSceneName}'. Add it to Build Settings or switch the Flow step to Runtime Scene.",
+                this);
+            return false;
+        }
+
+        Log($"Loading scene '{targetSceneName}' for {DescribeStep(step)}.");
+        sceneLoadPending = true;
+        SceneManager.LoadScene(targetSceneName, LoadSceneMode.Single);
+        return true;
     }
 
     public bool PrepareCurrentPCGLevel(RoomAssemblerGenerator assembler, LevelContentSpawner contentSpawner)
@@ -166,7 +308,8 @@ public sealed class LevelFlowController : MonoBehaviour
             return false;
         }
 
-        loader.ConfigureTargets(assembler, contentSpawner, FindFirstDirectionalLightInScene());
+        ApplyRuntimeSceneRootToLoader(loader);
+        loader.ConfigureTargets(assembler, contentSpawner);
         bool applied = loader.ApplyLevelProfile(step.levelProfile);
         Log($"Prepared PCG step {currentStepIndex}: {DescribeStep(step)}. Applied={applied}.");
         return applied;
@@ -194,6 +337,18 @@ public sealed class LevelFlowController : MonoBehaviour
 
         IReadOnlyList<LevelFlowStep> steps = Steps;
         int nextIndex = NextStepIndex(steps, currentStepIndex);
+        if (nextIndex < 0)
+        {
+            if (infiniteLevelFlow)
+            {
+                nextIndex = FirstPlayableStepIndex(steps);
+                if (nextIndex >= 0)
+                {
+                    Log($"Infinite flow loop: returning to playable step {nextIndex}.");
+                }
+            }
+        }
+
         if (nextIndex < 0)
         {
             Log("Flow completed because there is no next step.");
@@ -225,13 +380,15 @@ public sealed class LevelFlowController : MonoBehaviour
     {
         if (levelProfileLoader != null)
         {
+            ApplyRuntimeSceneRootToLoader(levelProfileLoader);
             OrganizeKnownRuntimeObjects();
             return levelProfileLoader;
         }
 
-        levelProfileLoader = GetComponentInChildren<LevelProfileLoader>(true);
+        levelProfileLoader = ResolveLevelLoaderInRuntimeRoot();
         if (levelProfileLoader != null)
         {
+            ApplyRuntimeSceneRootToLoader(levelProfileLoader);
             OrganizeKnownRuntimeObjects();
             return levelProfileLoader;
         }
@@ -239,6 +396,7 @@ public sealed class LevelFlowController : MonoBehaviour
         levelProfileLoader = FindFirstObjectByType<LevelProfileLoader>();
         if (levelProfileLoader != null)
         {
+            ApplyRuntimeSceneRootToLoader(levelProfileLoader);
             OrganizeKnownRuntimeObjects();
             return levelProfileLoader;
         }
@@ -248,10 +406,19 @@ public sealed class LevelFlowController : MonoBehaviour
         {
             levelProfileLoader = Instantiate(prefab);
             levelProfileLoader.name = LevelLoaderName;
-            DontDestroyOnLoad(levelProfileLoader.gameObject);
-            levelProfileLoader.ConfigureTargets(assembler, contentSpawner, FindFirstDirectionalLightInScene());
+            AttachRuntimeObject(levelProfileLoader.gameObject);
+            ApplyRuntimeSceneRootToLoader(levelProfileLoader);
+            levelProfileLoader.ConfigureTargets(assembler, contentSpawner);
             OrganizeKnownRuntimeObjects();
             return levelProfileLoader;
+        }
+
+        if (!instantiateLevelLoaderWhenMissing)
+        {
+            Debug.LogWarning(
+                "[Level Flow] No LevelProfileLoader found in the LevelSystem. Assign PF_LevelLoader as a child of PF_LevelSystem.",
+                this);
+            return null;
         }
 
         GameObject host = GameObject.Find(LevelLoaderName);
@@ -259,7 +426,8 @@ public sealed class LevelFlowController : MonoBehaviour
             host = new GameObject(LevelLoaderName);
 
         levelProfileLoader = host.AddComponent<LevelProfileLoader>();
-        levelProfileLoader.ConfigureTargets(assembler, contentSpawner, FindFirstDirectionalLightInScene());
+        ApplyRuntimeSceneRootToLoader(levelProfileLoader);
+        levelProfileLoader.ConfigureTargets(assembler, contentSpawner);
         OrganizeKnownRuntimeObjects();
         return levelProfileLoader;
     }
@@ -274,13 +442,24 @@ public sealed class LevelFlowController : MonoBehaviour
         if (target == null || levelProfileLoader == null || target == levelProfileLoader.gameObject)
             return;
 
-        Transform targetTransform = target.transform;
-        Transform loaderTransform = levelProfileLoader.transform;
-        if (targetTransform.IsChildOf(loaderTransform) || loaderTransform.IsChildOf(targetTransform))
+        AttachRuntimeObject(target);
+    }
+
+    private void AttachRuntimeObject(GameObject target)
+    {
+        if (target == null)
             return;
 
-        Transform runtimeRoot = GetOrCreateChild(loaderTransform, RuntimeSystemsRootName);
-        targetTransform.SetParent(runtimeRoot, true);
+        Transform targetTransform = target.transform;
+        Transform runtimeRoot = GetRuntimeRootTransform();
+        if (runtimeRoot == null)
+            return;
+
+        if (targetTransform == runtimeRoot || targetTransform.IsChildOf(runtimeRoot) || runtimeRoot.IsChildOf(targetTransform))
+            return;
+
+        Transform runtimeSystemsRoot = GetOrCreateChild(runtimeRoot, RuntimeSystemsRootName);
+        targetTransform.SetParent(runtimeSystemsRoot, true);
     }
 
     private bool BuildStaticLayout(LevelFlowStep step)
@@ -292,6 +471,11 @@ public sealed class LevelFlowController : MonoBehaviour
             return false;
         }
 
+        if (activeLevelSceneRoot != null)
+        {
+            builder.SetRuntimeLevelRoot(activeLevelSceneRoot);
+        }
+
         bool built = builder.Build(step.staticLayoutProfile);
         if (built && step.stepType == LevelFlowStepType.Boss)
         {
@@ -299,6 +483,7 @@ public sealed class LevelFlowController : MonoBehaviour
         }
 
         OrganizeKnownRuntimeObjects();
+        RememberStaticBuild(step, built);
         Log($"Prepared static step {currentStepIndex}: {DescribeStep(step)}. Built={built}.");
         return built;
     }
@@ -316,6 +501,11 @@ public sealed class LevelFlowController : MonoBehaviour
         if (staticLayoutBuilder == null)
         {
             staticLayoutBuilder = loader.gameObject.AddComponent<StaticLevelLayoutBuilder>();
+        }
+
+        if (activeLevelSceneRoot != null)
+        {
+            staticLayoutBuilder.SetRuntimeLevelRoot(activeLevelSceneRoot);
         }
 
         OrganizeKnownRuntimeObjects();
@@ -353,7 +543,34 @@ public sealed class LevelFlowController : MonoBehaviour
 
     private bool LoadFlowScene(LevelFlowStep step)
     {
-        string sceneName = string.IsNullOrWhiteSpace(step.sceneName) ? DefaultBossSceneName : step.sceneName;
+        string sceneName = ResolveTargetSceneName(step);
+        if (string.IsNullOrWhiteSpace(sceneName))
+        {
+            Debug.LogWarning("[Level Flow] Cannot load scene because the step has no scene name.", this);
+            return false;
+        }
+
+        if (UsesRuntimeScene(step))
+        {
+            Scene runtimeScene = CreateOrActivateRuntimeScene(step);
+            if (!runtimeScene.IsValid() || !runtimeScene.isLoaded)
+                return false;
+
+            if (step.staticLayoutProfile != null)
+            {
+                BuildStaticLayout(step);
+            }
+
+            if (step.stepType == LevelFlowStepType.Tutorial)
+            {
+                LevelStartRunFlowController.EnsureForScene(runtimeScene);
+            }
+
+            UnloadPreviousRuntimeSceneIfReady();
+            StartCoroutine(CleanupStaticSceneAfterLoad(runtimeScene));
+            return true;
+        }
+
         if (!Application.CanStreamedLevelBeLoaded(sceneName))
         {
             Debug.LogWarning(
@@ -369,11 +586,16 @@ public sealed class LevelFlowController : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        if (firstStepLoadRequested)
+        {
+            firstStepLoadRequested = false;
+        }
+
         LevelFlowStep step = CurrentStep;
         if (step == null || step.stepType == LevelFlowStepType.PCG)
             return;
 
-        if (!string.Equals(scene.name, step.sceneName, System.StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(scene.name, ResolveTargetSceneName(step), System.StringComparison.OrdinalIgnoreCase))
             return;
 
         if (step.staticLayoutProfile != null)
@@ -388,6 +610,139 @@ public sealed class LevelFlowController : MonoBehaviour
     {
         yield return null;
         DisableDuplicateAudioListeners(scene);
+    }
+
+    private Scene CreateOrActivateRuntimeScene(LevelFlowStep step)
+    {
+        string sceneName = ResolveTargetSceneName(step);
+        if (string.IsNullOrWhiteSpace(sceneName))
+            return default;
+
+        Scene previousRuntimeScene = activeRuntimeFlowScene;
+        Scene runtimeScene = SceneManager.GetSceneByName(sceneName);
+        if (!runtimeScene.IsValid() || !runtimeScene.isLoaded)
+        {
+            runtimeScene = SceneManager.CreateScene(sceneName);
+            Log($"Created runtime scene '{sceneName}' for {DescribeStep(step)}.");
+        }
+
+        if (runtimeScene.IsValid() && runtimeScene.isLoaded)
+        {
+            SceneManager.SetActiveScene(runtimeScene);
+            activeRuntimeFlowScene = runtimeScene;
+            activeLevelSceneRoot = GetOrCreateRuntimeSceneRoot(runtimeScene);
+            EnsureRuntimeSceneDirectionalLight(activeLevelSceneRoot);
+            ApplyRuntimeSceneRootToLoader(levelProfileLoader);
+        }
+
+        if (step.unloadPreviousRuntimeScene &&
+            previousRuntimeScene.IsValid() &&
+            previousRuntimeScene.isLoaded &&
+            previousRuntimeScene != runtimeScene)
+        {
+            pendingRuntimeSceneToUnload = previousRuntimeScene;
+        }
+
+        return runtimeScene;
+    }
+
+    public void UnloadPreviousRuntimeSceneIfReady()
+    {
+        if (!pendingRuntimeSceneToUnload.IsValid() || !pendingRuntimeSceneToUnload.isLoaded)
+            return;
+
+        if (activeRuntimeFlowScene.IsValid() && pendingRuntimeSceneToUnload == activeRuntimeFlowScene)
+            return;
+
+        Log($"Unloading previous runtime scene '{pendingRuntimeSceneToUnload.name}'.");
+        SceneManager.UnloadSceneAsync(pendingRuntimeSceneToUnload);
+        pendingRuntimeSceneToUnload = default;
+    }
+
+    public IEnumerator UnloadPreviousRuntimeSceneBeforeGeneration()
+    {
+        if (!pendingRuntimeSceneToUnload.IsValid() || !pendingRuntimeSceneToUnload.isLoaded)
+            yield break;
+
+        if (activeRuntimeFlowScene.IsValid() && pendingRuntimeSceneToUnload == activeRuntimeFlowScene)
+            yield break;
+
+        Scene sceneToUnload = pendingRuntimeSceneToUnload;
+        pendingRuntimeSceneToUnload = default;
+
+        Log($"Unloading previous runtime scene '{sceneToUnload.name}' before generation.");
+        AsyncOperation unloadOperation = SceneManager.UnloadSceneAsync(sceneToUnload);
+        if (unloadOperation == null)
+            yield break;
+
+        while (!unloadOperation.isDone)
+        {
+            yield return null;
+        }
+    }
+
+    private Transform GetOrCreateRuntimeSceneRoot(Scene scene)
+    {
+        if (!scene.IsValid() || !scene.isLoaded)
+            return null;
+
+        GameObject[] roots = scene.GetRootGameObjects();
+        for (int i = 0; i < roots.Length; i++)
+        {
+            GameObject root = roots[i];
+            if (root != null && root.name == LevelRuntimeRootName)
+                return root.transform;
+        }
+
+        GameObject rootObject = new GameObject(LevelRuntimeRootName);
+        SceneManager.MoveGameObjectToScene(rootObject, scene);
+        return rootObject.transform;
+    }
+
+    private void EnsureRuntimeSceneDirectionalLight(Transform sceneRoot)
+    {
+        if (sceneRoot == null)
+            return;
+
+        const string runtimeLightName = "Directional Light";
+        Light runtimeLight = null;
+        Transform existing = sceneRoot.Find(runtimeLightName);
+        if (existing != null)
+        {
+            runtimeLight = existing.GetComponent<Light>();
+        }
+
+        if (runtimeLight == null)
+        {
+            GameObject lightObject = new GameObject(runtimeLightName);
+            lightObject.transform.SetParent(sceneRoot, false);
+            runtimeLight = lightObject.AddComponent<Light>();
+        }
+
+        runtimeLight.type = LightType.Directional;
+        runtimeLight.color = new Color(1f, 0.95686275f, 0.8392157f, 1f);
+        runtimeLight.intensity = 1f;
+        runtimeLight.shadows = LightShadows.Soft;
+        runtimeLight.gameObject.SetActive(true);
+        runtimeLight.enabled = true;
+        runtimeLight.transform.SetLocalPositionAndRotation(
+            Vector3.zero,
+            Quaternion.Euler(50f, -30f, 0f));
+        RenderSettings.sun = runtimeLight;
+    }
+
+    private void ApplyRuntimeSceneRootToLoader(LevelProfileLoader loader)
+    {
+        if (loader == null || activeLevelSceneRoot == null)
+            return;
+
+        loader.SetRuntimeLevelRoot(activeLevelSceneRoot);
+
+        StaticLevelLayoutBuilder builder = loader.GetComponent<StaticLevelLayoutBuilder>();
+        if (builder != null)
+        {
+            builder.SetRuntimeLevelRoot(activeLevelSceneRoot);
+        }
     }
 
     private void DisableDuplicateAudioListeners(Scene preferredScene)
@@ -457,14 +812,18 @@ public sealed class LevelFlowController : MonoBehaviour
             stepId = "tutorial",
             displayName = "Tutorial / LevelStart",
             stepType = LevelFlowStepType.Tutorial,
-            sceneName = DefaultStartSceneName
+            sceneMode = LevelFlowSceneMode.RuntimeScene,
+            sceneName = DefaultStartSceneName,
+            runtimeSceneName = DefaultStartSceneName
         });
         editorFallbackSteps.Add(new LevelFlowStep
         {
             stepId = "level_01",
             displayName = "Level 1",
             stepType = LevelFlowStepType.PCG,
+            sceneMode = LevelFlowSceneMode.RuntimeScene,
             sceneName = DefaultRunSceneName,
+            runtimeSceneName = DefaultRunSceneName,
             levelProfile = level1
         });
         editorFallbackSteps.Add(new LevelFlowStep
@@ -472,7 +831,9 @@ public sealed class LevelFlowController : MonoBehaviour
             stepId = "level_02",
             displayName = "Level 2",
             stepType = LevelFlowStepType.PCG,
+            sceneMode = LevelFlowSceneMode.RuntimeScene,
             sceneName = DefaultRunSceneName,
+            runtimeSceneName = DefaultRunSceneName,
             levelProfile = level2
         });
         editorFallbackSteps.Add(new LevelFlowStep
@@ -480,16 +841,127 @@ public sealed class LevelFlowController : MonoBehaviour
             stepId = "boss",
             displayName = "Bossraum",
             stepType = LevelFlowStepType.Boss,
-            sceneName = DefaultBossSceneName
+            sceneMode = LevelFlowSceneMode.RuntimeScene,
+            sceneName = DefaultBossSceneName,
+            runtimeSceneName = DefaultBossSceneName
         });
     }
 
     private void ResolveFlowConfig()
     {
+        if (useInlineFlowSteps && inlineFlowSteps != null && inlineFlowSteps.Count > 0)
+            return;
+
+        if (flowConfig != null)
+            return;
+
+        flowConfig = ResolveFlowConfigForActiveScene();
         if (flowConfig != null)
             return;
 
         flowConfig = Resources.Load<LevelFlowConfig>(DefaultFlowConfigResourcesPath);
+    }
+
+    private LevelProfileLoader ResolveLevelLoaderInRuntimeRoot()
+    {
+        Transform runtimeRoot = GetRuntimeRootTransform();
+        if (runtimeRoot != null)
+        {
+            LevelProfileLoader loaderInRoot = runtimeRoot.GetComponentInChildren<LevelProfileLoader>(true);
+            if (loaderInRoot != null)
+                return loaderInRoot;
+        }
+
+        LevelProfileLoader loaderOnSelf = GetComponent<LevelProfileLoader>();
+        if (loaderOnSelf != null)
+            return loaderOnSelf;
+
+        return null;
+    }
+
+    private GameObject GetDuplicateDestroyTarget()
+    {
+        GameObject runtimeRoot = GetRuntimeRootGameObject();
+        return runtimeRoot != null && runtimeRoot != gameObject ? runtimeRoot : gameObject;
+    }
+
+    private GameObject GetRuntimeRootGameObject()
+    {
+        Transform root = GetRuntimeRootTransform();
+        return root != null ? root.gameObject : gameObject;
+    }
+
+    private Transform GetRuntimeRootTransform()
+    {
+        return transform.root != null ? transform.root : transform;
+    }
+
+    private bool WasStaticStepBuiltForScene(int stepIndex, string sceneName)
+    {
+        return lastBuiltStaticStepIndex == stepIndex
+            && !string.IsNullOrWhiteSpace(sceneName)
+            && string.Equals(lastBuiltStaticSceneName, sceneName, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RememberStaticBuild(LevelFlowStep step, bool built)
+    {
+        if (!built || step == null || step.staticLayoutProfile == null)
+            return;
+
+        lastBuiltStaticStepIndex = currentStepIndex;
+        lastBuiltStaticSceneName = SceneManager.GetActiveScene().name;
+    }
+
+    private LevelFlowConfig ResolveFlowConfigForActiveScene()
+    {
+        string activeSceneName = SceneManager.GetActiveScene().name;
+        if (string.IsNullOrWhiteSpace(activeSceneName))
+            return null;
+
+        LevelFlowConfig[] configs = Resources.LoadAll<LevelFlowConfig>(LevelFlowResourcesFolder);
+        for (int i = 0; i < configs.Length; i++)
+        {
+            LevelFlowConfig candidate = configs[i];
+            if (candidate == null || !ContainsScene(candidate, activeSceneName))
+                continue;
+
+            Log($"Using flow config '{candidate.name}' for active scene '{activeSceneName}'.");
+            return candidate;
+        }
+
+        return null;
+    }
+
+    private static int FirstStepIndex(IReadOnlyList<LevelFlowStep> steps)
+    {
+        if (steps == null)
+            return -1;
+
+        for (int i = 0; i < steps.Count; i++)
+        {
+            if (steps[i] != null)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static bool ContainsScene(LevelFlowConfig config, string sceneName)
+    {
+        if (config == null || config.steps == null || string.IsNullOrWhiteSpace(sceneName))
+            return false;
+
+        for (int i = 0; i < config.steps.Count; i++)
+        {
+            LevelFlowStep step = config.steps[i];
+            if (step == null || string.IsNullOrWhiteSpace(ResolveTargetSceneName(step)))
+                continue;
+
+            if (string.Equals(ResolveTargetSceneName(step), sceneName, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     private static LevelConfigProfile LoadLevelProfile(string path)
@@ -539,10 +1011,10 @@ public sealed class LevelFlowController : MonoBehaviour
         for (int i = 0; i < steps.Count; i++)
         {
             LevelFlowStep step = steps[i];
-            if (step == null || string.IsNullOrWhiteSpace(step.sceneName))
+            if (step == null || string.IsNullOrWhiteSpace(ResolveTargetSceneName(step)))
                 continue;
 
-            if (string.Equals(step.sceneName, sceneName, System.StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(ResolveTargetSceneName(step), sceneName, System.StringComparison.OrdinalIgnoreCase))
                 return i;
         }
 
@@ -581,16 +1053,33 @@ public sealed class LevelFlowController : MonoBehaviour
         return null;
     }
 
-    private static Light FindFirstDirectionalLightInScene()
+    private static bool UsesRuntimeScene(LevelFlowStep step)
     {
-        Light[] lights = FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < lights.Length; i++)
-        {
-            if (lights[i] != null && lights[i].type == LightType.Directional)
-                return lights[i];
-        }
+        return step != null && step.sceneMode == LevelFlowSceneMode.RuntimeScene;
+    }
 
-        return null;
+    private static string ResolveTargetSceneName(LevelFlowStep step)
+    {
+        if (step == null)
+            return null;
+
+        if (UsesRuntimeScene(step) && !string.IsNullOrWhiteSpace(step.runtimeSceneName))
+            return step.runtimeSceneName;
+
+        if (!string.IsNullOrWhiteSpace(step.sceneName))
+            return step.sceneName;
+
+        switch (step.stepType)
+        {
+            case LevelFlowStepType.Tutorial:
+                return DefaultStartSceneName;
+            case LevelFlowStepType.PCG:
+                return DefaultRunSceneName;
+            case LevelFlowStepType.Boss:
+                return DefaultBossSceneName;
+            default:
+                return null;
+        }
     }
 
     private static string DescribeStep(LevelFlowStep step)
@@ -599,8 +1088,9 @@ public sealed class LevelFlowController : MonoBehaviour
 
         string profile = step.levelProfile != null ? step.levelProfile.DisplayName : "no profile";
         if (step.staticLayoutProfile != null) profile = step.staticLayoutProfile.name;
-        string scene = string.IsNullOrWhiteSpace(step.sceneName) ? "no scene" : step.sceneName;
-        return $"{step.DisplayName} ({step.stepType}, Scene='{scene}', Profile='{profile}')";
+        string scene = ResolveTargetSceneName(step) ?? "no scene";
+        string sceneMode = step.sceneMode.ToString();
+        return $"{step.DisplayName} ({step.stepType}, {sceneMode}, Scene='{scene}', Profile='{profile}')";
     }
 
     private void Log(string message)

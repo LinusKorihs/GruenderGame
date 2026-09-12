@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6125369184421084701
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8613029193587243552}
+  - component: {fileID: 1491670588209876003}
+  m_Layer: 0
+  m_Name: PF_LevelFlow
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8613029193587243552
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6125369184421084701}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1491670588209876003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6125369184421084701}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0aa416c9ab4b4fc28326d780722dfa49, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelFlowController
+  flowConfig: {fileID: 11400000, guid: 59134e703d57558408ef3c245aa52773, type: 2}
+  useInlineFlowSteps: 0
+  inlineFlowSteps:
+  - stepId: tutorial
+    displayName: Tutorial / Werkschau
+    stepType: 0
+    sceneMode: 1
+    sceneName: 1. Tutorial
+    runtimeSceneName: 1. Tutorial
+    unloadPreviousRuntimeScene: 1
+    levelProfile: {fileID: 0}
+    staticLayoutProfile: {fileID: 11400000, guid: da2b976f9587431db88523e4d3e30629, type: 2}
+  - stepId: level_01
+    displayName: Level 1
+    stepType: 1
+    sceneMode: 1
+    sceneName: 2. Run
+    runtimeSceneName: 2. Run
+    unloadPreviousRuntimeScene: 1
+    levelProfile: {fileID: 11400000, guid: 4e7e70680ebe95b41a630ffa07591089, type: 2}
+    staticLayoutProfile: {fileID: 0}
+  - stepId: level_02
+    displayName: Level 2
+    stepType: 1
+    sceneMode: 1
+    sceneName: 2. Run
+    runtimeSceneName: 2. Run
+    unloadPreviousRuntimeScene: 1
+    levelProfile: {fileID: 11400000, guid: 6b2c278161a97dd4fa364cfcf23117ae, type: 2}
+    staticLayoutProfile: {fileID: 0}
+  - stepId: boss
+    displayName: Bossraum / Werkschau
+    stepType: 2
+    sceneMode: 1
+    sceneName: 3. Boss
+    runtimeSceneName: 3. Boss
+    unloadPreviousRuntimeScene: 1
+    levelProfile: {fileID: 0}
+    staticLayoutProfile: {fileID: 11400000, guid: b956057f65664e1eacebfd1c86de2f0c, type: 2}
+  loadFirstStepOnStart: 1
+  infiniteLevelFlow: 0
+  useEditorFallbackFlow: 1
+  logFlow: 1
+  levelLoaderPrefab: {fileID: 0}
+  instantiateLevelLoaderWhenMissing: 0

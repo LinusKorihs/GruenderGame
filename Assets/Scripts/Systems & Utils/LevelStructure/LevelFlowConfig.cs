@@ -10,13 +10,25 @@ public enum LevelFlowStepType
     End
 }
 
+public enum LevelFlowSceneMode
+{
+    LoadScene,
+    RuntimeScene
+}
+
 [Serializable]
 public sealed class LevelFlowStep
 {
     public string stepId = "level_01";
     public string displayName = "Level 1";
     public LevelFlowStepType stepType = LevelFlowStepType.PCG;
+
+    [Header("Scene")]
+    public LevelFlowSceneMode sceneMode = LevelFlowSceneMode.LoadScene;
     public string sceneName;
+    public string runtimeSceneName;
+    public bool unloadPreviousRuntimeScene = true;
+
     public LevelConfigProfile levelProfile;
     public StaticLevelLayoutProfile staticLayoutProfile;
 

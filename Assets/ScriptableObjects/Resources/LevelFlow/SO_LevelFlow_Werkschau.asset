@@ -10,31 +10,43 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 32846e88a4d140129e33a0151cd910c5, type: 3}
-  m_Name: SO_LevelFlow_Linus
-  m_EditorClassIdentifier: 
+  m_Name: SO_LevelFlow_Werkschau
+  m_EditorClassIdentifier: Assembly-CSharp::LevelFlowConfig
   levelLoaderPrefab: {fileID: 835457721649708555, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
   steps:
-  - stepId: tutorial
-    displayName: Tutorial / Linus
+  - stepId: Tutorial
+    displayName: Tutorial Werkschau
     stepType: 0
-    sceneName: 1. Linus Tutorial
+    sceneMode: 1
+    sceneName: 1. Tutorial
+    runtimeSceneName: 1. Tutorial
+    unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 0}
     staticLayoutProfile: {fileID: 11400000, guid: da2b976f9587431db88523e4d3e30629, type: 2}
-  - stepId: level_01
+  - stepId: Level_01
     displayName: Level 1
     stepType: 1
-    sceneName: 2. Linus Run
+    sceneMode: 1
+    sceneName: 2. Run
+    runtimeSceneName: 2. Run
+    unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 4e7e70680ebe95b41a630ffa07591089, type: 2}
     staticLayoutProfile: {fileID: 0}
-  - stepId: level_02
+  - stepId: Level_02
     displayName: Level 2
     stepType: 1
-    sceneName: 2. Linus Run
+    sceneMode: 1
+    sceneName: 2. Run
+    runtimeSceneName: 2. Run
+    unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 6b2c278161a97dd4fa364cfcf23117ae, type: 2}
     staticLayoutProfile: {fileID: 0}
-  - stepId: boss
-    displayName: Bossraum / Linus Boss
+  - stepId: Boss
+    displayName: Bossraum
     stepType: 2
-    sceneName: 3. Linus Boss
+    sceneMode: 1
+    sceneName: 3. Boss
+    runtimeSceneName: 3. Boss
+    unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 0}
     staticLayoutProfile: {fileID: 11400000, guid: b956057f65664e1eacebfd1c86de2f0c, type: 2}

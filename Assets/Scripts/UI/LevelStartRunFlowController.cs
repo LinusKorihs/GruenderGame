@@ -38,6 +38,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private bool runStarted;
     private bool transitioningLevel;
     private bool pendingGenerationAfterRunSceneLoad;
+    private string pendingRunSceneName;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RegisterSceneLoaded()
@@ -59,16 +60,23 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        TryBootstrap(scene);
+        EnsureForScene(scene);
     }
 
     private static void TryBootstrap(Scene scene)
     {
-        if (!IsLevelStartSceneName(scene.name)) return;
-        if (FindFirstObjectByType<LevelStartRunFlowController>() != null) return;
+        EnsureForScene(scene);
+    }
+
+    public static LevelStartRunFlowController EnsureForScene(Scene scene)
+    {
+        if (!IsLevelStartSceneName(scene.name)) return null;
+
+        LevelStartRunFlowController existing = FindFirstObjectByType<LevelStartRunFlowController>();
+        if (existing != null) return existing;
 
         GameObject host = new GameObject(nameof(LevelStartRunFlowController));
-        host.AddComponent<LevelStartRunFlowController>();
+        return host.AddComponent<LevelStartRunFlowController>();
     }
 
     private static bool IsLevelStartSceneName(string sceneName)
@@ -85,7 +93,9 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             || string.Equals(normalized, "LinusStart", StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalized, "1LinusStart", StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalized, "LinusTutorial", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(normalized, "1LinusTutorial", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(normalized, "1LinusTutorial", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "Tutorial", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "1Tutorial", StringComparison.OrdinalIgnoreCase);
     }
 
     private void Awake()
@@ -197,6 +207,21 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             RunSetupData data = RunSetupData.EnsureInstance();
             data.levelIndex = Mathf.Max(1, data.levelIndex + 1);
         }
+        else if (flowAction == LevelFlowAdvanceAction.GeneratePCGLevel &&
+                 LevelFlowController.Instance != null &&
+                 LevelFlowController.Instance.PrepareCurrentStepSceneForGeneration(out string flowSceneName, out bool sceneLoadPending))
+        {
+            if (sceneLoadPending)
+            {
+                pendingRunSceneName = flowSceneName;
+                pendingGenerationAfterRunSceneLoad = true;
+                transitioningLevel = false;
+                yield break;
+            }
+
+            CompleteRunSceneLoad(SceneManager.GetActiveScene());
+            yield return LevelFlowController.Instance.UnloadPreviousRuntimeSceneBeforeGeneration();
+        }
 
         GenerateCurrentLevel();
         transitioningLevel = false;
@@ -227,37 +252,98 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         PrepareRunAssemblerForSceneLoad();
 
+        LevelFlowController flow = LevelFlowController.Instance;
+        if (flow != null &&
+            flow.PrepareCurrentStepSceneForGeneration(out string flowSceneName, out bool sceneLoadPending))
+        {
+            if (sceneLoadPending)
+            {
+                pendingRunSceneName = flowSceneName;
+                pendingGenerationAfterRunSceneLoad = true;
+                return;
+            }
+
+            StartCoroutine(CompleteRunSceneLoadThenGenerate(SceneManager.GetActiveScene()));
+            return;
+        }
+
+        pendingRunSceneName = ResolveTargetRunSceneName();
         pendingGenerationAfterRunSceneLoad = true;
-        SceneManager.LoadScene(ResolveTargetRunSceneName(), LoadSceneMode.Single);
+        SceneManager.LoadScene(pendingRunSceneName, LoadSceneMode.Single);
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (!pendingGenerationAfterRunSceneLoad) return;
-        if (!string.Equals(scene.name, ResolveTargetRunSceneName(), StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(scene.name, pendingRunSceneName, StringComparison.OrdinalIgnoreCase)) return;
 
         pendingGenerationAfterRunSceneLoad = false;
+        pendingRunSceneName = null;
 
+        StartCoroutine(CompleteRunSceneLoadThenGenerate(scene));
+    }
+
+    private IEnumerator CompleteRunSceneLoadThenGenerate(Scene scene)
+    {
+        CompleteRunSceneLoad(scene);
+
+        if (LevelFlowController.Instance != null)
+        {
+            yield return LevelFlowController.Instance.UnloadPreviousRuntimeSceneBeforeGeneration();
+        }
+
+        GenerateCurrentLevel();
+    }
+
+    private void CompleteRunSceneLoad(Scene scene)
+    {
         if (player != null)
         {
-            SceneManager.MoveGameObjectToScene(player, scene);
+            MoveRootToScene(player, scene);
         }
 
         if (runAssemblerRoot != null)
         {
             LevelFlowController flow = LevelFlowController.Instance;
-            if (flow == null || !flow.IsRuntimeLevelLoaderRoot(runAssemblerRoot))
+            if (!IsPersistentLevelSystemObject(flow, runAssemblerRoot))
             {
-                SceneManager.MoveGameObjectToScene(runAssemblerRoot, scene);
+                MoveRootToScene(runAssemblerRoot, scene);
             }
         }
         else if (assembler != null)
         {
-            SceneManager.MoveGameObjectToScene(assembler.gameObject, scene);
+            if (!IsPersistentLevelSystemObject(LevelFlowController.Instance, assembler.gameObject))
+            {
+                MoveRootToScene(assembler.gameObject, scene);
+            }
         }
 
         DisableSceneCamerasNotOwnedByPlayer(scene);
-        GenerateCurrentLevel();
+    }
+
+    private static bool IsPersistentLevelSystemObject(LevelFlowController flow, GameObject target)
+    {
+        if (flow == null || target == null)
+            return false;
+
+        GameObject runtimeRoot = flow.RuntimeRoot;
+        if (runtimeRoot == null)
+            return false;
+
+        return target == runtimeRoot || target.transform.IsChildOf(runtimeRoot.transform);
+    }
+
+    private static void MoveRootToScene(GameObject target, Scene scene)
+    {
+        if (target == null || !scene.IsValid() || !scene.isLoaded || target.scene == scene)
+            return;
+
+        if (target.transform.parent != null)
+        {
+            target.transform.SetParent(null, true);
+        }
+
+        SceneManager.MoveGameObjectToScene(target, scene);
     }
 
     private string ResolveTargetRunSceneName()
@@ -285,7 +371,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             loader.ClearGeneratedLevelContent();
             runAssemblerRoot = loader.gameObject;
             runAssemblerRoot.SetActive(true);
-            DontDestroyOnLoad(runAssemblerRoot);
+            KeepRootAcrossSceneLoad(runAssemblerRoot);
             return;
         }
 
@@ -302,7 +388,15 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         assembler.transform.SetParent(null, true);
         runAssemblerRoot = assembler.gameObject;
         runAssemblerRoot.SetActive(true);
-        DontDestroyOnLoad(runAssemblerRoot);
+        KeepRootAcrossSceneLoad(runAssemblerRoot);
+    }
+
+    private static void KeepRootAcrossSceneLoad(GameObject target)
+    {
+        if (target == null || target.transform.parent != null)
+            return;
+
+        DontDestroyOnLoad(target);
     }
 
     private void PrepareLobby()
@@ -374,6 +468,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         EnsureSelectedMinionPartyNearPlayer(data);
         ResolveSceneReferences();
         PlaceExitInEndRoom();
+        LevelFlowController.Instance?.UnloadPreviousRuntimeSceneIfReady();
     }
 
     [ContextMenu("Move Player Near Generated Exit")]
@@ -608,6 +703,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
                 continue;
 
             GameObject root = ResolveGeneratedMinionRoot(minion);
+            MoveRootToScene(root, playerRoot.scene);
             Vector3 position = GetFormationPositionNearPlayer(playerBody, slot, Mathf.Max(1, total));
             MoveActor(root, position, playerBody.rotation);
             minion.SetFollowTarget(playerBody);

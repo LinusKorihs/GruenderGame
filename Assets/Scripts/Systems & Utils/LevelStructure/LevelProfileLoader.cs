@@ -7,13 +7,11 @@ public class LevelProfileLoader : MonoBehaviour
 
     [SerializeField] private RoomAssemblerGenerator roomAssemblerGenerator;
     [SerializeField] private LevelContentSpawner levelContentSpawner;
-    [SerializeField] private Light directionalLight;
 
     [SerializeField] private bool generateAfterApply;
     [SerializeField] private bool logProfileApplication = true;
 
     [SerializeField] private bool useGeneratedLevelHierarchy = true;
-    [SerializeField] private bool parentDirectionalLightUnderLevel = true;
     [SerializeField] private string pcgRootName = "PCG_Root";
     [SerializeField] private string generatedLevelRootName = "Generated_Level";
     [SerializeField] private string roomsRootName = "Rooms";
@@ -24,6 +22,8 @@ public class LevelProfileLoader : MonoBehaviour
     public LevelContentSpawner LevelContentSpawner => levelContentSpawner;
     public RoomAssemblerConfig RuntimeRoomAssemblerConfig { get; private set; }
     public LevelContentSpawnConfig RuntimeSpawnConfig { get; private set; }
+
+    private Transform runtimeLevelRootOverride;
 
     private void Awake()
     {
@@ -73,8 +73,7 @@ public class LevelProfileLoader : MonoBehaviour
 
         Log(
             $"Targets: RoomAssemblerGenerator={(roomAssemblerGenerator != null ? roomAssemblerGenerator.name : "missing")}, " +
-            $"LevelContentSpawner={(levelContentSpawner != null ? levelContentSpawner.name : "missing")}, " +
-            $"DirectionalLight={(directionalLight != null ? directionalLight.name : "missing")}.");
+            $"LevelContentSpawner={(levelContentSpawner != null ? levelContentSpawner.name : "missing")}.");
 
         ConfigureRuntimeHierarchy();
         ApplyLevelIndex();
@@ -137,9 +136,17 @@ public class LevelProfileLoader : MonoBehaviour
             levelContentSpawner = contentSpawner;
         }
 
-        if (levelLight != null)
+        _ = levelLight;
+    }
+
+    public void SetRuntimeLevelRoot(Transform levelRoot)
+    {
+        runtimeLevelRootOverride = levelRoot;
+
+        if (levelRoot != null && useGeneratedLevelHierarchy)
         {
-            directionalLight = levelLight;
+            ResolveMissingTargets();
+            ConfigureRuntimeHierarchy();
         }
     }
 
@@ -285,11 +292,6 @@ public class LevelProfileLoader : MonoBehaviour
             levelContentSpawner = GetComponentInChildren<LevelContentSpawner>();
         }
 
-        if (directionalLight == null)
-        {
-            directionalLight = FindDirectionalLightInChildren(transform);
-        }
-
         if (roomAssemblerGenerator == null)
         {
             roomAssemblerGenerator = FindFirstObjectByType<RoomAssemblerGenerator>();
@@ -300,10 +302,6 @@ public class LevelProfileLoader : MonoBehaviour
             levelContentSpawner = FindFirstObjectByType<LevelContentSpawner>();
         }
 
-        if (directionalLight == null)
-        {
-            directionalLight = FindFirstDirectionalLightInScene();
-        }
     }
 
     private void ConfigureRuntimeHierarchy()
@@ -311,14 +309,23 @@ public class LevelProfileLoader : MonoBehaviour
         if (!useGeneratedLevelHierarchy)
             return;
 
-        Transform pcgRoot = GetOrCreateChild(transform, pcgRootName);
+        Transform hierarchyRoot = GetRuntimeHierarchyRoot();
+        Transform pcgRoot = GetOrCreateChild(hierarchyRoot, pcgRootName);
         Transform generatedRoot = GetOrCreateChild(pcgRoot, generatedLevelRootName);
         Transform roomsRoot = GetOrCreateChild(generatedRoot, roomsRootName);
         Transform contentRoot = GetOrCreateChild(generatedRoot, contentRootName);
 
         if (roomAssemblerGenerator != null)
         {
-            ParentRoomAssemblerUnderPcgRoot(pcgRoot);
+            if (runtimeLevelRootOverride != null && runtimeLevelRootOverride != transform)
+            {
+                ParentRoomAssemblerUnderLoader();
+            }
+            else
+            {
+                ParentRoomAssemblerUnderPcgRoot(pcgRoot);
+            }
+
             roomAssemblerGenerator.parent = roomsRoot;
         }
 
@@ -327,7 +334,7 @@ public class LevelProfileLoader : MonoBehaviour
             levelContentSpawner.SetContentParent(contentRoot, true);
         }
 
-        ParentDirectionalLightUnderLevel();
+        RemoveUnusedLocalGeneratedHierarchy();
 
         Log(
             $"Runtime hierarchy ready: {GetPath(pcgRoot)}/{roomAssemblerGenerator?.name ?? "RoomAssembler missing"} " +
@@ -339,10 +346,11 @@ public class LevelProfileLoader : MonoBehaviour
         roomsRoot = null;
         contentRoot = null;
 
-        Transform pcgRoot = FindChild(transform, pcgRootName);
+        Transform hierarchyRoot = GetRuntimeHierarchyRoot();
+        Transform pcgRoot = FindChild(hierarchyRoot, pcgRootName);
         Transform generatedRoot = pcgRoot != null
             ? FindChild(pcgRoot, generatedLevelRootName)
-            : FindChild(transform, generatedLevelRootName);
+            : FindChild(hierarchyRoot, generatedLevelRootName);
 
         if (generatedRoot == null)
             return;
@@ -373,52 +381,46 @@ public class LevelProfileLoader : MonoBehaviour
         Log($"Moved '{roomAssemblerTransform.name}' under '{GetPath(pcgRoot)}'.");
     }
 
-    private void ParentDirectionalLightUnderLevel()
+    private void ParentRoomAssemblerUnderLoader()
     {
-        if (!parentDirectionalLightUnderLevel || directionalLight == null)
+        if (roomAssemblerGenerator == null)
             return;
 
-        Transform lightTransform = directionalLight.transform;
-        if (lightTransform.parent == transform)
+        Transform roomAssemblerTransform = roomAssemblerGenerator.transform;
+        if (roomAssemblerTransform.parent == transform)
             return;
 
-        if (lightTransform == transform || transform.IsChildOf(lightTransform))
+        if (roomAssemblerTransform == transform || transform.IsChildOf(roomAssemblerTransform))
         {
             Debug.LogWarning(
-                "[Level Profile] Directional Light cannot be parented under the Level Profile Loader because it is on this GameObject or one of its parents.",
+                "[Level Profile] RoomAssemblerGenerator cannot be parented under the LevelProfileLoader because it is on this GameObject or one of its parents.",
                 this);
             return;
         }
 
-        lightTransform.SetParent(transform, true);
-        Log($"Moved '{lightTransform.name}' under '{GetPath(transform)}'.");
+        roomAssemblerTransform.SetParent(transform, true);
+        Log($"Kept '{roomAssemblerTransform.name}' under persistent loader while its output targets the active runtime scene.");
     }
 
-    private static Light FindDirectionalLightInChildren(Transform root)
+    private void RemoveUnusedLocalGeneratedHierarchy()
     {
-        if (root == null)
-            return null;
+        if (runtimeLevelRootOverride == null || runtimeLevelRootOverride == transform)
+            return;
 
-        Light[] childLights = root.GetComponentsInChildren<Light>(true);
-        for (int i = 0; i < childLights.Length; i++)
-        {
-            if (childLights[i] != null && childLights[i].type == LightType.Directional)
-                return childLights[i];
-        }
+        Transform localPcgRoot = FindChild(transform, pcgRootName);
+        if (localPcgRoot == null)
+            return;
 
-        return null;
+        if (roomAssemblerGenerator != null && roomAssemblerGenerator.transform.IsChildOf(localPcgRoot))
+            return;
+
+        DestroyRuntime(localPcgRoot.gameObject);
+        Log($"Removed unused local '{pcgRootName}' under '{GetPath(transform)}'.");
     }
 
-    private static Light FindFirstDirectionalLightInScene()
+    private Transform GetRuntimeHierarchyRoot()
     {
-        Light[] lights = FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < lights.Length; i++)
-        {
-            if (lights[i] != null && lights[i].type == LightType.Directional)
-                return lights[i];
-        }
-
-        return null;
+        return runtimeLevelRootOverride != null ? runtimeLevelRootOverride : transform;
     }
 
     private static Transform GetOrCreateChild(Transform parent, string childName)
@@ -493,6 +495,22 @@ public class LevelProfileLoader : MonoBehaviour
         }
 
         return surfaces.Length;
+    }
+
+    private static void DestroyRuntime(GameObject target)
+    {
+        if (target == null)
+            return;
+
+        if (Application.isPlaying)
+        {
+            target.SetActive(false);
+            Destroy(target);
+        }
+        else
+        {
+            DestroyImmediate(target);
+        }
     }
 
     private static string GetPath(Transform target)
