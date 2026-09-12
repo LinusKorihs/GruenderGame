@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using PCG.RoomAssembler.Data;
 using TMPro;
 using UnityEngine;
@@ -13,6 +14,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 {
     public const int MaxSelectableMinions = RunSetupData.DefaultMaxTotal;
     private const string DefaultRunSceneName = "2. Linus Run";
+    private const string RuntimeExitNamePrefix = "Next Level Exit";
 
     public static LevelStartRunFlowController Instance { get; private set; }
 
@@ -974,6 +976,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private void PlaceExitInEndRoom()
     {
+        ClearExitObject();
+
         PlacedRoom endRoom = FindEndRoom();
         if (endRoom == null || endRoom.root == null)
         {
@@ -984,9 +988,17 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         Vector3 position = GetRoomExitCenter(endRoom.root);
 
         exitObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        exitObject.name = $"Next Level Exit {RunSetupData.EnsureInstance().levelIndex + 1}";
+        exitObject.name = $"{RuntimeExitNamePrefix} {RunSetupData.EnsureInstance().levelIndex + 1}";
         exitObject.transform.SetPositionAndRotation(position, Quaternion.identity);
         exitObject.transform.localScale = new Vector3(1.35f, 0.45f, 1.35f);
+
+        Scene endRoomScene = endRoom.root.scene;
+        if (endRoomScene.IsValid() && endRoomScene.isLoaded && exitObject.scene != endRoomScene)
+        {
+            SceneManager.MoveGameObjectToScene(exitObject, endRoomScene);
+        }
+
+        exitObject.transform.SetParent(endRoom.root.transform, true);
 
         Collider trigger = exitObject.GetComponent<Collider>();
         if (trigger != null) trigger.isTrigger = true;
@@ -1132,10 +1144,46 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private void ClearExitObject()
     {
-        if (exitObject == null) return;
+        HashSet<GameObject> exitsToDestroy = new HashSet<GameObject>();
+        if (exitObject != null)
+        {
+            exitsToDestroy.Add(exitObject);
+        }
 
-        exitObject.SetActive(false);
-        Destroy(exitObject);
+        RunLevelExitTrigger[] exitTriggers = FindObjectsByType<RunLevelExitTrigger>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < exitTriggers.Length; i++)
+        {
+            RunLevelExitTrigger trigger = exitTriggers[i];
+            if (trigger == null)
+                continue;
+
+            GameObject triggerObject = trigger.gameObject;
+            bool namedRuntimeExit = triggerObject.name.StartsWith(RuntimeExitNamePrefix, StringComparison.Ordinal);
+            if (trigger.IsOwnedBy(this) || trigger.IsUnowned || namedRuntimeExit)
+            {
+                exitsToDestroy.Add(triggerObject);
+            }
+        }
+
+        foreach (GameObject exit in exitsToDestroy)
+        {
+            if (exit == null)
+                continue;
+
+            exit.SetActive(false);
+            if (Application.isPlaying)
+            {
+                Destroy(exit);
+            }
+            else
+            {
+                DestroyImmediate(exit);
+            }
+        }
+
         exitObject = null;
     }
 
@@ -1463,6 +1511,13 @@ public sealed class RunLevelExitTrigger : MonoBehaviour
     {
         controller = owner;
     }
+
+    public bool IsOwnedBy(LevelStartRunFlowController owner)
+    {
+        return controller == owner;
+    }
+
+    public bool IsUnowned => controller == null;
 
     private void OnTriggerEnter(Collider other)
     {

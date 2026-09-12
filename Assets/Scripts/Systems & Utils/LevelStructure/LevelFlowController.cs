@@ -1,8 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -24,10 +22,8 @@ public sealed class LevelFlowController : MonoBehaviour
     private const string DefaultBossSceneName = "3. Linus Boss";
     private const string DefaultFlowConfigResourcesPath = "LevelFlow/SO_LevelFlow_Linus";
     private const string LevelFlowResourcesFolder = "LevelFlow";
-    private const string LevelLoaderName = "LevelLoader";
     private const string RuntimeSystemsRootName = "Runtime_Systems";
     private const string LevelRuntimeRootName = "Level_Runtime";
-    private const string LevelLoaderPrefabPath = "Assets/Prefabs/Systems/Levels/PF_LevelLoader.prefab";
     private const string Level1ProfilePath = "Assets/ScriptableObjects/PCG/Profiles/Level/SO_Level1.asset";
     private const string Level2ProfilePath = "Assets/ScriptableObjects/PCG/Profiles/Level/SO_Level2.asset";
 
@@ -46,12 +42,9 @@ public sealed class LevelFlowController : MonoBehaviour
     [SerializeField] private bool useEditorFallbackFlow = true;
     [SerializeField] private bool logFlow = true;
 
-    [Header("Level Loader")]
-    [SerializeField] private LevelProfileLoader levelLoaderPrefab;
-    [SerializeField] private bool instantiateLevelLoaderWhenMissing = true;
-
     private readonly List<LevelFlowStep> editorFallbackSteps = new List<LevelFlowStep>();
     private LevelProfileLoader levelProfileLoader;
+    private LevelAtmosphereController atmosphereController;
     private StaticLevelLayoutBuilder staticLayoutBuilder;
     private int currentStepIndex = -1;
     private bool runActive;
@@ -118,6 +111,8 @@ public sealed class LevelFlowController : MonoBehaviour
         {
             levelProfileLoader = ResolveLevelLoaderInRuntimeRoot();
         }
+
+        ResolveAtmosphereController();
     }
 
     private void Start()
@@ -166,6 +161,14 @@ public sealed class LevelFlowController : MonoBehaviour
         staticLayoutBuilder = null;
         ApplyRuntimeSceneRootToLoader(levelProfileLoader);
         OrganizeKnownRuntimeObjects();
+    }
+
+    public void ConfigureAtmosphere(LevelAtmosphereController controller)
+    {
+        if (controller == null)
+            return;
+
+        atmosphereController = controller;
     }
 
     [ContextMenu("Load First Flow Step")]
@@ -261,6 +264,7 @@ public sealed class LevelFlowController : MonoBehaviour
             {
                 activeRuntimeFlowScene = activeScene;
                 activeLevelSceneRoot = GetOrCreateRuntimeSceneRoot(activeScene);
+                ApplyAtmosphere(step, activeLevelSceneRoot);
                 ApplyRuntimeSceneRootToLoader(levelProfileLoader);
             }
 
@@ -312,7 +316,10 @@ public sealed class LevelFlowController : MonoBehaviour
 
         ApplyRuntimeSceneRootToLoader(loader);
         loader.ConfigureTargets(assembler, contentSpawner);
+        loader.ConfigureAtmosphere(atmosphereController);
+        loader.SetLevelAtmosphereProfile(step.atmosphereProfile, false);
         bool applied = loader.ApplyLevelProfile(step.levelProfile);
+        loader.ApplyLevelAtmosphereProfile(step.atmosphereProfile, activeLevelSceneRoot);
         Log($"Prepared PCG step {currentStepIndex}: {DescribeStep(step)}. Applied={applied}.");
         return applied;
     }
@@ -395,7 +402,7 @@ public sealed class LevelFlowController : MonoBehaviour
             return levelProfileLoader;
         }
 
-        levelProfileLoader = FindFirstObjectByType<LevelProfileLoader>();
+        levelProfileLoader = FindFirstObjectByType<LevelProfileLoader>(FindObjectsInactive.Include);
         if (levelProfileLoader != null)
         {
             ApplyRuntimeSceneRootToLoader(levelProfileLoader);
@@ -403,35 +410,10 @@ public sealed class LevelFlowController : MonoBehaviour
             return levelProfileLoader;
         }
 
-        LevelProfileLoader prefab = ResolveLevelLoaderPrefab();
-        if (instantiateLevelLoaderWhenMissing && prefab != null)
-        {
-            levelProfileLoader = Instantiate(prefab);
-            levelProfileLoader.name = LevelLoaderName;
-            AttachRuntimeObject(levelProfileLoader.gameObject);
-            ApplyRuntimeSceneRootToLoader(levelProfileLoader);
-            levelProfileLoader.ConfigureTargets(assembler, contentSpawner);
-            OrganizeKnownRuntimeObjects();
-            return levelProfileLoader;
-        }
-
-        if (!instantiateLevelLoaderWhenMissing)
-        {
-            Debug.LogWarning(
-                "[Level Flow] No LevelProfileLoader found in the LevelSystem. Assign PF_LevelLoader as a child of PF_LevelSystem.",
-                this);
-            return null;
-        }
-
-        GameObject host = GameObject.Find(LevelLoaderName);
-        if (host == null)
-            host = new GameObject(LevelLoaderName);
-
-        levelProfileLoader = host.AddComponent<LevelProfileLoader>();
-        ApplyRuntimeSceneRootToLoader(levelProfileLoader);
-        levelProfileLoader.ConfigureTargets(assembler, contentSpawner);
-        OrganizeKnownRuntimeObjects();
-        return levelProfileLoader;
+        Debug.LogWarning(
+            "[Level Flow] No LevelProfileLoader found. Put PF_LevelLoader under PF_LevelSystem or add one to the active scene.",
+            this);
+        return null;
     }
 
     public bool IsRuntimeLevelLoaderRoot(GameObject target)
@@ -525,24 +507,6 @@ public sealed class LevelFlowController : MonoBehaviour
         RegisterRuntimeObject(FindNamedRoot("Debug Updater"));
     }
 
-    private LevelProfileLoader ResolveLevelLoaderPrefab()
-    {
-        if (levelLoaderPrefab != null)
-            return levelLoaderPrefab;
-
-        ResolveFlowConfig();
-        if (flowConfig != null && flowConfig.levelLoaderPrefab != null)
-        {
-            levelLoaderPrefab = flowConfig.levelLoaderPrefab;
-            return levelLoaderPrefab;
-        }
-
-#if UNITY_EDITOR
-        levelLoaderPrefab = AssetDatabase.LoadAssetAtPath<LevelProfileLoader>(LevelLoaderPrefabPath);
-#endif
-        return levelLoaderPrefab;
-    }
-
     private bool LoadFlowScene(LevelFlowStep step)
     {
         string sceneName = ResolveTargetSceneName(step);
@@ -633,7 +597,7 @@ public sealed class LevelFlowController : MonoBehaviour
             SceneManager.SetActiveScene(runtimeScene);
             activeRuntimeFlowScene = runtimeScene;
             activeLevelSceneRoot = GetOrCreateRuntimeSceneRoot(runtimeScene);
-            EnsureRuntimeSceneDirectionalLight(activeLevelSceneRoot);
+            ApplyAtmosphere(step, activeLevelSceneRoot);
             ApplyRuntimeSceneRootToLoader(levelProfileLoader);
         }
 
@@ -699,60 +663,6 @@ public sealed class LevelFlowController : MonoBehaviour
         GameObject rootObject = new GameObject(LevelRuntimeRootName);
         SceneManager.MoveGameObjectToScene(rootObject, scene);
         return rootObject.transform;
-    }
-
-    private void EnsureRuntimeSceneDirectionalLight(Transform sceneRoot)
-    {
-        if (sceneRoot == null)
-            return;
-
-        const string runtimeLightName = "Directional Light";
-        Light runtimeLight = null;
-        Transform existing = sceneRoot.Find(runtimeLightName);
-        if (existing != null)
-        {
-            runtimeLight = existing.GetComponent<Light>();
-        }
-
-        if (runtimeLight == null)
-        {
-            GameObject lightObject = new GameObject(runtimeLightName);
-            lightObject.transform.SetParent(sceneRoot, false);
-            runtimeLight = lightObject.AddComponent<Light>();
-        }
-
-        UniversalAdditionalLightData additionalLightData = runtimeLight.GetComponent<UniversalAdditionalLightData>();
-        if (additionalLightData == null)
-        {
-            additionalLightData = runtimeLight.gameObject.AddComponent<UniversalAdditionalLightData>();
-        }
-
-        runtimeLight.type = LightType.Directional;
-        runtimeLight.color = new Color(1f, 0.95686275f, 0.8392157f, 1f);
-        runtimeLight.intensity = 1f;
-        runtimeLight.shadows = LightShadows.Soft;
-        additionalLightData.usePipelineSettings = true;
-        runtimeLight.gameObject.SetActive(true);
-        runtimeLight.enabled = true;
-        runtimeLight.transform.SetLocalPositionAndRotation(
-            Vector3.zero,
-            Quaternion.Euler(50f, -30f, 0f));
-        ApplyRuntimeSceneRenderSettings(runtimeLight);
-    }
-
-    private static void ApplyRuntimeSceneRenderSettings(Light sunLight)
-    {
-        RenderSettings.sun = sunLight;
-        RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.212f, 0.227f, 0.259f, 1f);
-        RenderSettings.ambientEquatorColor = new Color(0.114f, 0.125f, 0.133f, 1f);
-        RenderSettings.ambientGroundColor = new Color(0.047f, 0.043f, 0.035f, 1f);
-        RenderSettings.ambientIntensity = 1f;
-        RenderSettings.subtractiveShadowColor = new Color(0.42f, 0.478f, 0.627f, 1f);
-        RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
-        RenderSettings.defaultReflectionResolution = 128;
-        RenderSettings.reflectionIntensity = 1f;
-        RenderSettings.fog = false;
     }
 
     private void ApplyRuntimeSceneRootToLoader(LevelProfileLoader loader)
@@ -886,6 +796,41 @@ public sealed class LevelFlowController : MonoBehaviour
         flowConfig = Resources.Load<LevelFlowConfig>(DefaultFlowConfigResourcesPath);
     }
 
+    private void ApplyAtmosphere(LevelFlowStep step, Transform sceneRoot)
+    {
+        ResolveAtmosphereController();
+        if (atmosphereController == null)
+            return;
+
+        atmosphereController.Apply(step != null ? step.atmosphereProfile : null, sceneRoot);
+    }
+
+    private void ResolveAtmosphereController()
+    {
+        if (atmosphereController != null)
+            return;
+
+        atmosphereController = GetComponent<LevelAtmosphereController>();
+        if (atmosphereController != null)
+            return;
+
+        if (LevelSystemController.Instance != null && LevelSystemController.Instance.LevelAtmosphere != null)
+        {
+            atmosphereController = LevelSystemController.Instance.LevelAtmosphere;
+            return;
+        }
+
+        Transform runtimeRoot = GetRuntimeRootTransform();
+        if (runtimeRoot != null)
+        {
+            atmosphereController = runtimeRoot.GetComponentInChildren<LevelAtmosphereController>(true);
+            if (atmosphereController != null)
+                return;
+        }
+
+        atmosphereController = FindFirstObjectByType<LevelAtmosphereController>(FindObjectsInactive.Include);
+    }
+
     private LevelProfileLoader ResolveLevelLoaderInRuntimeRoot()
     {
         Transform runtimeRoot = GetRuntimeRootTransform();
@@ -895,6 +840,9 @@ public sealed class LevelFlowController : MonoBehaviour
             if (loaderInRoot != null)
                 return loaderInRoot;
         }
+
+        if (LevelSystemController.Instance != null && LevelSystemController.Instance.LevelLoader != null)
+            return LevelSystemController.Instance.LevelLoader;
 
         LevelProfileLoader loaderOnSelf = GetComponent<LevelProfileLoader>();
         if (loaderOnSelf != null)

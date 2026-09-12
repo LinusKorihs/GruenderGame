@@ -46,8 +46,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelProfileLoader
   levelProfile: {fileID: 0}
+  levelAtmosphereProfile: {fileID: 0}
   roomAssemblerGenerator: {fileID: 3625664821535609580}
   levelContentSpawner: {fileID: 4025584229303623266}
+  levelAtmosphereController: {fileID: 0}
   generateAfterApply: 0
   logProfileApplication: 1
   useGeneratedLevelHierarchy: 1

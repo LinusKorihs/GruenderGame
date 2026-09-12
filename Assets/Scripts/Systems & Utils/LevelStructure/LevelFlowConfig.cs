@@ -32,6 +32,9 @@ public sealed class LevelFlowStep
     public LevelConfigProfile levelProfile;
     public StaticLevelLayoutProfile staticLayoutProfile;
 
+    [Tooltip("Visual mood that should be applied when this flow step becomes active.")]
+    public LevelAtmosphereProfile atmosphereProfile;
+
     public string DisplayName
     {
         get
@@ -47,9 +50,6 @@ public sealed class LevelFlowStep
 [CreateAssetMenu(menuName = "SO/Level Flow/Level Flow Config", fileName = "LevelFlowConfig")]
 public sealed class LevelFlowConfig : ScriptableObject
 {
-    [Header("Runtime Loader")]
-    public LevelProfileLoader levelLoaderPrefab;
-
     [Header("Flow")]
     public List<LevelFlowStep> steps = new List<LevelFlowStep>();
 

@@ -56,6 +56,7 @@ MonoBehaviour:
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 0}
     staticLayoutProfile: {fileID: 11400000, guid: da2b976f9587431db88523e4d3e30629, type: 2}
+    atmosphereProfile: {fileID: 11400000, guid: 3489d68956074aa788b0b7386fce2b41, type: 2}
   - stepId: level_01
     displayName: Level 1
     stepType: 1
@@ -65,6 +66,7 @@ MonoBehaviour:
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 4e7e70680ebe95b41a630ffa07591089, type: 2}
     staticLayoutProfile: {fileID: 0}
+    atmosphereProfile: {fileID: 11400000, guid: dd94871b26b6463cb43d02f4e0f1f0de, type: 2}
   - stepId: level_02
     displayName: Level 2
     stepType: 1
@@ -74,6 +76,7 @@ MonoBehaviour:
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 6b2c278161a97dd4fa364cfcf23117ae, type: 2}
     staticLayoutProfile: {fileID: 0}
+    atmosphereProfile: {fileID: 11400000, guid: ae807e08d5b34a7b8953fa8feb6cec0c, type: 2}
   - stepId: boss
     displayName: Bossraum / Werkschau
     stepType: 2
@@ -83,9 +86,8 @@ MonoBehaviour:
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 0}
     staticLayoutProfile: {fileID: 11400000, guid: b956057f65664e1eacebfd1c86de2f0c, type: 2}
+    atmosphereProfile: {fileID: 11400000, guid: a8f373937acb4bc9820ce99df47e8f8d, type: 2}
   loadFirstStepOnStart: 1
   infiniteLevelFlow: 0
   useEditorFallbackFlow: 1
   logFlow: 1
-  levelLoaderPrefab: {fileID: 0}
-  instantiateLevelLoaderWhenMissing: 0

@@ -107,16 +107,14 @@ public class LevelProfileLoaderEditor : Editor
     private static bool runtimeFoldout = true;
 
     private SerializedProperty levelProfile;
-    private SerializedProperty roomAssemblerGenerator;
-    private SerializedProperty levelContentSpawner;
+    private SerializedProperty levelAtmosphereProfile;
     private SerializedProperty generateAfterApply;
     private SerializedProperty logProfileApplication;
 
     private void OnEnable()
     {
         levelProfile = serializedObject.FindProperty("levelProfile");
-        roomAssemblerGenerator = serializedObject.FindProperty("roomAssemblerGenerator");
-        levelContentSpawner = serializedObject.FindProperty("levelContentSpawner");
+        levelAtmosphereProfile = serializedObject.FindProperty("levelAtmosphereProfile");
         generateAfterApply = serializedObject.FindProperty("generateAfterApply");
         logProfileApplication = serializedObject.FindProperty("logProfileApplication");
     }
@@ -126,10 +124,7 @@ public class LevelProfileLoaderEditor : Editor
         serializedObject.Update();
 
         DrawProperty(levelProfile);
-
-        GUILayout.Space(8);
-        DrawProperty(roomAssemblerGenerator);
-        DrawProperty(levelContentSpawner);
+        DrawProperty(levelAtmosphereProfile);
 
         GUILayout.Space(8);
         runtimeFoldout = EditorGUILayout.Foldout(runtimeFoldout, "Runtime", true);

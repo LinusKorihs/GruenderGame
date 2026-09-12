@@ -12,7 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32846e88a4d140129e33a0151cd910c5, type: 3}
   m_Name: SO_LevelFlow_Werkschau
   m_EditorClassIdentifier: Assembly-CSharp::LevelFlowConfig
-  levelLoaderPrefab: {fileID: 835457721649708555, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
   steps:
   - stepId: Tutorial
     displayName: Tutorial Werkschau
@@ -23,6 +22,7 @@ MonoBehaviour:
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 4d99598890434befa5e18c3427faecc9, type: 2}
     staticLayoutProfile: {fileID: 11400000, guid: da2b976f9587431db88523e4d3e30629, type: 2}
+    atmosphereProfile: {fileID: 11400000, guid: 3489d68956074aa788b0b7386fce2b41, type: 2}
   - stepId: Level_01
     displayName: Level 1
     stepType: 1
@@ -32,6 +32,7 @@ MonoBehaviour:
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 4e7e70680ebe95b41a630ffa07591089, type: 2}
     staticLayoutProfile: {fileID: 0}
+    atmosphereProfile: {fileID: 11400000, guid: dd94871b26b6463cb43d02f4e0f1f0de, type: 2}
   - stepId: Level_02
     displayName: Level 2
     stepType: 1
@@ -41,6 +42,7 @@ MonoBehaviour:
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 6b2c278161a97dd4fa364cfcf23117ae, type: 2}
     staticLayoutProfile: {fileID: 0}
+    atmosphereProfile: {fileID: 11400000, guid: ae807e08d5b34a7b8953fa8feb6cec0c, type: 2}
   - stepId: Boss
     displayName: Bossraum
     stepType: 2
@@ -50,3 +52,4 @@ MonoBehaviour:
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 0271292110684d83b96fb0ffa33b1bfa, type: 2}
     staticLayoutProfile: {fileID: 11400000, guid: b956057f65664e1eacebfd1c86de2f0c, type: 2}
+    atmosphereProfile: {fileID: 11400000, guid: a8f373937acb4bc9820ce99df47e8f8d, type: 2}

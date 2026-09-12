@@ -6,14 +6,19 @@ using UnityEditor;
 
 public class LevelProfileLoader : MonoBehaviour
 {
+    [Header("Profiles")]
     [SerializeField] private LevelConfigProfile levelProfile;
+    [SerializeField] private LevelAtmosphereProfile levelAtmosphereProfile;
 
-    [SerializeField] private RoomAssemblerGenerator roomAssemblerGenerator;
-    [SerializeField] private LevelContentSpawner levelContentSpawner;
+    [SerializeField, HideInInspector] private RoomAssemblerGenerator roomAssemblerGenerator;
+    [SerializeField, HideInInspector] private LevelContentSpawner levelContentSpawner;
+    [SerializeField, HideInInspector] private LevelAtmosphereController levelAtmosphereController;
 
+    [Header("Generation")]
     [SerializeField] private bool generateAfterApply;
     [SerializeField] private bool logProfileApplication = true;
 
+    [Header("Runtime Hierarchy")]
     [SerializeField] private bool useGeneratedLevelHierarchy = true;
     [SerializeField] private string pcgRootName = "PCG_Root";
     [SerializeField] private string generatedLevelRootName = "Generated_Level";
@@ -21,8 +26,10 @@ public class LevelProfileLoader : MonoBehaviour
     [SerializeField] private string contentRootName = "Content";
 
     public LevelConfigProfile LevelProfile => levelProfile;
+    public LevelAtmosphereProfile LevelAtmosphereProfile => levelAtmosphereProfile;
     public RoomAssemblerGenerator RoomAssemblerGenerator => roomAssemblerGenerator;
     public LevelContentSpawner LevelContentSpawner => levelContentSpawner;
+    public LevelAtmosphereController LevelAtmosphereController => levelAtmosphereController;
     public RoomAssemblerConfig RuntimeRoomAssemblerConfig { get; private set; }
     public LevelContentSpawnConfig RuntimeSpawnConfig { get; private set; }
 
@@ -31,15 +38,17 @@ public class LevelProfileLoader : MonoBehaviour
     private void Awake()
     {
         ResolveMissingTargets();
+        ResolveAtmosphereController();
         DisableRoomAssemblerAutoGeneration();
 
-        if (levelProfile == null)
+        if (levelProfile == null && levelAtmosphereProfile == null)
         {
             return;
         }
 
-        bool applied = ApplyLevelProfile();
-        if (applied && generateAfterApply)
+        bool profileApplied = levelProfile == null || ApplyLevelProfile();
+        ApplyLevelAtmosphereProfile();
+        if (profileApplied && levelProfile != null && generateAfterApply)
         {
             GenerateRoomAssembler();
         }
@@ -48,7 +57,9 @@ public class LevelProfileLoader : MonoBehaviour
     [ContextMenu("Validate And Apply Level Profile")]
     public void ValidateAndApplyLevelProfile()
     {
-        ApplyLevelProfile();
+        bool applied = ApplyLevelProfile();
+        ApplyLevelAtmosphereProfile();
+        Log($"Validate and apply finished. LevelProfileApplied={applied}.");
     }
 
     public bool ApplyLevelProfile()
@@ -136,6 +147,37 @@ public class LevelProfileLoader : MonoBehaviour
         return ApplyLevelProfile();
     }
 
+    public void SetLevelAtmosphereProfile(LevelAtmosphereProfile profile, bool applyImmediately = true)
+    {
+        levelAtmosphereProfile = profile;
+        if (applyImmediately)
+        {
+            ApplyLevelAtmosphereProfile();
+        }
+    }
+
+    public bool ApplyLevelAtmosphereProfile(LevelAtmosphereProfile profile = null, Transform runtimeLevelRoot = null)
+    {
+        LevelAtmosphereProfile activeProfile = ResolveActiveAtmosphereProfile(profile);
+        if (activeProfile == null)
+        {
+            Log("No LevelAtmosphereProfile assigned. Atmosphere apply skipped.");
+            return false;
+        }
+
+        ResolveAtmosphereController();
+        if (levelAtmosphereController == null)
+        {
+            Debug.LogWarning("[Level Profile] Atmosphere apply skipped because no LevelAtmosphereController was found in the LevelSystem or active scene.", this);
+            return false;
+        }
+
+        levelAtmosphereProfile = activeProfile;
+        levelAtmosphereController.Apply(activeProfile, runtimeLevelRoot != null ? runtimeLevelRoot : runtimeLevelRootOverride);
+        Log($"Applied atmosphere profile '{activeProfile.name}'.");
+        return true;
+    }
+
     public void ConfigureTargets(RoomAssemblerGenerator roomAssembler, LevelContentSpawner contentSpawner, Light levelLight = null)
     {
         if (roomAssembler != null)
@@ -149,6 +191,14 @@ public class LevelProfileLoader : MonoBehaviour
         }
 
         _ = levelLight;
+    }
+
+    public void ConfigureAtmosphere(LevelAtmosphereController controller)
+    {
+        if (controller != null)
+        {
+            levelAtmosphereController = controller;
+        }
     }
 
     public void SetRuntimeLevelRoot(Transform levelRoot)
@@ -165,12 +215,34 @@ public class LevelProfileLoader : MonoBehaviour
     public void ResolveSceneTargets()
     {
         ResolveMissingTargets();
+        ResolveAtmosphereController();
     }
 
     [ContextMenu("Validate Level Profile")]
     public void ValidateLevelProfile()
     {
         PCGProfileValidator.ValidateAndLog(levelProfile, this);
+        ValidateAtmosphereProfile();
+    }
+
+    [ContextMenu("Validate Atmosphere Profile")]
+    public void ValidateAtmosphereProfile()
+    {
+        LevelAtmosphereProfile activeProfile = ResolveActiveAtmosphereProfile(null);
+        if (activeProfile == null)
+        {
+            Log("No LevelAtmosphereProfile assigned. This is valid when the active LevelFlow step also has none.");
+            return;
+        }
+
+        ResolveAtmosphereController();
+        if (levelAtmosphereController == null)
+        {
+            Debug.LogWarning($"[Level Profile] Atmosphere profile '{activeProfile.name}' is assigned, but no LevelAtmosphereController was found.", this);
+            return;
+        }
+
+        Log($"Atmosphere profile '{activeProfile.name}' is ready for '{levelAtmosphereController.name}'.");
     }
 
     [ContextMenu("Generate")]
@@ -189,6 +261,8 @@ public class LevelProfileLoader : MonoBehaviour
             return;
         }
 
+        ApplyLevelAtmosphereProfile();
+
         if (levelProfile.levelType != LevelProfileType.PCG)
         {
             Log($"Generate skipped because '{levelProfile.DisplayName}' is {levelProfile.levelType}, not PCG.");
@@ -202,6 +276,7 @@ public class LevelProfileLoader : MonoBehaviour
     public void ClearGeneratedLevelContent()
     {
         ResolveMissingTargets();
+        ResolveAtmosphereController();
 
         FindRuntimeContainers(out Transform roomsRoot, out Transform contentRoot);
 
@@ -220,12 +295,16 @@ public class LevelProfileLoader : MonoBehaviour
         if (roomsRoot == null && contentRoot == null)
         {
             Debug.LogWarning("[Level Profile] Clear skipped because no runtime Rooms or Content containers were found.", this);
-            return;
+        }
+        else
+        {
+            Log(
+                $"Cleared generated level content. Rooms={clearedRooms}, Content={contentClearCount}, " +
+                $"NavMeshSurfaces={clearedNavMeshSurfaces}.");
         }
 
-        Log(
-            $"Cleared generated level content. Rooms={clearedRooms}, Content={contentClearCount}, " +
-            $"NavMeshSurfaces={clearedNavMeshSurfaces}.");
+        ClearRuntimeAtmosphereArtifacts();
+        ClearGeneratedHierarchyRoots();
     }
 
     private void GenerateRoomAssembler()
@@ -299,24 +378,69 @@ public class LevelProfileLoader : MonoBehaviour
     {
         if (roomAssemblerGenerator == null)
         {
-            roomAssemblerGenerator = GetComponentInChildren<RoomAssemblerGenerator>();
+            roomAssemblerGenerator = GetComponentInChildren<RoomAssemblerGenerator>(true);
         }
 
         if (levelContentSpawner == null)
         {
-            levelContentSpawner = GetComponentInChildren<LevelContentSpawner>();
+            levelContentSpawner = GetComponentInChildren<LevelContentSpawner>(true);
+        }
+
+        Transform searchRoot = runtimeLevelRootOverride != null ? runtimeLevelRootOverride : transform.root;
+        if (roomAssemblerGenerator == null && searchRoot != null)
+        {
+            roomAssemblerGenerator = searchRoot.GetComponentInChildren<RoomAssemblerGenerator>(true);
+        }
+
+        if (levelContentSpawner == null && searchRoot != null)
+        {
+            levelContentSpawner = searchRoot.GetComponentInChildren<LevelContentSpawner>(true);
         }
 
         if (roomAssemblerGenerator == null)
         {
-            roomAssemblerGenerator = FindFirstObjectByType<RoomAssemblerGenerator>();
+            roomAssemblerGenerator = FindFirstObjectByType<RoomAssemblerGenerator>(FindObjectsInactive.Include);
         }
 
         if (levelContentSpawner == null)
         {
-            levelContentSpawner = FindFirstObjectByType<LevelContentSpawner>();
+            levelContentSpawner = FindFirstObjectByType<LevelContentSpawner>(FindObjectsInactive.Include);
         }
 
+    }
+
+    private void ResolveAtmosphereController()
+    {
+        if (levelAtmosphereController != null)
+            return;
+
+        if (LevelSystemController.Instance != null && LevelSystemController.Instance.LevelAtmosphere != null)
+        {
+            levelAtmosphereController = LevelSystemController.Instance.LevelAtmosphere;
+            return;
+        }
+
+        Transform searchRoot = runtimeLevelRootOverride != null ? runtimeLevelRootOverride : transform.root;
+        if (searchRoot != null)
+        {
+            levelAtmosphereController = searchRoot.GetComponentInChildren<LevelAtmosphereController>(true);
+            if (levelAtmosphereController != null)
+                return;
+        }
+
+        levelAtmosphereController = FindFirstObjectByType<LevelAtmosphereController>(FindObjectsInactive.Include);
+    }
+
+    private LevelAtmosphereProfile ResolveActiveAtmosphereProfile(LevelAtmosphereProfile requestedProfile)
+    {
+        if (requestedProfile != null)
+            return requestedProfile;
+
+        if (levelAtmosphereProfile != null)
+            return levelAtmosphereProfile;
+
+        LevelFlowStep currentStep = LevelFlowController.Instance != null ? LevelFlowController.Instance.CurrentStep : null;
+        return currentStep != null ? currentStep.atmosphereProfile : null;
     }
 
     private void ConfigureRuntimeHierarchy()
@@ -372,6 +496,68 @@ public class LevelProfileLoader : MonoBehaviour
 
         roomsRoot = FindChild(generatedRoot, roomsRootName);
         contentRoot = FindChild(generatedRoot, contentRootName);
+    }
+
+    private void ClearRuntimeAtmosphereArtifacts()
+    {
+        if (levelAtmosphereController != null)
+        {
+            levelAtmosphereController.ClearRuntimeObjects(runtimeLevelRootOverride);
+            return;
+        }
+
+        if (LevelSystemController.Instance != null && LevelSystemController.Instance.FogOfWar != null)
+        {
+            LevelSystemController.Instance.FogOfWar.ClearRuntimeObjects();
+        }
+    }
+
+    private void ClearGeneratedHierarchyRoots()
+    {
+        if (!useGeneratedLevelHierarchy)
+            return;
+
+        Transform hierarchyRoot = GetRuntimeHierarchyRoot();
+        Transform pcgRoot = FindChild(hierarchyRoot, pcgRootName);
+        Transform generatedRoot = pcgRoot != null
+            ? FindChild(pcgRoot, generatedLevelRootName)
+            : FindChild(hierarchyRoot, generatedLevelRootName);
+
+        if (pcgRoot != null)
+        {
+            if (ContainsPersistentGeneratorTarget(pcgRoot))
+            {
+                if (generatedRoot != null && !ContainsPersistentGeneratorTarget(generatedRoot))
+                {
+                    string generatedRootPath = GetPath(generatedRoot);
+                    DestroyRuntime(generatedRoot.gameObject);
+                    Log($"Removed generated hierarchy '{generatedRootPath}'.");
+                }
+
+                Log($"Kept '{GetPath(pcgRoot)}' because it contains the persistent RoomAssembler target.");
+                return;
+            }
+
+            string pcgRootPath = GetPath(pcgRoot);
+            DestroyRuntime(pcgRoot.gameObject);
+            Log($"Removed generated hierarchy '{pcgRootPath}'.");
+            return;
+        }
+
+        if (generatedRoot != null && !ContainsPersistentGeneratorTarget(generatedRoot))
+        {
+            string generatedRootPath = GetPath(generatedRoot);
+            DestroyRuntime(generatedRoot.gameObject);
+            Log($"Removed generated hierarchy '{generatedRootPath}'.");
+        }
+    }
+
+    private bool ContainsPersistentGeneratorTarget(Transform target)
+    {
+        if (target == null)
+            return false;
+
+        return roomAssemblerGenerator != null && roomAssemblerGenerator.transform.IsChildOf(target);
     }
 
     private void ParentRoomAssemblerUnderPcgRoot(Transform pcgRoot)

@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e2b22a7d17a4a39b0f5447904706199, type: 3}
+  m_Name: SO_Atmosphere_Level2
+  m_EditorClassIdentifier: Assembly-CSharp::LevelAtmosphereProfile
+  skyboxMode: 2
+  proceduralSkyTint: {r: 0.42, g: 0.5, b: 0.68, a: 1}
+  proceduralGroundColor: {r: 0.08, g: 0.1, b: 0.13, a: 1}
+  proceduralExposure: 0.92
+  proceduralAtmosphereThickness: 1.15
+  manageDirectionalLight: 1
+  preferExistingDirectionalLight: 1
+  disableDuplicateDirectionalLights: 1
+  directionalLightName: Directional Light
+  directionalLightEulerAngles: {x: 54, y: -45, z: 0}
+  directionalLightColor: {r: 0.82, g: 0.9, b: 1, a: 1}
+  directionalLightIntensity: 0.95
+  directionalLightIndirectMultiplier: 0.9
+  directionalLightShadowStrength: 0.9
+  directionalLightShadows: 2
+  directionalLightCullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  useUrpPipelineLightSettings: 1
+  useRuntimeBlend: 1
+  blendDuration: 1.1
+  applyAmbient: 1
+  ambientMode: 0
+  ambientLightColor: {r: 0.16, g: 0.18, b: 0.22, a: 1}
+  ambientSkyColor: {r: 0.16, g: 0.18, b: 0.22, a: 1}
+  ambientEquatorColor: {r: 0.09, g: 0.1, b: 0.12, a: 1}
+  ambientGroundColor: {r: 0.035, g: 0.035, b: 0.04, a: 1}
+  ambientIntensity: 0.9
+  subtractiveShadowColor: {r: 0.34, g: 0.4, b: 0.55, a: 1}
+  defaultReflectionMode: 0
+  defaultReflectionResolution: 128
+  reflectionIntensity: 0.9
+  applyUnityFog: 1
+  unityFogEnabled: 0
+  unityFogColor: {r: 0.33, g: 0.38, b: 0.47, a: 1}
+  unityFogMode: 3
+  unityFogDensity: 0.012
+  unityFogStartDistance: 0
+  unityFogEndDistance: 280
+  fogOfWarProfile: {fileID: 11400000, guid: f284bc8e5bea4982afaed43b326cd6f2, type: 2}
+  updateDynamicGI: 1

@@ -7,15 +7,21 @@ public sealed class LevelSystemController : MonoBehaviour
     [Header("Optional Prefab Sources")]
     [SerializeField] private LevelFlowController levelFlowPrefab;
     [SerializeField] private LevelProfileLoader levelLoaderPrefab;
+    [SerializeField] private LevelAtmosphereController levelAtmospherePrefab;
+    [SerializeField] private LevelFogOfWarController fogOfWarPrefab;
 
     [Header("Runtime Children")]
     [SerializeField] private LevelFlowController levelFlow;
     [SerializeField] private LevelProfileLoader levelLoader;
+    [SerializeField] private LevelAtmosphereController levelAtmosphere;
+    [SerializeField] private LevelFogOfWarController fogOfWar;
     [SerializeField] private bool instantiateMissingChildren = true;
     [SerializeField] private bool dontDestroyOnLoad = true;
 
     public LevelFlowController LevelFlow => levelFlow;
     public LevelProfileLoader LevelLoader => levelLoader;
+    public LevelAtmosphereController LevelAtmosphere => levelAtmosphere;
+    public LevelFogOfWarController FogOfWar => fogOfWar;
 
     private void Awake()
     {
@@ -59,6 +65,12 @@ public sealed class LevelSystemController : MonoBehaviour
         if (levelLoader == null)
             levelLoader = GetComponentInChildren<LevelProfileLoader>(true);
 
+        if (levelAtmosphere == null)
+            levelAtmosphere = GetComponentInChildren<LevelAtmosphereController>(true);
+
+        if (fogOfWar == null)
+            fogOfWar = GetComponentInChildren<LevelFogOfWarController>(true);
+
         if (!instantiateMissingChildren)
             return;
 
@@ -73,6 +85,19 @@ public sealed class LevelSystemController : MonoBehaviour
             levelFlow = Instantiate(levelFlowPrefab, transform);
             levelFlow.name = "PF_LevelFlow";
         }
+
+        if (levelAtmosphere == null && levelAtmospherePrefab != null)
+        {
+            levelAtmosphere = Instantiate(levelAtmospherePrefab, transform);
+            levelAtmosphere.name = "PF_LevelAtmosphere";
+            fogOfWar ??= levelAtmosphere.GetComponentInChildren<LevelFogOfWarController>(true);
+        }
+
+        if (fogOfWar == null && fogOfWarPrefab != null)
+        {
+            fogOfWar = Instantiate(fogOfWarPrefab, transform);
+            fogOfWar.name = "PF_LevelFogOfWar";
+        }
     }
 
     private void ConfigureChildren()
@@ -80,6 +105,21 @@ public sealed class LevelSystemController : MonoBehaviour
         if (levelFlow != null && levelLoader != null)
         {
             levelFlow.ConfigureLevelLoader(levelLoader);
+        }
+
+        if (levelFlow != null && levelAtmosphere != null)
+        {
+            levelFlow.ConfigureAtmosphere(levelAtmosphere);
+        }
+
+        if (levelLoader != null && levelAtmosphere != null)
+        {
+            levelLoader.ConfigureAtmosphere(levelAtmosphere);
+        }
+
+        if (levelAtmosphere != null && fogOfWar != null)
+        {
+            levelAtmosphere.ConfigureFogOfWar(fogOfWar);
         }
     }
 }

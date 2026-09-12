@@ -4,7 +4,7 @@ using UnityEngine;
 [CustomPropertyDrawer(typeof(LevelFlowStep))]
 public sealed class LevelFlowStepDrawer : PropertyDrawer
 {
-    private const float Gap = 2f;
+    private const float Gap = 4f;
     private static readonly GUIContent[] SceneModeTabs =
     {
         new GUIContent("Load Scene"),
@@ -16,14 +16,28 @@ public sealed class LevelFlowStepDrawer : PropertyDrawer
         if (!property.isExpanded)
             return EditorGUIUtility.singleLineHeight + Gap;
 
-        int lines = 8;
+        float height = EditorGUIUtility.singleLineHeight + Gap;
+        height += PropertyHeight(property, "stepId");
+        height += PropertyHeight(property, "displayName");
+        height += PropertyHeight(property, "stepType");
+        height += EditorGUIUtility.singleLineHeight + Gap;
+
         SerializedProperty sceneMode = property.FindPropertyRelative("sceneMode");
         if (sceneMode != null && sceneMode.enumValueIndex == (int)LevelFlowSceneMode.RuntimeScene)
         {
-            lines++;
+            height += PropertyHeight(property, "runtimeSceneName");
+            height += PropertyHeight(property, "unloadPreviousRuntimeScene");
+            height += PropertyHeight(property, "sceneName");
+        }
+        else
+        {
+            height += PropertyHeight(property, "sceneName");
         }
 
-        return EditorGUIUtility.singleLineHeight * lines + Gap * (lines + 1);
+        height += PropertyHeight(property, "levelProfile");
+        height += PropertyHeight(property, "staticLayoutProfile");
+        height += PropertyHeight(property, "atmosphereProfile");
+        return height + Gap;
     }
 
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -60,6 +74,7 @@ public sealed class LevelFlowStepDrawer : PropertyDrawer
 
         DrawProperty(ref position, property, "levelProfile");
         DrawProperty(ref position, property, "staticLayoutProfile");
+        DrawProperty(ref position, property, "atmosphereProfile");
         EditorGUI.indentLevel--;
 
         EditorGUI.EndProperty();
@@ -71,9 +86,15 @@ public sealed class LevelFlowStepDrawer : PropertyDrawer
         if (child == null)
             return;
 
-        Rect line = NextLine(ref position);
+        Rect line = NextPropertyRect(ref position, child);
         GUIContent content = label == null ? new GUIContent(child.displayName) : new GUIContent(label);
         EditorGUI.PropertyField(line, child, content, true);
+    }
+
+    private static float PropertyHeight(SerializedProperty parent, string propertyName)
+    {
+        SerializedProperty child = parent.FindPropertyRelative(propertyName);
+        return child != null ? EditorGUI.GetPropertyHeight(child, true) + Gap : 0f;
     }
 
     private static Rect NextLine(ref Rect position)
@@ -85,6 +106,14 @@ public sealed class LevelFlowStepDrawer : PropertyDrawer
             EditorGUIUtility.singleLineHeight);
 
         position.y += EditorGUIUtility.singleLineHeight + Gap;
+        return line;
+    }
+
+    private static Rect NextPropertyRect(ref Rect position, SerializedProperty property)
+    {
+        float height = EditorGUI.GetPropertyHeight(property, true);
+        Rect line = new Rect(position.x, position.y, position.width, height);
+        position.y += height + Gap;
         return line;
     }
 }
