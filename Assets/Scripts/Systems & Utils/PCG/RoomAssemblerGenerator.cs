@@ -62,7 +62,6 @@ public class RoomAssemblerGenerator : MonoBehaviour
         Generate();
     }
 
-    [ContextMenu("Generate")]
     public void Generate()
     {
         GenerateWithMetrics();

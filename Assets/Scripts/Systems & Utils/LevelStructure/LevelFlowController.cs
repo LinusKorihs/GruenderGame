@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -719,16 +721,38 @@ public sealed class LevelFlowController : MonoBehaviour
             runtimeLight = lightObject.AddComponent<Light>();
         }
 
+        UniversalAdditionalLightData additionalLightData = runtimeLight.GetComponent<UniversalAdditionalLightData>();
+        if (additionalLightData == null)
+        {
+            additionalLightData = runtimeLight.gameObject.AddComponent<UniversalAdditionalLightData>();
+        }
+
         runtimeLight.type = LightType.Directional;
         runtimeLight.color = new Color(1f, 0.95686275f, 0.8392157f, 1f);
         runtimeLight.intensity = 1f;
         runtimeLight.shadows = LightShadows.Soft;
+        additionalLightData.usePipelineSettings = true;
         runtimeLight.gameObject.SetActive(true);
         runtimeLight.enabled = true;
         runtimeLight.transform.SetLocalPositionAndRotation(
             Vector3.zero,
             Quaternion.Euler(50f, -30f, 0f));
-        RenderSettings.sun = runtimeLight;
+        ApplyRuntimeSceneRenderSettings(runtimeLight);
+    }
+
+    private static void ApplyRuntimeSceneRenderSettings(Light sunLight)
+    {
+        RenderSettings.sun = sunLight;
+        RenderSettings.ambientMode = AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = new Color(0.212f, 0.227f, 0.259f, 1f);
+        RenderSettings.ambientEquatorColor = new Color(0.114f, 0.125f, 0.133f, 1f);
+        RenderSettings.ambientGroundColor = new Color(0.047f, 0.043f, 0.035f, 1f);
+        RenderSettings.ambientIntensity = 1f;
+        RenderSettings.subtractiveShadowColor = new Color(0.42f, 0.478f, 0.627f, 1f);
+        RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
+        RenderSettings.defaultReflectionResolution = 128;
+        RenderSettings.reflectionIntensity = 1f;
+        RenderSettings.fog = false;
     }
 
     private void ApplyRuntimeSceneRootToLoader(LevelProfileLoader loader)

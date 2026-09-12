@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelConfigProfile
   levelId: level_01
   levelName: Level 1
-  levelIndex: 1
+  levelIndex: 2
   levelType: 0
   pcgConfigProfile: {fileID: 11400000, guid: f8bc97090ca5c644aa7418a65f59e981, type: 2}

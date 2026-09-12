@@ -103,7 +103,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2d3c8c4c1e44a34c9b4f5f03da552ee, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WFCGenerator
-  config: {fileID: 0}
+  config: {fileID: 11400000, guid: 8ac41c59633ddb14fa732bcbb2edc7a1, type: 2}
   parent: {fileID: 0}
   clearBeforeGenerate: 1
   autoGenerateOnStart: 0

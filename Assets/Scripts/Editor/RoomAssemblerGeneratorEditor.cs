@@ -12,16 +12,6 @@ public class RoomAssemblerGeneratorEditor : Editor
 
         var gen = (RoomAssemblerGenerator)target;
 
-        GUILayout.Space(10);
-
-        if (GUILayout.Button("Generate"))
-        {
-            gen.Generate();
-            EditorUtility.SetDirty(gen);
-        }
-
-        GUILayout.Space(6);
-
         if (GUILayout.Button("Enable NavMesh Mesh Read/Write"))
         {
             EnableNavMeshMeshReadWrite(gen);
@@ -119,7 +109,6 @@ public class LevelProfileLoaderEditor : Editor
     private SerializedProperty levelProfile;
     private SerializedProperty roomAssemblerGenerator;
     private SerializedProperty levelContentSpawner;
-    private SerializedProperty directionalLight;
     private SerializedProperty generateAfterApply;
     private SerializedProperty logProfileApplication;
 
@@ -128,7 +117,6 @@ public class LevelProfileLoaderEditor : Editor
         levelProfile = serializedObject.FindProperty("levelProfile");
         roomAssemblerGenerator = serializedObject.FindProperty("roomAssemblerGenerator");
         levelContentSpawner = serializedObject.FindProperty("levelContentSpawner");
-        directionalLight = serializedObject.FindProperty("directionalLight");
         generateAfterApply = serializedObject.FindProperty("generateAfterApply");
         logProfileApplication = serializedObject.FindProperty("logProfileApplication");
     }
@@ -142,7 +130,6 @@ public class LevelProfileLoaderEditor : Editor
         GUILayout.Space(8);
         DrawProperty(roomAssemblerGenerator);
         DrawProperty(levelContentSpawner);
-        DrawProperty(directionalLight);
 
         GUILayout.Space(8);
         runtimeFoldout = EditorGUILayout.Foldout(runtimeFoldout, "Runtime", true);

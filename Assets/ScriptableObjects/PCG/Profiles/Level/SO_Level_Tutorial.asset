@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f0665e59a9dc40c3af41bb5d3ffebd32, type: 3}
-  m_Name: SO_Level2
+  m_Name: SO_Level_Tutorial
   m_EditorClassIdentifier: Assembly-CSharp::LevelConfigProfile
-  levelId: level_02
-  levelName: Level 2
-  levelIndex: 3
-  levelType: 0
-  pcgConfigProfile: {fileID: 11400000, guid: 63d0ed57542f03a4bb45bb08527b8a9c, type: 2}
+  levelId: tutorial
+  levelName: Tutorial
+  levelIndex: 1
+  levelType: 1
+  pcgConfigProfile: {fileID: 0}

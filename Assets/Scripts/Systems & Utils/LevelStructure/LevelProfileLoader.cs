@@ -1,5 +1,8 @@
 using Unity.AI.Navigation;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class LevelProfileLoader : MonoBehaviour
 {
@@ -27,9 +30,11 @@ public class LevelProfileLoader : MonoBehaviour
 
     private void Awake()
     {
+        ResolveMissingTargets();
+        DisableRoomAssemblerAutoGeneration();
+
         if (levelProfile == null)
         {
-            ResolveMissingTargets();
             return;
         }
 
@@ -70,6 +75,7 @@ public class LevelProfileLoader : MonoBehaviour
         }
 
         ResolveMissingTargets();
+        DisableRoomAssemblerAutoGeneration();
 
         Log(
             $"Targets: RoomAssemblerGenerator={(roomAssemblerGenerator != null ? roomAssemblerGenerator.name : "missing")}, " +
@@ -77,6 +83,12 @@ public class LevelProfileLoader : MonoBehaviour
 
         ConfigureRuntimeHierarchy();
         ApplyLevelIndex();
+
+        if (levelProfile.levelType != LevelProfileType.PCG)
+        {
+            Log($"'{levelProfile.DisplayName}' is {levelProfile.levelType}. PCG config apply skipped.");
+            return true;
+        }
 
         if (levelProfile.pcgConfigProfile == null)
         {
@@ -164,19 +176,22 @@ public class LevelProfileLoader : MonoBehaviour
     [ContextMenu("Generate")]
     public void Generate()
     {
-        bool canGenerate = true;
-        if (levelProfile != null)
+        if (levelProfile == null)
         {
-            canGenerate = ApplyLevelProfile();
-        }
-        else
-        {
-            ResolveMissingTargets();
+            Debug.LogWarning("[Level Profile] Generate skipped because no LevelConfigProfile is assigned. Assign a profile on PF_LevelLoader first.", this);
+            return;
         }
 
+        bool canGenerate = ApplyLevelProfile();
         if (!canGenerate)
         {
             Debug.LogWarning("[Level Profile] Generate skipped because profile validation blocked the apply step.", this);
+            return;
+        }
+
+        if (levelProfile.levelType != LevelProfileType.PCG)
+        {
+            Log($"Generate skipped because '{levelProfile.DisplayName}' is {levelProfile.levelType}, not PCG.");
             return;
         }
 
@@ -377,6 +392,9 @@ public class LevelProfileLoader : MonoBehaviour
             return;
         }
 
+        if (!CanReparentRoomAssembler(roomAssemblerTransform, pcgRoot))
+            return;
+
         roomAssemblerTransform.SetParent(pcgRoot, true);
         Log($"Moved '{roomAssemblerTransform.name}' under '{GetPath(pcgRoot)}'.");
     }
@@ -398,8 +416,29 @@ public class LevelProfileLoader : MonoBehaviour
             return;
         }
 
+        if (!CanReparentRoomAssembler(roomAssemblerTransform, transform))
+            return;
+
         roomAssemblerTransform.SetParent(transform, true);
         Log($"Kept '{roomAssemblerTransform.name}' under persistent loader while its output targets the active runtime scene.");
+    }
+
+    private bool CanReparentRoomAssembler(Transform roomAssemblerTransform, Transform targetParent)
+    {
+        if (roomAssemblerTransform == null || targetParent == null)
+            return false;
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying && PrefabUtility.IsPartOfPrefabInstance(roomAssemblerTransform))
+        {
+            Log(
+                $"Skipped moving '{roomAssemblerTransform.name}' under '{GetPath(targetParent)}' because it belongs to a Prefab instance. " +
+                "Its generated output still targets the runtime hierarchy.");
+            return false;
+        }
+#endif
+
+        return true;
     }
 
     private void RemoveUnusedLocalGeneratedHierarchy()
@@ -511,6 +550,15 @@ public class LevelProfileLoader : MonoBehaviour
         {
             DestroyImmediate(target);
         }
+    }
+
+    private void DisableRoomAssemblerAutoGeneration()
+    {
+        if (roomAssemblerGenerator == null || !roomAssemblerGenerator.autoGenerateOnStart)
+            return;
+
+        roomAssemblerGenerator.autoGenerateOnStart = false;
+        Log($"Disabled auto generation on '{roomAssemblerGenerator.name}'. Use PF_LevelLoader/LevelProfileLoader generation instead.");
     }
 
     private static string GetPath(Transform target)
