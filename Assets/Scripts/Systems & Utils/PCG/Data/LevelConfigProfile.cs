@@ -24,6 +24,9 @@ public class LevelConfigProfile : ScriptableObject
     [Header("PCG")]
     public PCGConfigProfile pcgConfigProfile;
 
+    [Header("Static Layout")]
+    public StaticLevelLayoutProfile staticLayoutProfile;
+
     public string DisplayName
     {
         get
@@ -157,6 +160,7 @@ public static class PCGProfileValidator
 
         if (profile.levelType != LevelProfileType.PCG)
         {
+            ValidateStaticLayoutProfile(profile, result);
             result.AddInfo($"{profile.name}: LevelType is {profile.levelType}. PCG validation is informational until non-PCG modules exist.");
             return result;
         }
@@ -182,6 +186,23 @@ public static class PCGProfileValidator
         if (profile.levelIndex < 1)
         {
             result.AddError($"{profile.name}: levelIndex must be at least 1.");
+        }
+    }
+
+    private static void ValidateStaticLayoutProfile(LevelConfigProfile profile, PCGProfileValidationResult result)
+    {
+        if (profile.levelType != LevelProfileType.Tutorial && profile.levelType != LevelProfileType.Boss)
+            return;
+
+        if (profile.staticLayoutProfile == null)
+        {
+            result.AddError($"{profile.name}: StaticLayoutProfile is missing for {profile.levelType}.");
+            return;
+        }
+
+        if (profile.staticLayoutProfile.rooms == null || profile.staticLayoutProfile.rooms.Count == 0)
+        {
+            result.AddError($"{profile.staticLayoutProfile.name}: rooms is empty.");
         }
     }
 

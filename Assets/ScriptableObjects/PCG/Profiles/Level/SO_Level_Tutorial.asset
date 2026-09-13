@@ -17,3 +17,4 @@ MonoBehaviour:
   levelIndex: 1
   levelType: 1
   pcgConfigProfile: {fileID: 0}
+  staticLayoutProfile: {fileID: 11400000, guid: da2b976f9587431db88523e4d3e30629, type: 2}

@@ -13,6 +13,7 @@ public class LevelProfileLoader : MonoBehaviour
     [SerializeField, HideInInspector] private RoomAssemblerGenerator roomAssemblerGenerator;
     [SerializeField, HideInInspector] private LevelContentSpawner levelContentSpawner;
     [SerializeField, HideInInspector] private LevelAtmosphereController levelAtmosphereController;
+    [SerializeField, HideInInspector] private StaticLevelLayoutBuilder staticLayoutBuilder;
 
     [Header("Generation")]
     [SerializeField] private bool generateAfterApply;
@@ -30,6 +31,7 @@ public class LevelProfileLoader : MonoBehaviour
     public RoomAssemblerGenerator RoomAssemblerGenerator => roomAssemblerGenerator;
     public LevelContentSpawner LevelContentSpawner => levelContentSpawner;
     public LevelAtmosphereController LevelAtmosphereController => levelAtmosphereController;
+    public StaticLevelLayoutBuilder StaticLayoutBuilder => staticLayoutBuilder;
     public RoomAssemblerConfig RuntimeRoomAssemblerConfig { get; private set; }
     public LevelContentSpawnConfig RuntimeSpawnConfig { get; private set; }
 
@@ -97,6 +99,11 @@ public class LevelProfileLoader : MonoBehaviour
 
         if (levelProfile.levelType != LevelProfileType.PCG)
         {
+            if (staticLayoutBuilder != null && runtimeLevelRootOverride != null)
+            {
+                staticLayoutBuilder.SetRuntimeLevelRoot(runtimeLevelRootOverride);
+            }
+
             Log($"'{levelProfile.DisplayName}' is {levelProfile.levelType}. PCG config apply skipped.");
             return true;
         }
@@ -265,7 +272,7 @@ public class LevelProfileLoader : MonoBehaviour
 
         if (levelProfile.levelType != LevelProfileType.PCG)
         {
-            Log($"Generate skipped because '{levelProfile.DisplayName}' is {levelProfile.levelType}, not PCG.");
+            GenerateStaticLayout();
             return;
         }
 
@@ -316,6 +323,40 @@ public class LevelProfileLoader : MonoBehaviour
         }
 
         roomAssemblerGenerator.Generate();
+    }
+
+    private void GenerateStaticLayout()
+    {
+        if (levelProfile == null)
+            return;
+
+        if (levelProfile.levelType != LevelProfileType.Tutorial && levelProfile.levelType != LevelProfileType.Boss)
+        {
+            Log($"Generate skipped because '{levelProfile.DisplayName}' is {levelProfile.levelType}; only PCG, Tutorial, and Boss profiles generate level rooms.");
+            return;
+        }
+
+        StaticLevelLayoutProfile layoutProfile = levelProfile.staticLayoutProfile;
+        if (layoutProfile == null)
+        {
+            Debug.LogWarning($"[Level Profile] Generate skipped because '{levelProfile.DisplayName}' has no StaticLayoutProfile assigned.", this);
+            return;
+        }
+
+        StaticLevelLayoutBuilder builder = EnsureStaticLayoutBuilder();
+        if (builder == null)
+        {
+            Debug.LogWarning("[Level Profile] Generate skipped because no StaticLevelLayoutBuilder could be created.", this);
+            return;
+        }
+
+        if (runtimeLevelRootOverride != null)
+        {
+            builder.SetRuntimeLevelRoot(runtimeLevelRootOverride);
+        }
+
+        bool built = builder.Build(layoutProfile);
+        Log($"Generated static layout '{layoutProfile.name}' for '{levelProfile.DisplayName}'. Built={built}.");
     }
 
     private void ApplyRoomAssemblerConfig(PCGConfigProfile pcgConfigProfile)
@@ -386,6 +427,11 @@ public class LevelProfileLoader : MonoBehaviour
             levelContentSpawner = GetComponentInChildren<LevelContentSpawner>(true);
         }
 
+        if (staticLayoutBuilder == null)
+        {
+            staticLayoutBuilder = GetComponent<StaticLevelLayoutBuilder>();
+        }
+
         Transform searchRoot = runtimeLevelRootOverride != null ? runtimeLevelRootOverride : transform.root;
         if (roomAssemblerGenerator == null && searchRoot != null)
         {
@@ -407,6 +453,25 @@ public class LevelProfileLoader : MonoBehaviour
             levelContentSpawner = FindFirstObjectByType<LevelContentSpawner>(FindObjectsInactive.Include);
         }
 
+    }
+
+    private StaticLevelLayoutBuilder EnsureStaticLayoutBuilder()
+    {
+        if (staticLayoutBuilder != null)
+            return staticLayoutBuilder;
+
+        staticLayoutBuilder = GetComponent<StaticLevelLayoutBuilder>();
+        if (staticLayoutBuilder == null)
+        {
+            staticLayoutBuilder = gameObject.AddComponent<StaticLevelLayoutBuilder>();
+        }
+
+        if (runtimeLevelRootOverride != null)
+        {
+            staticLayoutBuilder.SetRuntimeLevelRoot(runtimeLevelRootOverride);
+        }
+
+        return staticLayoutBuilder;
     }
 
     private void ResolveAtmosphereController()

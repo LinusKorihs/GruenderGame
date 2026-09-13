@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 571301208}
+  m_SkyboxMaterial: {fileID: 182580830}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!21 &571301208
+--- !u!21 &182580830
 Material:
   serializedVersion: 8
   m_ObjectHideFlags: 0
@@ -163,6 +163,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 553238529260979936, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
+      propertyPath: revealCamera
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 553238529260979936, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
+      propertyPath: revealTarget
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 2439897696784560670, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
+      propertyPath: surface
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 3360377372533215709, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
       propertyPath: m_Name
       value: PF_LevelSystem
@@ -206,6 +218,14 @@ PrefabInstance:
     - target: {fileID: 5878695739281186272, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8683169504037661660, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
+      propertyPath: contentParent
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 9011032005036959570, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
+      propertyPath: parent
+      value: 
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
