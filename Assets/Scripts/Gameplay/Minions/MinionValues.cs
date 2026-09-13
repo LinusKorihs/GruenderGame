@@ -6,6 +6,7 @@ public enum CommandType
     None,
     FollowPlayer,
     Recall,
+    MoveToPosition,
     AttackEnemy,
     AttackObject,
     SupportTarget,

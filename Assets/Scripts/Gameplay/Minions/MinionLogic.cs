@@ -49,6 +49,7 @@ public class MinionDecisionLayer
         {
             case CommandType.Recall:
             case CommandType.FollowPlayer:
+            case CommandType.MoveToPosition:
             case CommandType.Dismiss:
             case CommandType.AttackEnemy:
             case CommandType.AttackObject:
@@ -89,6 +90,7 @@ public class MinionStateMachine
 
             case CommandType.FollowPlayer:
             case CommandType.Recall:
+            case CommandType.MoveToPosition:
             case CommandType.Dismiss:
                 CurrentState = MinionState.Follow;
                 break;

@@ -300,6 +300,35 @@ public partial class MinionCore
             InterruptPolicy = InterruptPolicy.Hard,
             LastFailureReason = FailureReason.None
         };
+
+        currentIntent = MinionIntent.FromCommand(currentCommand);
+        tickScheduler.Reset();
+        stateMachine.ForceState(MinionState.Follow);
+    }
+
+    public void SetMoveToPositionCommand(Vector3 targetPosition, float resumeRange = 10f)
+    {
+        Log($"Command: MoveToPosition to {targetPosition}");
+        isDismissed = true;
+        dismissResumeRange = Mathf.Max(0.5f, resumeRange);
+        ResetNavigationPath();
+
+        currentCommand = new MinionCommand
+        {
+            Type = CommandType.MoveToPosition,
+            Target = null,
+            TargetPosition = targetPosition,
+            Priority = 100,
+            IssuedTime = Time.time,
+            TimeToLive = 0f,
+            Source = CommandSource.Player,
+            InterruptPolicy = InterruptPolicy.Hard,
+            LastFailureReason = FailureReason.None
+        };
+
+        currentIntent = MinionIntent.FromCommand(currentCommand);
+        tickScheduler.Reset();
+        stateMachine.ForceState(MinionState.Follow);
     }
 
 
@@ -322,6 +351,11 @@ public partial class MinionCore
             InterruptPolicy = InterruptPolicy.Soft,
             LastFailureReason = FailureReason.None
         };
+
+        currentIntent = MinionIntent.FromCommand(currentCommand);
+        tickScheduler.Reset();
+        combatPhaseController.Reset();
+        stateMachine.ForceState(MinionState.Follow);
     }
 
     // Makes the minion recall immediately.
@@ -343,6 +377,11 @@ public partial class MinionCore
             InterruptPolicy = InterruptPolicy.Hard,
             LastFailureReason = FailureReason.None
         };
+
+        currentIntent = MinionIntent.FromCommand(currentCommand);
+        tickScheduler.Reset();
+        combatPhaseController.Reset();
+        stateMachine.ForceState(MinionState.Follow);
     }
 
     // Makes the minion attack an enemy target.
@@ -371,6 +410,10 @@ public partial class MinionCore
             InterruptPolicy = InterruptPolicy.Soft,
             LastFailureReason = FailureReason.None
         };
+
+        currentIntent = MinionIntent.FromCommand(currentCommand);
+        tickScheduler.Reset();
+        stateMachine.ForceState(MinionState.Combat);
     }
 
     // Makes the minion attack a breakable object.
@@ -399,6 +442,10 @@ public partial class MinionCore
             InterruptPolicy = InterruptPolicy.Soft,
             LastFailureReason = FailureReason.None
         };
+
+        currentIntent = MinionIntent.FromCommand(currentCommand);
+        tickScheduler.Reset();
+        stateMachine.ForceState(MinionState.Combat);
     }
 
     // Makes the support minion act on a target.
@@ -427,6 +474,10 @@ public partial class MinionCore
             InterruptPolicy = InterruptPolicy.Soft,
             LastFailureReason = FailureReason.None
         };
+
+        currentIntent = MinionIntent.FromCommand(currentCommand);
+        tickScheduler.Reset();
+        stateMachine.ForceState(MinionState.Combat);
     }
 
     // Allows command systems to preview if a target is valid for this support minion right now.
@@ -597,6 +648,9 @@ public partial class MinionCore
                 break;
             case CommandType.Recall:
                 SetRecallCommand();
+                break;
+            case CommandType.MoveToPosition:
+                SetMoveToPositionCommand(transform.position + transform.forward * 2f);
                 break;
             case CommandType.AttackEnemy:
                 if (currentTarget == null) DebugFindNearestEnemyTarget();

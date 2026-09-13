@@ -5,25 +5,31 @@ using UnityEngine.AI;
 
 public partial class MinionCore
 {
+    private const float PositionCommandArrivalDistance = 0.25f;
+
     private void ExecuteFollow()
     {
-        // Dismiss: move toward the commanded formation position, idle when arrived.
-        if (currentCommand != null && currentCommand.Type == CommandType.Dismiss)
+        // Position commands move toward a fixed world point and idle when arrived.
+        if (currentCommand != null
+            && (currentCommand.Type == CommandType.Dismiss || currentCommand.Type == CommandType.MoveToPosition))
         {
             Vector3 toFormation = currentCommand.TargetPosition - transform.position;
             toFormation.y = 0f;
             float dist = toFormation.magnitude;
+            float arrivalDistance = currentCommand.Type == CommandType.MoveToPosition
+                ? PositionCommandArrivalDistance
+                : Mathf.Max(0f, followStopDistance);
 
-            if (dist <= Mathf.Max(0f, followStopDistance))
+            if (dist <= arrivalDistance)
             {
-                // Arrived at formation position — stay put in idle. If player moves away, command will be re-issued to move back to formation.
+                // Arrived at position - stay put in idle. Dismiss keeps its resume-range behavior via isDismissed.
                 ResetNavigationPath();
                 ClearCommand();
                 stateMachine.ForceState(MinionState.Idle);
                 return;
             }
 
-            MoveTowardsDistance(currentCommand.TargetPosition, followStopDistance);
+            MoveTowardsDistance(currentCommand.TargetPosition, arrivalDistance);
             return;
         }
 
@@ -307,12 +313,25 @@ public partial class MinionCore
             return;
         }
 
-        // Dismiss: path to formation failed — keep dismissed flag, go idle at current position.
-        if (isDismissed)
+        bool isPositionCommand = currentCommand != null
+            && (currentCommand.Type == CommandType.Dismiss || currentCommand.Type == CommandType.MoveToPosition);
+
+        // Position commands should never trap a minion forever on an unreachable wall/crowd point.
+        if (isPositionCommand)
         {
-            Log("Path failure (Dismiss) — going Idle at current position.");
-            ClearCommand();
-            stateMachine.ForceState(MinionState.Idle);
+            Log($"Path failure ({currentCommand.Type}) - returning to follow fallback.");
+            isDismissed = false;
+
+            if (IsValidTarget(followTarget))
+            {
+                SetFollowCommand();
+            }
+            else
+            {
+                ClearCommand();
+                stateMachine.ForceState(MinionState.Idle);
+            }
+
             return;
         }
 

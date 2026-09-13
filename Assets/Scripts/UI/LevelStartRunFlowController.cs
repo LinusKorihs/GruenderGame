@@ -17,6 +17,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private const string RuntimeExitNamePrefix = "Next Level Exit";
 
     public static LevelStartRunFlowController Instance { get; private set; }
+    public static event Action<bool> LevelTransitionStateChanged;
 
     [Header("Scene Flow")]
     [SerializeField] private bool loadDedicatedRunSceneBeforeGeneration = true;
@@ -183,7 +184,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private IEnumerator AdvanceToNextLevelRoutine()
     {
-        transitioningLevel = true;
+        SetTransitioningLevel(true);
         DisableExitInteraction();
 
         // OnTriggerEnter is still inside Unity's physics callback. Waiting one frame
@@ -200,7 +201,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             flowAction == LevelFlowAdvanceAction.Complete ||
             flowAction == LevelFlowAdvanceAction.Blocked)
         {
-            transitioningLevel = false;
+            SetTransitioningLevel(false);
             yield break;
         }
 
@@ -217,7 +218,6 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             {
                 pendingRunSceneName = flowSceneName;
                 pendingGenerationAfterRunSceneLoad = true;
-                transitioningLevel = false;
                 yield break;
             }
 
@@ -226,7 +226,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         }
 
         GenerateCurrentLevel();
-        transitioningLevel = false;
+        SetTransitioningLevel(false);
     }
 
     private void ResolveSceneReferences()
@@ -295,6 +295,16 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         }
 
         GenerateCurrentLevel();
+        SetTransitioningLevel(false);
+    }
+
+    private void SetTransitioningLevel(bool value)
+    {
+        if (transitioningLevel == value)
+            return;
+
+        transitioningLevel = value;
+        LevelTransitionStateChanged?.Invoke(value);
     }
 
     private void CompleteRunSceneLoad(Scene scene)
@@ -495,8 +505,13 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         PlacedRoom endRoom = FindEndRoom();
         Vector3 targetPosition = endRoom != null
-            ? GetConnectedRoomApproachPosition(endRoom, exitObject.transform.position)
+            ? GetExitApproachPosition(endRoom, exitObject.transform.position)
             : exitObject.transform.position + Vector3.back + Vector3.up * 0.25f;
+
+        if (NavMesh.SamplePosition(targetPosition, out NavMeshHit navHit, 2.5f, NavMesh.AllAreas))
+        {
+            targetPosition = navHit.position + Vector3.up * 0.25f;
+        }
 
         Quaternion targetRotation = player.transform.rotation;
         Transform body = PlayerRootResolver.BodyTransform(player);

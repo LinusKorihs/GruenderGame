@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 8642570167466743387}
   - component: {fileID: 1808837662234277016}
   - component: {fileID: 1927158227120683071}
+  - component: {fileID: 6293567038292157044}
   m_Layer: 3
   m_Name: PF_Player
   m_TagString: Player
@@ -113,6 +114,22 @@ MonoBehaviour:
   localScale: {x: 1, y: 1, z: 1}
   disablePlaceholderRenderer: 1
   placeholderRenderer: {fileID: 2488087701667082845}
+--- !u!114 &6293567038292157044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3093259835440501442}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b37c362301ef44cebc2cc9b3ded1f831, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHUDInstaller
+  gameplayHUDPrefab: {fileID: 5298074317667129055, guid: 922f380af5f4fed48b5b3a9641e1b969, type: 3}
+  existingHUD: {fileID: 0}
+  instantiateIfMissing: 1
+  parentHudToPlayer: 1
 --- !u!1 &5486953873702722013
 GameObject:
   m_ObjectHideFlags: 0

@@ -16,7 +16,7 @@ MonoBehaviour:
   previewAcquireRadius: 0.35
   commandTargetMask:
     serializedVersion: 2
-    m_Bits: 968
+    m_Bits: 456
   includeTriggers: 0
   enemyTag: Enemy
   breakableTag: Breakable
