@@ -207,6 +207,14 @@ public sealed class LevelFlowController : MonoBehaviour
             return loading;
         }
 
+        if (UsesRuntimeScene(step))
+        {
+            activeRuntimeFlowScene = activeScene;
+            activeLevelSceneRoot = GetOrCreateRuntimeSceneRoot(activeScene);
+            ApplyAtmosphere(step, activeLevelSceneRoot);
+            ApplyRuntimeSceneRootToLoader(levelProfileLoader);
+        }
+
         if (ResolveStaticLayoutProfile(step) != null)
         {
             bool built = BuildStaticLayout(step);
