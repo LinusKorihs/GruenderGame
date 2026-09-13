@@ -21,7 +21,7 @@ MonoBehaviour:
     runtimeSceneName: 1. Tutorial
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 4d99598890434befa5e18c3427faecc9, type: 2}
-    staticLayoutProfile: {fileID: 11400000, guid: da2b976f9587431db88523e4d3e30629, type: 2}
+    staticLayoutProfile: {fileID: 0}
     atmosphereProfile: {fileID: 11400000, guid: 3489d68956074aa788b0b7386fce2b41, type: 2}
   - stepId: Level_01
     displayName: Level 1
@@ -51,5 +51,5 @@ MonoBehaviour:
     runtimeSceneName: 3. Boss
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 0271292110684d83b96fb0ffa33b1bfa, type: 2}
-    staticLayoutProfile: {fileID: 11400000, guid: b956057f65664e1eacebfd1c86de2f0c, type: 2}
+    staticLayoutProfile: {fileID: 0}
     atmosphereProfile: {fileID: 11400000, guid: a8f373937acb4bc9820ce99df47e8f8d, type: 2}

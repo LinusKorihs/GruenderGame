@@ -23,7 +23,7 @@ public sealed class LevelFlowController : MonoBehaviour
     private const string DefaultFlowConfigResourcesPath = "LevelFlow/SO_LevelFlow_Linus";
     private const string LevelFlowResourcesFolder = "LevelFlow";
     private const string RuntimeSystemsRootName = "Runtime_Systems";
-    private const string LevelRuntimeRootName = "Level_Runtime";
+    public const string LevelRuntimeRootName = "Level_Runtime";
     private const string Level1ProfilePath = "Assets/ScriptableObjects/PCG/Profiles/Level/SO_Level1.asset";
     private const string Level2ProfilePath = "Assets/ScriptableObjects/PCG/Profiles/Level/SO_Level2.asset";
 
@@ -207,7 +207,7 @@ public sealed class LevelFlowController : MonoBehaviour
             return loading;
         }
 
-        if (step.staticLayoutProfile != null)
+        if (ResolveStaticLayoutProfile(step) != null)
         {
             bool built = BuildStaticLayout(step);
             firstStepLoadRequested = false;
@@ -226,7 +226,7 @@ public sealed class LevelFlowController : MonoBehaviour
             return false;
 
         LevelFlowStep step = steps[stepIndex];
-        if (step == null || step.staticLayoutProfile == null)
+        if (step == null || ResolveStaticLayoutProfile(step) == null)
             return false;
 
         currentStepIndex = stepIndex;
@@ -460,7 +460,8 @@ public sealed class LevelFlowController : MonoBehaviour
             builder.SetRuntimeLevelRoot(activeLevelSceneRoot);
         }
 
-        bool built = builder.Build(step.staticLayoutProfile);
+        StaticLevelLayoutProfile staticLayoutProfile = ResolveStaticLayoutProfile(step);
+        bool built = builder.Build(staticLayoutProfile);
         if (built && step.stepType == LevelFlowStepType.Boss)
         {
             LevelStartRunFlowController.Instance?.EnsureSelectedMinionsForCurrentScene();
@@ -522,7 +523,7 @@ public sealed class LevelFlowController : MonoBehaviour
             if (!runtimeScene.IsValid() || !runtimeScene.isLoaded)
                 return false;
 
-            if (step.staticLayoutProfile != null)
+            if (ResolveStaticLayoutProfile(step) != null)
             {
                 BuildStaticLayout(step);
             }
@@ -564,7 +565,7 @@ public sealed class LevelFlowController : MonoBehaviour
         if (!string.Equals(scene.name, ResolveTargetSceneName(step), System.StringComparison.OrdinalIgnoreCase))
             return;
 
-        if (step.staticLayoutProfile != null)
+        if (ResolveStaticLayoutProfile(step) != null)
         {
             BuildStaticLayout(step);
         }
@@ -877,7 +878,7 @@ public sealed class LevelFlowController : MonoBehaviour
 
     private void RememberStaticBuild(LevelFlowStep step, bool built)
     {
-        if (!built || step == null || step.staticLayoutProfile == null)
+        if (!built || step == null || ResolveStaticLayoutProfile(step) == null)
             return;
 
         lastBuiltStaticStepIndex = currentStepIndex;
@@ -1030,6 +1031,17 @@ public sealed class LevelFlowController : MonoBehaviour
         return step != null && step.sceneMode == LevelFlowSceneMode.RuntimeScene;
     }
 
+    private static StaticLevelLayoutProfile ResolveStaticLayoutProfile(LevelFlowStep step)
+    {
+        if (step == null)
+            return null;
+
+        if (step.staticLayoutProfile != null)
+            return step.staticLayoutProfile;
+
+        return step.levelProfile != null ? step.levelProfile.staticLayoutProfile : null;
+    }
+
     private static string ResolveTargetSceneName(LevelFlowStep step)
     {
         if (step == null)
@@ -1059,7 +1071,8 @@ public sealed class LevelFlowController : MonoBehaviour
         if (step == null) return "missing step";
 
         string profile = step.levelProfile != null ? step.levelProfile.DisplayName : "no profile";
-        if (step.staticLayoutProfile != null) profile = step.staticLayoutProfile.name;
+        StaticLevelLayoutProfile staticLayoutProfile = ResolveStaticLayoutProfile(step);
+        if (staticLayoutProfile != null) profile = staticLayoutProfile.name;
         string scene = ResolveTargetSceneName(step) ?? "no scene";
         string sceneMode = step.sceneMode.ToString();
         return $"{step.DisplayName} ({step.stepType}, {sceneMode}, Scene='{scene}', Profile='{profile}')";

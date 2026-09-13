@@ -215,7 +215,11 @@ PrefabInstance:
     - target: {fileID: 835457721649708555, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
       propertyPath: levelProfile
       value: 
-      objectReference: {fileID: 11400000, guid: 4e7e70680ebe95b41a630ffa07591089, type: 2}
+      objectReference: {fileID: 11400000, guid: 4d99598890434befa5e18c3427faecc9, type: 2}
+    - target: {fileID: 835457721649708555, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
+      propertyPath: staticLayoutBuilder
+      value: 
+      objectReference: {fileID: 386964943550514320}
     - target: {fileID: 835457721649708555, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
       propertyPath: levelAtmosphereProfile
       value: 
@@ -227,6 +231,10 @@ PrefabInstance:
     - target: {fileID: 4006635491169036901, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
       propertyPath: m_Name
       value: PF_LevelLoader
+      objectReference: {fileID: 0}
+    - target: {fileID: 4025584229303623266, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
+      propertyPath: levelIndex
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 5367537686721114115, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
       propertyPath: m_LocalPosition.x
@@ -271,7 +279,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4006635491169036901, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 386964943550514320}
   m_SourcePrefab: {fileID: 100100000, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
 --- !u!4 &369361388347147709 stripped
 Transform:
@@ -283,12 +294,29 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 835457721649708555, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
   m_PrefabInstance: {fileID: 5718849352263660990}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 8702928034434359259}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d88fcd0b8bd74699ad642dca67374217, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelProfileLoader
+--- !u!1 &8702928034434359259 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4006635491169036901, guid: ea2042d5fa263fa448f836ccf12b61c0, type: 3}
+  m_PrefabInstance: {fileID: 5718849352263660990}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &386964943550514320
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8702928034434359259}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62c92f5762514d87a9b3bfc8c4f44c26, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StaticLevelLayoutBuilder
 --- !u!1001 &7585803708268056269
 PrefabInstance:
   m_ObjectHideFlags: 0

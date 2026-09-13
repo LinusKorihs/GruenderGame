@@ -438,7 +438,7 @@ public sealed class LevelAtmosphereController : MonoBehaviour
             for (int i = 0; i < roots.Length; i++)
             {
                 GameObject root = roots[i];
-                if (root != null && root.name == "Level_Runtime")
+                if (root != null && root.name == LevelFlowController.LevelRuntimeRootName)
                 {
                     currentRuntimeSceneRoot = root.transform;
                     return currentRuntimeSceneRoot;
