@@ -75,13 +75,13 @@ public class PinchAnimatorBridge : MonoBehaviour
         PlayStateDirectly(idleStateName);
     }
 
-    public void PlayDialog()
+    public void PlayDialog(bool restartIfAlreadyPlaying = false)
     {
         if (animator == null) return;
-        if (IsCurrentOrNextState(dialogStateName)) return;
+        if (IsCurrentOrNextState(dialogStateName) && !restartIfAlreadyPlaying) return;
 
         SetCoinVisible(false);
-        PlayByTriggerOrDirectState(dialogTriggerName, dialogStateName);
+        PlayByTriggerOrDirectState(dialogTriggerName, dialogStateName, restartIfAlreadyPlaying);
     }
 
     public void PlayIdleBreak()
@@ -132,7 +132,7 @@ public class PinchAnimatorBridge : MonoBehaviour
         }
     }
 
-    private void PlayByTriggerOrDirectState(string triggerName, string stateName)
+    private void PlayByTriggerOrDirectState(string triggerName, string stateName, bool restartIfAlreadyPlaying = false)
     {
         if (animator == null) return;
 
@@ -144,14 +144,20 @@ public class PinchAnimatorBridge : MonoBehaviour
         }
         else
         {
-            PlayStateDirectly(stateName);
+            PlayStateDirectly(stateName, restartIfAlreadyPlaying);
         }
     }
 
-    private void PlayStateDirectly(string stateName)
+    private void PlayStateDirectly(string stateName, bool restartIfAlreadyPlaying = false)
     {
         if (animator == null) return;
         if (string.IsNullOrEmpty(stateName)) return;
+
+        if (restartIfAlreadyPlaying)
+        {
+            animator.Play(stateName, layerIndex, 0f);
+            return;
+        }
 
         animator.CrossFadeInFixedTime(stateName, transitionDuration, layerIndex, 0f);
     }

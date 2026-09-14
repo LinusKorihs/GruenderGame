@@ -13,32 +13,57 @@ MonoBehaviour:
   m_Name: SO_Atmosphere_Tutorial
   m_EditorClassIdentifier: Assembly-CSharp::LevelAtmosphereProfile
   skyboxMode: 2
-  proceduralSkyTint: {r: 0.58, g: 0.66, b: 0.84, a: 1}
-  proceduralGroundColor: {r: 0.16, g: 0.18, b: 0.2, a: 1}
-  proceduralExposure: 1.15
-  proceduralAtmosphereThickness: 0.9
+  skyboxMaterial: {fileID: 0}
+  proceduralSkyTint: {r: 0.5, g: 0.57, b: 0.72, a: 1}
+  proceduralGroundColor: {r: 0.12, g: 0.14, b: 0.16, a: 1}
+  proceduralExposure: 1
+  proceduralAtmosphereThickness: 1
   manageDirectionalLight: 1
   preferExistingDirectionalLight: 1
   disableDuplicateDirectionalLights: 1
   directionalLightName: Directional Light
-  directionalLightEulerAngles: {x: 48, y: -25, z: 0}
-  directionalLightColor: {r: 1, g: 0.96, b: 0.84, a: 1}
-  directionalLightIntensity: 1.1
+  directionalLightEulerAngles: {x: 50, y: -30, z: 0}
+  directionalLightColor: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
+  directionalLightIntensity: 1
   directionalLightIndirectMultiplier: 1
-  directionalLightShadowStrength: 0.7
+  directionalLightShadowStrength: 0.8
   directionalLightShadows: 2
   directionalLightCullingMask:
     serializedVersion: 2
     m_Bits: 4294967295
   useUrpPipelineLightSettings: 1
   useRuntimeBlend: 1
-  blendDuration: 0.8
+  blendDuration: 0.9
+  blendCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   applyAmbient: 1
   ambientMode: 0
-  ambientLightColor: {r: 0.25, g: 0.27, b: 0.3, a: 1}
-  ambientSkyColor: {r: 0.25, g: 0.27, b: 0.3, a: 1}
-  ambientEquatorColor: {r: 0.14, g: 0.15, b: 0.16, a: 1}
-  ambientGroundColor: {r: 0.06, g: 0.055, b: 0.05, a: 1}
+  ambientLightColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+  ambientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+  ambientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
+  ambientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
   ambientIntensity: 1
   subtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   defaultReflectionMode: 0
@@ -46,10 +71,10 @@ MonoBehaviour:
   reflectionIntensity: 1
   applyUnityFog: 1
   unityFogEnabled: 0
-  unityFogColor: {r: 0.55, g: 0.58, b: 0.65, a: 1}
+  unityFogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   unityFogMode: 3
-  unityFogDensity: 0.008
+  unityFogDensity: 0.01
   unityFogStartDistance: 0
   unityFogEndDistance: 300
-  fogOfWarProfile: {fileID: 11400000, guid: f284bc8e5bea4982afaed43b326cd6f2, type: 2}
+  fogOfWarProfile: {fileID: 11400000, guid: b5c4e9a2d31f4a4c9b8f7e6d5c3b2a10, type: 2}
   updateDynamicGI: 1

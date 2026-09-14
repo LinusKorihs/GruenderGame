@@ -20,7 +20,7 @@ public sealed class LevelFlowController : MonoBehaviour
     private const string DefaultStartSceneName = "1. Linus Tutorial";
     private const string DefaultRunSceneName = "2. Linus Run";
     private const string DefaultBossSceneName = "3. Linus Boss";
-    private const string DefaultFlowConfigResourcesPath = "LevelFlow/SO_LevelFlow_Linus";
+    private const string DefaultFlowConfigResourcesPath = "LevelFlow/SO_LevelFlow_Werkschau";
     private const string LevelFlowResourcesFolder = "LevelFlow";
     private const string RuntimeSystemsRootName = "Runtime_Systems";
     public const string LevelRuntimeRootName = "Level_Runtime";
@@ -214,6 +214,10 @@ public sealed class LevelFlowController : MonoBehaviour
             ApplyAtmosphere(step, activeLevelSceneRoot);
             ApplyRuntimeSceneRootToLoader(levelProfileLoader);
         }
+        else
+        {
+            PrepareLoadedSceneStep(step, activeScene);
+        }
 
         if (ResolveStaticLayoutProfile(step) != null)
         {
@@ -234,10 +238,15 @@ public sealed class LevelFlowController : MonoBehaviour
             return false;
 
         LevelFlowStep step = steps[stepIndex];
-        if (step == null || ResolveStaticLayoutProfile(step) == null)
+        if (step == null)
             return false;
 
         currentStepIndex = stepIndex;
+        if (!UsesRuntimeScene(step))
+        {
+            PrepareLoadedSceneStep(step, scene);
+        }
+
         if (step.stepType == LevelFlowStepType.Tutorial)
         {
             runActive = false;
@@ -246,6 +255,12 @@ public sealed class LevelFlowController : MonoBehaviour
         if (WasStaticStepBuiltForScene(stepIndex, scene.name))
         {
             Log($"Static step {stepIndex} already prepared for scene '{scene.name}'.");
+            return true;
+        }
+
+        if (ResolveStaticLayoutProfile(step) == null)
+        {
+            Log($"Prepared step {stepIndex} for scene '{scene.name}' without static layout.");
             return true;
         }
 
@@ -575,6 +590,11 @@ public sealed class LevelFlowController : MonoBehaviour
         if (!string.Equals(scene.name, ResolveTargetSceneName(step), System.StringComparison.OrdinalIgnoreCase))
             return;
 
+        if (!UsesRuntimeScene(step))
+        {
+            PrepareLoadedSceneStep(step, scene);
+        }
+
         if (ResolveStaticLayoutProfile(step) != null)
         {
             BuildStaticLayout(step);
@@ -587,6 +607,30 @@ public sealed class LevelFlowController : MonoBehaviour
     {
         yield return null;
         DisableDuplicateAudioListeners(scene);
+    }
+
+    private void PrepareLoadedSceneStep(LevelFlowStep step, Scene scene)
+    {
+        if (step == null || !scene.IsValid() || !scene.isLoaded)
+            return;
+
+        activeLevelSceneRoot = GetOrCreateRuntimeSceneRoot(scene);
+        ApplyAtmosphere(step, activeLevelSceneRoot);
+
+        if (step.stepType == LevelFlowStepType.Tutorial)
+        {
+            LevelStartRunFlowController.EnsureForScene(scene);
+        }
+    }
+
+    public void RefreshCurrentStepAtmosphereForScene(Scene scene)
+    {
+        LevelFlowStep step = CurrentStep;
+        if (step == null || !scene.IsValid() || !scene.isLoaded)
+            return;
+
+        activeLevelSceneRoot = GetOrCreateRuntimeSceneRoot(scene);
+        ApplyAtmosphere(step, activeLevelSceneRoot);
     }
 
     private Scene CreateOrActivateRuntimeScene(LevelFlowStep step)
@@ -857,6 +901,21 @@ public sealed class LevelFlowController : MonoBehaviour
         }
 
         atmosphereController = FindFirstObjectByType<LevelAtmosphereController>(FindObjectsInactive.Include);
+        if (atmosphereController != null)
+            return;
+
+        if (!Application.isPlaying)
+            return;
+
+        atmosphereController = gameObject.AddComponent<LevelAtmosphereController>();
+        LevelFogOfWarController fogOfWar = GetComponent<LevelFogOfWarController>();
+        if (fogOfWar == null)
+        {
+            fogOfWar = gameObject.AddComponent<LevelFogOfWarController>();
+        }
+
+        atmosphereController.ConfigureFogOfWar(fogOfWar);
+        Log("Created fallback LevelAtmosphereController and LevelFogOfWarController on LevelFlow host.");
     }
 
     private LevelProfileLoader ResolveLevelLoaderInRuntimeRoot()

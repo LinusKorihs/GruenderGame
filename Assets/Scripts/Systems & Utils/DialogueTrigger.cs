@@ -20,6 +20,7 @@ public class DialogueTrigger : MonoBehaviour
     [Header("NPC Animation")]
     [SerializeField] private bool playDialogueAnimation = true;
     [SerializeField] private bool playAnimationOnEachLine = true;
+    [SerializeField] private bool restartAnimationOnEachLine = true;
     [SerializeField] private bool returnToIdleWhenDialogueEnds = true;
     [SerializeField] private ElderKoiAnimatorBridge elderKoiAnimator;
     [SerializeField] private PinchAnimatorBridge pinchAnimator;
@@ -153,9 +154,10 @@ public class DialogueTrigger : MonoBehaviour
             dialogueText.text = dialogueLines[currentLineIndex];
         }
 
-        if (playDialogueAnimation && (playAnimationOnEachLine || !dialogueAnimationPlayed))
+        bool shouldPlayAnimation = playDialogueAnimation && (playAnimationOnEachLine || !dialogueAnimationPlayed);
+        if (shouldPlayAnimation)
         {
-            PlayNpcDialogueAnimation();
+            PlayNpcDialogueAnimation(playAnimationOnEachLine && restartAnimationOnEachLine);
             dialogueAnimationPlayed = true;
         }
     }
@@ -254,19 +256,19 @@ public class DialogueTrigger : MonoBehaviour
         }
     }
 
-    private void PlayNpcDialogueAnimation()
+    private void PlayNpcDialogueAnimation(bool restartIfAlreadyPlaying)
     {
         ResolveAnimationBridge();
 
         if (elderKoiAnimator != null)
         {
-            elderKoiAnimator.PlayRandomDialog();
+            elderKoiAnimator.PlayRandomDialog(restartIfAlreadyPlaying);
             return;
         }
 
         if (pinchAnimator != null)
         {
-            pinchAnimator.PlayDialog();
+            pinchAnimator.PlayDialog(restartIfAlreadyPlaying);
         }
     }
 

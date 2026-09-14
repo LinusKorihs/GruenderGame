@@ -8,6 +8,9 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public sealed class LevelStartRunFlowController : MonoBehaviour
 {
@@ -17,6 +20,9 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private const string DefaultLobbyStaticLayoutResourcesPath = "LevelFlow/SO_StaticLayout_Tutorial";
     private const float ExitTestDoorApproachDistance = 1.2f;
     private const float ExitTestNavMeshSampleRadius = 0.9f;
+#if UNITY_EDITOR
+    private const string LevelSystemPrefabPath = "Assets/Prefabs/Systems/Levels/PF_LevelSystem.prefab";
+#endif
 
     public static LevelStartRunFlowController Instance { get; private set; }
     public static event Action<bool> LevelTransitionStateChanged;
@@ -80,14 +86,57 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     {
         if (!IsLevelStartSceneName(scene.name)) return null;
 
-        LevelStartRunFlowController existing = FindFirstObjectByType<LevelStartRunFlowController>();
+        LevelStartRunFlowController existing = FindFirstObjectByType<LevelStartRunFlowController>(FindObjectsInactive.Include);
         if (existing != null) return existing;
+
+        TryCreateLevelSystemForStartScene(scene);
+
+        existing = FindFirstObjectByType<LevelStartRunFlowController>(FindObjectsInactive.Include);
+        if (existing != null) return existing;
+
+        GameObject fallback = new GameObject(nameof(LevelStartRunFlowController));
+        if (scene.IsValid() && scene.isLoaded)
+        {
+            SceneManager.MoveGameObjectToScene(fallback, scene);
+        }
 
         Debug.LogWarning(
             $"[RunFlow] Start scene '{scene.name}' has no LevelStartRunFlowController. " +
-            "Place PF_LevelSystem or PF_LevelStartRunFlowController in the scene/prefab setup.",
-            null);
-        return null;
+            "Created a runtime fallback. Add PF_LevelSystem to the scene if this should be authored permanently.",
+            fallback);
+        return fallback.AddComponent<LevelStartRunFlowController>();
+    }
+
+    private static void TryCreateLevelSystemForStartScene(Scene scene)
+    {
+        if (!Application.isPlaying)
+            return;
+
+        if (LevelSystemController.Instance != null ||
+            FindFirstObjectByType<LevelSystemController>(FindObjectsInactive.Include) != null ||
+            LevelFlowController.Instance != null ||
+            FindFirstObjectByType<LevelFlowController>(FindObjectsInactive.Include) != null)
+        {
+            return;
+        }
+
+#if UNITY_EDITOR
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(LevelSystemPrefabPath);
+        if (prefab == null)
+            return;
+
+        GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        if (instance == null)
+        {
+            instance = UnityEngine.Object.Instantiate(prefab);
+        }
+
+        if (instance == null)
+            return;
+
+        instance.name = "PF_LevelSystem";
+        Debug.Log($"[RunFlow] Created PF_LevelSystem fallback for Start scene '{scene.name}'.", instance);
+#endif
     }
 
     private static bool IsLevelStartSceneName(string sceneName)
@@ -687,7 +736,29 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         flow.RegisterRuntimeObject(gameObject);
 
         PrepareLobby();
+        RefreshLobbyFogOfWar(flow, scene);
         lobbyPreparationRunning = false;
+    }
+
+    private void RefreshLobbyFogOfWar(LevelFlowController flow, Scene scene)
+    {
+        LevelFogOfWarController fogOfWar = ResolveFogOfWarController();
+
+        if (fogOfWar != null && player != null)
+        {
+            Transform revealTarget = PlayerRootResolver.BodyTransform(player);
+            fogOfWar.SetRevealTarget(revealTarget != null ? revealTarget : player.transform);
+        }
+
+        flow?.RefreshCurrentStepAtmosphereForScene(scene);
+    }
+
+    private static LevelFogOfWarController ResolveFogOfWarController()
+    {
+        if (LevelSystemController.Instance != null && LevelSystemController.Instance.FogOfWar != null)
+            return LevelSystemController.Instance.FogOfWar;
+
+        return FindFirstObjectByType<LevelFogOfWarController>(FindObjectsInactive.Include);
     }
 
     private void EnsureSelectedMinionPartyNearPlayer(RunSetupData data)

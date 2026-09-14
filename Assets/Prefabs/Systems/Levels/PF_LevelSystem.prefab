@@ -352,18 +352,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5878695739281186272}
     m_Modifications:
-    - target: {fileID: 1491670588209876003, guid: 6f8b1a75a9dd44d48a4f9c8c97c8b110, type: 3}
-      propertyPath: useInlineFlowSteps
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1491670588209876003, guid: 6f8b1a75a9dd44d48a4f9c8c97c8b110, type: 3}
-      propertyPath: inlineFlowSteps.Array.data[0].stepId
-      value: Start
-      objectReference: {fileID: 0}
-    - target: {fileID: 1491670588209876003, guid: 6f8b1a75a9dd44d48a4f9c8c97c8b110, type: 3}
-      propertyPath: inlineFlowSteps.Array.data[0].displayName
-      value: Start-werkschau
-      objectReference: {fileID: 0}
     - target: {fileID: 6125369184421084701, guid: 6f8b1a75a9dd44d48a4f9c8c97c8b110, type: 3}
       propertyPath: m_Name
       value: PF_LevelFlow

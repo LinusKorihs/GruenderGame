@@ -21,6 +21,7 @@ public class ElderKoiAnimatorBridge : MonoBehaviour
     [SerializeField] private int layerIndex = 0;
     [SerializeField] private float transitionDuration = 0.1f;
     [SerializeField] private bool useAnimatorParameters = true;
+    [SerializeField] private bool playDialogStatesDirectly;
     [SerializeField] private bool avoidSameDialogTwice = true;
 
     private Vector3 startLocalPosition;
@@ -56,9 +57,9 @@ public class ElderKoiAnimatorBridge : MonoBehaviour
         PlayStateDirectly(idleStateName);
     }
 
-    public void PlayRandomDialog()
+    public void PlayRandomDialog(bool restartIfAlreadyPlaying = false)
     {
-        if (IsDialogAnimationPlaying())
+        if (IsDialogAnimationPlaying() && !restartIfAlreadyPlaying)
             return;
 
         int randomVariant = Random.Range(1, 4);
@@ -74,13 +75,13 @@ public class ElderKoiAnimatorBridge : MonoBehaviour
             }
         }
 
-        PlayDialogVariant(randomVariant);
+        PlayDialogVariant(randomVariant, restartIfAlreadyPlaying);
     }
 
-    public void PlayDialogVariant(int variant)
+    public void PlayDialogVariant(int variant, bool restartIfAlreadyPlaying = false)
     {
         if (animator == null) return;
-        if (IsDialogAnimationPlaying()) return;
+        if (IsDialogAnimationPlaying() && !restartIfAlreadyPlaying) return;
 
         variant = Mathf.Clamp(variant, 1, 3);
         lastDialogVariant = variant;
@@ -89,7 +90,8 @@ public class ElderKoiAnimatorBridge : MonoBehaviour
 
         string targetStateName = GetDialogStateName(variant);
 
-        if (useAnimatorParameters &&
+        if (!playDialogStatesDirectly &&
+            useAnimatorParameters &&
             HasParameter(dialogTriggerName, AnimatorControllerParameterType.Trigger) &&
             HasParameter(dialogVariantParameterName, AnimatorControllerParameterType.Int))
         {
@@ -98,7 +100,7 @@ public class ElderKoiAnimatorBridge : MonoBehaviour
         }
         else
         {
-            PlayStateDirectly(targetStateName);
+            PlayStateDirectly(targetStateName, restartIfAlreadyPlaying);
         }
     }
 
@@ -191,10 +193,16 @@ public class ElderKoiAnimatorBridge : MonoBehaviour
                stateInfo.IsName(dialogV3StateName);
     }
 
-    private void PlayStateDirectly(string stateName)
+    private void PlayStateDirectly(string stateName, bool restartIfAlreadyPlaying = false)
     {
         if (animator == null) return;
         if (string.IsNullOrWhiteSpace(stateName)) return;
+
+        if (restartIfAlreadyPlaying)
+        {
+            animator.Play(stateName, layerIndex, 0f);
+            return;
+        }
 
         animator.CrossFadeInFixedTime(stateName, transitionDuration, layerIndex, 0f);
     }

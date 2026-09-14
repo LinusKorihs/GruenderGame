@@ -31,6 +31,8 @@ public class PlayerMinionCommanderSettings : ScriptableObject
     [Header("Call / Dismiss")]
     [Tooltip("Radius of the Call impulse wave and the maximum range for Dismiss to affect minions.")]
     public float callRange = 10f;
+    [Tooltip("Maximum range for Dismiss to affect minions. Use 0 or less to fall back to callRange.")]
+    public float dismissRange = 10f;
     [Tooltip("When a dismissed minion is farther than this from the player it automatically starts following again (should equal callRange).")]
     public float dismissResumeFollowRange = 10f;
     [Tooltip("Distance between each role group's centre point in the dismiss formation (Melee / Ranged / Support spread sideways).")]
@@ -53,6 +55,10 @@ public class PlayerMinionCommanderSettings : ScriptableObject
     public bool allowDirectPositionCommandsWhenMinionOffNavMesh = true;
     [Tooltip("When true, Call also recalls minions outside the wave radius if they are in player-issued position commands or idle after a failed position command.")]
     public bool callRecoversPlayerPositionCommandsOutsideRange = true;
+    [Tooltip("When true, Call recalls every registered live minion. Useful in large boss rooms where engaged minions can be outside the local pulse radius.")]
+    public bool callRecallsAllRegisteredMinions = true;
+    [Tooltip("When true, Dismiss sends every registered live minion into formation, even if it is outside the local dismiss radius.")]
+    public bool dismissAffectsAllRegisteredMinions = false;
     [Tooltip("When true, dismissed slots keep following the player. Leave off for stable one-shot dismiss groups.")]
     public bool trackDismissFormationWithPlayer = false;
 

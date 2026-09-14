@@ -64,9 +64,9 @@ MonoBehaviour:
   occlusionRadius: 0.35
   paddingFromCamera: 0.2
   paddingFromTarget: 0.1
-  hideWhenTransparencyUnsupported: 0
+  hideWhenTransparencyUnsupported: 1
   staleFramesToRestore: 2
-  debugEnabled: 0
+  debugEnabled: 1
   drawGizmos: 1
   lookSensitivityX: 180
   lookSensitivityY: 120

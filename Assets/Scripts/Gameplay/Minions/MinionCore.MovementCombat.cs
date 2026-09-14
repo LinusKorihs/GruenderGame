@@ -193,7 +193,7 @@ public partial class MinionCore
                 return;
             }
 
-            if (ShouldUseDirectNavigationFallback(stopPoint))
+            if (ShouldUseDirectNavigationFallback())
             {
                 MoveDirectly(toTarget / Mathf.Max(distance, 0.0001f));
                 return;
@@ -275,19 +275,20 @@ public partial class MinionCore
         // Both start and destination must resolve onto the baked NavMesh before path calculation.
         nextNavRepathTime = Time.time + Mathf.Max(0.05f, navRepathInterval);
 
-        if (!NavMesh.SamplePosition(transform.position, out NavMeshHit startHit, 1.0f, NavMesh.AllAreas))
+        int areaMask = WalkableNavMeshAreaMask();
+        if (!NavMesh.SamplePosition(transform.position, out NavMeshHit startHit, 1.0f, areaMask))
         {
             hasNavPath = false;
             return false;
         }
 
-        if (!NavMesh.SamplePosition(desiredDestination, out NavMeshHit destinationHit, Mathf.Max(0.1f, navTargetSampleRadius), NavMesh.AllAreas))
+        if (!NavMesh.SamplePosition(desiredDestination, out NavMeshHit destinationHit, Mathf.Max(0.1f, navTargetSampleRadius), areaMask))
         {
             hasNavPath = false;
             return false;
         }
 
-        bool calculated = NavMesh.CalculatePath(startHit.position, destinationHit.position, NavMesh.AllAreas, navPath);
+        bool calculated = NavMesh.CalculatePath(startHit.position, destinationHit.position, areaMask, navPath);
         if (!calculated || navPath.status != NavMeshPathStatus.PathComplete || navPath.corners == null || navPath.corners.Length < 2)
         {
             hasNavPath = false;
@@ -300,16 +301,25 @@ public partial class MinionCore
         return true;
     }
 
-    private bool ShouldUseDirectNavigationFallback(Vector3 desiredDestination)
+    private bool ShouldUseDirectNavigationFallback()
     {
-        bool hasStart = NavMesh.SamplePosition(transform.position, out _, 1.0f, NavMesh.AllAreas);
-        bool hasDestination = NavMesh.SamplePosition(
-            desiredDestination,
-            out _,
-            Mathf.Max(0.1f, navTargetSampleRadius),
-            NavMesh.AllAreas);
+        if (NavMesh.SamplePosition(transform.position, out _, 1.0f, WalkableNavMeshAreaMask()))
+            return false;
 
-        return !hasStart && !hasDestination;
+        if (currentCommand == null)
+            return true;
+
+        return currentCommand.Type == CommandType.None
+            || currentCommand.Type == CommandType.FollowPlayer
+            || currentCommand.Type == CommandType.Recall
+            || currentCommand.Type == CommandType.Dismiss
+            || currentCommand.Type == CommandType.MoveToPosition;
+    }
+
+    private static int WalkableNavMeshAreaMask()
+    {
+        int notWalkable = NavMesh.GetAreaFromName("Not Walkable");
+        return notWalkable >= 0 ? NavMesh.AllAreas & ~(1 << notWalkable) : NavMesh.AllAreas;
     }
 
     private void HandleUnreachablePath()
