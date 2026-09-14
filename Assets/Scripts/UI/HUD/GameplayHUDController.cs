@@ -182,15 +182,21 @@ public sealed class GameplayHUDController : MonoBehaviour
             return;
 
         EventSystem[] eventSystems = FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        bool hasActiveExternalEventSystem = false;
         for (int i = 0; i < eventSystems.Length; i++)
         {
             EventSystem candidate = eventSystems[i];
             if (candidate == null || candidate == local)
                 continue;
 
-            local.gameObject.SetActive(false);
-            return;
+            if (candidate.isActiveAndEnabled)
+            {
+                hasActiveExternalEventSystem = true;
+                break;
+            }
         }
+
+        local.gameObject.SetActive(!hasActiveExternalEventSystem);
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)

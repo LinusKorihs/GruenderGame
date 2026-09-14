@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -97,26 +98,30 @@ public class PlayerBrain : MonoBehaviour
         if (punch != null) punch.Tick(dt);
 
         // 2) Read input
-        Vector2 move = moveAction != null ? moveAction.action.ReadValue<Vector2>() : Vector2.zero;
-        movement.SetMoveInput(move);
+        bool controlsLocked = PlayerControlLock.GameplayLocked || PlayerControlLock.MovementLocked;
+        Vector2 move = !controlsLocked && moveAction != null ? moveAction.action.ReadValue<Vector2>() : Vector2.zero;
+        if (movement != null) movement.SetMoveInput(move);
 
         // 3) Apply rules -> movement lock & speed
         bool isDodging = dodge != null && dodge.IsDodging;
         bool isPunching = punch != null && punch.IsPunching;
 
-        movement.MovementLocked = isDodging; // Rule: During Dodge -> Movement Locked
-        movement.SpeedMultiplier = isPunching ? config.punchSlowMultiplier : 1f; // During Punch -> Speed Multiplier
+        if (movement != null)
+        {
+            movement.MovementLocked = isDodging || controlsLocked; // Rule: During Dodge/dialog/menu -> Movement Locked
+            movement.SpeedMultiplier = !controlsLocked && isPunching ? config.punchSlowMultiplier : 1f; // During Punch -> Speed Multiplier
+        }
 
         // 4) Actions with rule gates
         // Rule: During Dodge -> No Punch
-        if (!isDodging && punchAction != null && punchAction.action.WasPressedThisFrame())
+        if (!controlsLocked && !isDodging && punchAction != null && punchAction.action.WasPressedThisFrame())
         {
             Vector3 dir = GetFacingDir();
             punch.TryPunch(dir);
         }
 
         // Rule: During Punch -> No Dodge
-        if (!isPunching && dodgeAction != null && dodgeAction.action.WasPressedThisFrame())
+        if (!controlsLocked && !isPunching && dodgeAction != null && dodgeAction.action.WasPressedThisFrame())
         {
             Vector3 dir = GetDodgeDir(move);
             dodge.TryDodge(dir);
@@ -132,7 +137,7 @@ public class PlayerBrain : MonoBehaviour
     private Vector3 GetFacingDir()
     {
         if (aim != null && aim.FacingDirection.sqrMagnitude > 0.0001f) return aim.FacingDirection;
-        if (movement.LastMoveDir.sqrMagnitude > 0.0001f) return movement.LastMoveDir;
+        if (movement != null && movement.LastMoveDir.sqrMagnitude > 0.0001f) return movement.LastMoveDir;
         return transform.forward;
     }
 
@@ -189,5 +194,34 @@ public static class PlayerInputActionResolver
         }
 
         return current;
+    }
+}
+
+public static class PlayerControlLock
+{
+    private static readonly HashSet<object> MovementOwners = new HashSet<object>();
+    private static readonly HashSet<object> CameraOwners = new HashSet<object>();
+    private static readonly HashSet<object> GameplayOwners = new HashSet<object>();
+
+    public static bool MovementLocked => MovementOwners.Count > 0 || GameplayOwners.Count > 0;
+    public static bool CameraLocked => CameraOwners.Count > 0 || GameplayOwners.Count > 0;
+    public static bool GameplayLocked => GameplayOwners.Count > 0;
+
+    public static void PushLock(object owner, bool lockMovement = true, bool lockCamera = true, bool lockGameplay = true)
+    {
+        if (owner == null) return;
+
+        if (lockMovement) MovementOwners.Add(owner);
+        if (lockCamera) CameraOwners.Add(owner);
+        if (lockGameplay) GameplayOwners.Add(owner);
+    }
+
+    public static void PopLock(object owner)
+    {
+        if (owner == null) return;
+
+        MovementOwners.Remove(owner);
+        CameraOwners.Remove(owner);
+        GameplayOwners.Remove(owner);
     }
 }

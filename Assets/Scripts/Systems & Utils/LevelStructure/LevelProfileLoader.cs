@@ -301,7 +301,7 @@ public class LevelProfileLoader : MonoBehaviour
 
         if (roomsRoot == null && contentRoot == null)
         {
-            Debug.LogWarning("[Level Profile] Clear skipped because no runtime Rooms or Content containers were found.", this);
+            Log("Clear skipped because no runtime Rooms or Content containers were found.");
         }
         else
         {

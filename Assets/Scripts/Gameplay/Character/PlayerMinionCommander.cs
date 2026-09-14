@@ -248,6 +248,12 @@ public class PlayerMinionCommander : MonoBehaviour
         UpdateCommandPreview();
         RefreshSelectionState();
 
+        if (PlayerControlLock.GameplayLocked)
+        {
+            UpdateFormationSlots();
+            return;
+        }
+
         if (WasSelectPreviousPressedThisFrame())
         {
             SelectPreviousMinionType();

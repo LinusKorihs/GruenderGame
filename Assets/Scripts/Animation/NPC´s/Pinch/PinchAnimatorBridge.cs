@@ -78,6 +78,7 @@ public class PinchAnimatorBridge : MonoBehaviour
     public void PlayDialog()
     {
         if (animator == null) return;
+        if (IsCurrentOrNextState(dialogStateName)) return;
 
         SetCoinVisible(false);
         PlayByTriggerOrDirectState(dialogTriggerName, dialogStateName);

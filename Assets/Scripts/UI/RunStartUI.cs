@@ -14,10 +14,22 @@ public class RunStartUI : MonoBehaviour
     public int maxTotal = RunSetupData.DefaultMaxTotal;
     public string fallbackRunSceneName = "LevelStart";
 
+    private bool controlsLocked;
+
     private void Awake()
     {
         Instance = this;
         gameObject.SetActive(false);
+    }
+
+    private void OnDisable()
+    {
+        SetControlsLocked(false);
+    }
+
+    private void OnDestroy()
+    {
+        SetControlsLocked(false);
     }
 
     public void Open()
@@ -27,6 +39,7 @@ public class RunStartUI : MonoBehaviour
         data.SetMinionCounts(data.typeA, data.typeB, data.typeC, maxTotal);
 
         gameObject.SetActive(true);
+        SetControlsLocked(true);
         Time.timeScale = 0f;
 
         rowA.Setup(this, data.typeA);
@@ -65,6 +78,7 @@ public class RunStartUI : MonoBehaviour
         data.levelIndex = 1;
         data.SetMinionCounts(rowA.GetValue(), rowB.GetValue(), rowC.GetValue(), maxTotal);
 
+        SetControlsLocked(false);
         Time.timeScale = 1f;
         gameObject.SetActive(false);
 
@@ -75,5 +89,18 @@ public class RunStartUI : MonoBehaviour
         }
 
         SceneManager.LoadScene(fallbackRunSceneName);
+    }
+
+    private void SetControlsLocked(bool locked)
+    {
+        if (locked == controlsLocked)
+            return;
+
+        controlsLocked = locked;
+
+        if (locked)
+            PlayerControlLock.PushLock(this);
+        else
+            PlayerControlLock.PopLock(this);
     }
 }

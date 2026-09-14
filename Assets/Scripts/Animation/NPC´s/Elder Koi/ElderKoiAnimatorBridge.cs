@@ -58,6 +58,9 @@ public class ElderKoiAnimatorBridge : MonoBehaviour
 
     public void PlayRandomDialog()
     {
+        if (IsDialogAnimationPlaying())
+            return;
+
         int randomVariant = Random.Range(1, 4);
 
         if (avoidSameDialogTwice && lastDialogVariant != 0)
@@ -77,6 +80,7 @@ public class ElderKoiAnimatorBridge : MonoBehaviour
     public void PlayDialogVariant(int variant)
     {
         if (animator == null) return;
+        if (IsDialogAnimationPlaying()) return;
 
         variant = Mathf.Clamp(variant, 1, 3);
         lastDialogVariant = variant;
@@ -167,6 +171,24 @@ public class ElderKoiAnimatorBridge : MonoBehaviour
             default:
                 return dialogV1StateName;
         }
+    }
+
+    private bool IsDialogAnimationPlaying()
+    {
+        if (animator == null) return false;
+
+        if (IsDialogState(animator.GetCurrentAnimatorStateInfo(layerIndex)))
+            return true;
+
+        return animator.IsInTransition(layerIndex) &&
+               IsDialogState(animator.GetNextAnimatorStateInfo(layerIndex));
+    }
+
+    private bool IsDialogState(AnimatorStateInfo stateInfo)
+    {
+        return stateInfo.IsName(dialogV1StateName) ||
+               stateInfo.IsName(dialogV2StateName) ||
+               stateInfo.IsName(dialogV3StateName);
     }
 
     private void PlayStateDirectly(string stateName)

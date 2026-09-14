@@ -18,6 +18,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private const string DefaultLobbyStaticLayoutResourcesPath = "LevelFlow/SO_StaticLayout_Tutorial";
     private const string RuntimeExitNamePrefix = "Next Level Exit";
     private const float RuntimeExitPadHalfHeight = 0.12f;
+    private const float ExitTestDoorApproachDistance = 1.2f;
+    private const float ExitTestNavMeshSampleRadius = 0.9f;
 
     public static LevelStartRunFlowController Instance { get; private set; }
     public static event Action<bool> LevelTransitionStateChanged;
@@ -44,6 +46,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private bool runStarted;
     private bool transitioningLevel;
     private bool pendingGenerationAfterRunSceneLoad;
+    private bool selectionControlLockActive;
     private string pendingRunSceneName;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -130,6 +133,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private void OnDestroy()
     {
+        SetSelectionControlsLocked(false);
+
         if (Instance == this)
         {
             Instance = null;
@@ -145,6 +150,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         UpdateSelectionUI();
 
         selectionCanvas.gameObject.SetActive(true);
+        SetSelectionControlsLocked(true);
         Time.timeScale = 0f;
     }
 
@@ -156,6 +162,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         LevelFlowController.EnsureInstance().BeginRun();
 
         runStarted = true;
+        SetSelectionControlsLocked(false);
         Time.timeScale = 1f;
 
         if (selectionCanvas != null)
@@ -178,6 +185,19 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         {
             GenerateCurrentLevel();
         }
+    }
+
+    private void SetSelectionControlsLocked(bool locked)
+    {
+        if (locked == selectionControlLockActive)
+            return;
+
+        selectionControlLockActive = locked;
+
+        if (locked)
+            PlayerControlLock.PushLock(this);
+        else
+            PlayerControlLock.PopLock(this);
     }
 
     public void AdvanceToNextLevel()
@@ -570,11 +590,6 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             ? GetConnectedRoomApproachPosition(endRoom, exitObject.transform.position)
             : exitObject.transform.position + Vector3.back + Vector3.up * 0.25f;
 
-        if (NavMesh.SamplePosition(targetPosition, out NavMeshHit navHit, 2.5f, NavMesh.AllAreas))
-        {
-            targetPosition = navHit.position + Vector3.up * 0.25f;
-        }
-
         Quaternion targetRotation = player.transform.rotation;
         Transform body = PlayerRootResolver.BodyTransform(player);
         if (body != null)
@@ -826,9 +841,12 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         if (connectedRoom == null || connectedRoom.root == null)
             return GetExitApproachPosition(endRoom, exitPosition);
 
-        SocketMarker endSocket = FindConnectedSocketClosestTo(endRoom, exitPosition);
-        Vector3 referencePosition = endSocket != null ? endSocket.CenterWorld : exitPosition;
-        SocketMarker connectedSocket = FindConnectedSocketClosestTo(connectedRoom, referencePosition);
+        if (!TryFindConnectionSockets(endRoom, connectedRoom, out SocketMarker endSocket, out SocketMarker connectedSocket))
+        {
+            endSocket = FindConnectedSocketClosestTo(endRoom, exitPosition);
+            Vector3 referencePosition = endSocket != null ? endSocket.CenterWorld : exitPosition;
+            connectedSocket = FindConnectedSocketClosestTo(connectedRoom, referencePosition);
+        }
 
         Vector3 directionIntoConnectedRoom = Vector3.zero;
         Vector3 position = connectedRoom.root.transform.position + Vector3.up * 0.25f;
@@ -840,11 +858,23 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             if (directionIntoConnectedRoom.sqrMagnitude > 0.001f)
             {
                 directionIntoConnectedRoom.Normalize();
-                position = connectedSocket.CenterWorld + directionIntoConnectedRoom * 2.4f + Vector3.up * 0.25f;
+                float[] distances = { ExitTestDoorApproachDistance, 1.65f, 2.1f };
+                for (int i = 0; i < distances.Length; i++)
+                {
+                    Vector3 candidate = connectedSocket.CenterWorld + directionIntoConnectedRoom * distances[i] + Vector3.up * 0.25f;
+                    candidate = ClampToRoomBounds(connectedRoom, candidate, 0.45f);
+                    if (TryProjectToRoomNavMesh(connectedRoom, candidate, out Vector3 navMeshPosition))
+                        return navMeshPosition;
+                }
+
+                position = connectedSocket.CenterWorld + directionIntoConnectedRoom * ExitTestDoorApproachDistance + Vector3.up * 0.25f;
             }
         }
 
-        return ClampToRoomBounds(connectedRoom, position, 0.75f);
+        position = ClampToRoomBounds(connectedRoom, position, 0.45f);
+        return TryProjectToRoomNavMesh(connectedRoom, position, out Vector3 fallbackNavMeshPosition)
+            ? fallbackNavMeshPosition
+            : position;
     }
 
     private static Vector3 GetExitApproachPosition(PlacedRoom endRoom, Vector3 exitPosition)
@@ -876,7 +906,60 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         directionFromEntrance.Normalize();
         Vector3 position = exitPosition - directionFromEntrance * 0.85f + Vector3.up * 0.25f;
-        return ClampToRoomBounds(endRoom, position, 0.75f);
+        position = ClampToRoomBounds(endRoom, position, 0.75f);
+        return TryProjectToRoomNavMesh(endRoom, position, out Vector3 navMeshPosition)
+            ? navMeshPosition
+            : position;
+    }
+
+    private static bool TryFindConnectionSockets(PlacedRoom firstRoom, PlacedRoom secondRoom, out SocketMarker firstSocket, out SocketMarker secondSocket)
+    {
+        firstSocket = null;
+        secondSocket = null;
+
+        if (firstRoom?.root == null || secondRoom?.root == null)
+            return false;
+
+        SocketMarker[] firstSockets = firstRoom.root.GetComponentsInChildren<SocketMarker>(true);
+        SocketMarker[] secondSockets = secondRoom.root.GetComponentsInChildren<SocketMarker>(true);
+        float bestScore = float.PositiveInfinity;
+
+        for (int i = 0; i < firstSockets.Length; i++)
+        {
+            SocketMarker candidateFirst = firstSockets[i];
+            if (candidateFirst == null || !firstRoom.connectedSocketInstanceIds.Contains(candidateFirst.GetInstanceID()))
+                continue;
+
+            Vector3 firstForward = Flatten(candidateFirst.ForwardWorld);
+            if (firstForward.sqrMagnitude > 0.001f)
+                firstForward.Normalize();
+
+            for (int s = 0; s < secondSockets.Length; s++)
+            {
+                SocketMarker candidateSecond = secondSockets[s];
+                if (candidateSecond == null || !secondRoom.connectedSocketInstanceIds.Contains(candidateSecond.GetInstanceID()))
+                    continue;
+
+                Vector3 secondForward = Flatten(candidateSecond.ForwardWorld);
+                if (secondForward.sqrMagnitude > 0.001f)
+                    secondForward.Normalize();
+
+                float centerDistance = Vector3.Distance(candidateFirst.CenterWorld, candidateSecond.CenterWorld);
+                float directionPenalty = firstForward.sqrMagnitude > 0.001f && secondForward.sqrMagnitude > 0.001f
+                    ? Mathf.Abs(Vector3.Dot(firstForward, secondForward) + 1f)
+                    : 0f;
+                float score = centerDistance + directionPenalty * 0.5f;
+
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    firstSocket = candidateFirst;
+                    secondSocket = candidateSecond;
+                }
+            }
+        }
+
+        return firstSocket != null && secondSocket != null;
     }
 
     private static PlacedRoom FindBestConnectedRoom(PlacedRoom endRoom, Vector3 exitPosition)
@@ -930,6 +1013,12 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         return bestSocket;
     }
 
+    private static Vector3 Flatten(Vector3 value)
+    {
+        value.y = 0f;
+        return value;
+    }
+
     private static Vector3 ClampToRoomBounds(PlacedRoom room, Vector3 position, float margin)
     {
         if (room?.root == null)
@@ -945,6 +1034,39 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         local.x = Mathf.Clamp(local.x, boundsCollider.center.x - halfSize.x + safeMargin, boundsCollider.center.x + halfSize.x - safeMargin);
         local.z = Mathf.Clamp(local.z, boundsCollider.center.z - halfSize.z + safeMargin, boundsCollider.center.z + halfSize.z - safeMargin);
         return boundsTransform.TransformPoint(local);
+    }
+
+    private static bool TryProjectToRoomNavMesh(PlacedRoom room, Vector3 position, out Vector3 navMeshPosition)
+    {
+        navMeshPosition = position;
+        if (!NavMesh.SamplePosition(position, out NavMeshHit hit, ExitTestNavMeshSampleRadius, NavMesh.AllAreas))
+            return false;
+
+        Vector3 sampled = hit.position + Vector3.up * 0.25f;
+        if (!IsInsideRoomBounds(room, sampled, 0.1f))
+            return false;
+
+        navMeshPosition = sampled;
+        return true;
+    }
+
+    private static bool IsInsideRoomBounds(PlacedRoom room, Vector3 position, float margin)
+    {
+        if (room?.root == null)
+            return true;
+
+        Transform boundsTransform = room.root.transform.Find("Bounds");
+        if (boundsTransform == null || !boundsTransform.TryGetComponent(out BoxCollider boundsCollider))
+            return true;
+
+        Vector3 local = boundsTransform.InverseTransformPoint(position);
+        Vector3 halfSize = boundsCollider.size * 0.5f;
+        float safeMargin = Mathf.Max(0f, margin);
+
+        return local.x >= boundsCollider.center.x - halfSize.x + safeMargin
+            && local.x <= boundsCollider.center.x + halfSize.x - safeMargin
+            && local.z >= boundsCollider.center.z - halfSize.z + safeMargin
+            && local.z <= boundsCollider.center.z + halfSize.z - safeMargin;
     }
 
     private static void MoveActor(GameObject actor, Vector3 position, Quaternion rotation)

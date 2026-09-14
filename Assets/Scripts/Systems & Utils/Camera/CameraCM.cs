@@ -132,8 +132,11 @@ public class CameraCM : MonoBehaviour
             return;
         }
 
-        HandleZoom();
-        HandleLookInput();
+        if (!PlayerControlLock.CameraLocked)
+        {
+            HandleZoom();
+            HandleLookInput();
+        }
 
         if (LiveStageTuning && !isLockedOn) RefreshCurrentStageTargetsFromSettings();
         if (isLockedOn && lockTarget != null) UpdateLockOnFraming();
@@ -208,6 +211,8 @@ public class CameraCM : MonoBehaviour
 
     private void OnToggle(InputAction.CallbackContext _)
     {
+        if (PlayerControlLock.CameraLocked) return;
+
         ApplyStage(GetNextStage(currentStage), instant: false);
         Log($"Camera stage toggled. Now in {settings.GetStage(currentStage).displayName}.");
     }
@@ -288,6 +293,8 @@ public class CameraCM : MonoBehaviour
 
     private void OnLockOn(InputAction.CallbackContext _)
     {
+        if (PlayerControlLock.CameraLocked) return;
+
         if (!cmCamera)
         {
             Debug.LogWarning("[CameraCM] LockOn: No CinemachineCamera assigned/found.");
