@@ -1,11 +1,13 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class DialogueTrigger : MonoBehaviour
 {
     [Header("UI Referenzen")]
     [SerializeField] private GameObject dialoguePanel;
     [SerializeField] private TextMeshProUGUI dialogueText;
+    [SerializeField] private bool preferSharedPrefabDialogPanel = true;
 
     [Header("Dialog-Inhalt")]
     [TextArea(2, 5)]
@@ -23,12 +25,14 @@ public class DialogueTrigger : MonoBehaviour
     [SerializeField] private PinchAnimatorBridge pinchAnimator;
 
     private static DialogueTrigger activeDialogue;
+    private static DialogPanelView sharedDialogPanel;
 
     private bool playerInRange;
     private int currentLineIndex;
     private bool isDialogueActive;
     private bool dialogueAnimationPlayed;
     private bool controlLockActive;
+    private DialogPanelView activePanelView;
 
     private void Awake()
     {
@@ -37,10 +41,9 @@ public class DialogueTrigger : MonoBehaviour
 
     private void Start()
     {
-        if (dialoguePanel != null)
-        {
-            dialoguePanel.SetActive(false);
-        }
+        EnsureDialogueUI();
+
+        SetDialoguePanelVisible(false);
     }
 
     private void Update()
@@ -64,6 +67,8 @@ public class DialogueTrigger : MonoBehaviour
 
     private void StartDialogue()
     {
+        EnsureDialogueUI();
+
         if (dialoguePanel == null || dialogueText == null)
         {
             Debug.LogWarning($"{name}: DialogueTrigger is missing panel or text reference.", this);
@@ -81,7 +86,7 @@ public class DialogueTrigger : MonoBehaviour
         currentLineIndex = 0;
         dialogueAnimationPlayed = false;
         SetControlsLocked(true);
-        dialoguePanel.SetActive(true);
+        SetDialoguePanelVisible(true);
         ShowCurrentLine();
     }
 
@@ -106,8 +111,7 @@ public class DialogueTrigger : MonoBehaviour
         if (activeDialogue == this)
             activeDialogue = null;
 
-        if (dialoguePanel != null)
-            dialoguePanel.SetActive(false);
+        SetDialoguePanelVisible(false);
 
         if (returnToIdleWhenDialogueEnds)
             PlayNpcIdleAnimation();
@@ -125,7 +129,7 @@ public class DialogueTrigger : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (IsPlayer(other))
         {
             playerInRange = true;
         }
@@ -133,7 +137,7 @@ public class DialogueTrigger : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (IsPlayer(other))
         {
             playerInRange = false;
             EndDialogue();
@@ -142,6 +146,8 @@ public class DialogueTrigger : MonoBehaviour
 
     private void ShowCurrentLine()
     {
+        EnsureDialogueUI();
+
         if (dialogueText != null && dialogueLines != null && currentLineIndex >= 0 && currentLineIndex < dialogueLines.Length)
         {
             dialogueText.text = dialogueLines[currentLineIndex];
@@ -165,6 +171,70 @@ public class DialogueTrigger : MonoBehaviour
             PlayerControlLock.PushLock(this);
         else
             PlayerControlLock.PopLock(this);
+    }
+
+    private void EnsureDialogueUI()
+    {
+        if (!preferSharedPrefabDialogPanel && dialoguePanel != null && dialogueText != null)
+            return;
+
+        DialogPanelView panelView = ResolveSharedDialogPanel();
+        if (panelView == null)
+            return;
+
+        panelView.ResolveReferences();
+        if (!panelView.IsValid)
+            return;
+
+        if (dialoguePanel != null && dialoguePanel != panelView.PanelRoot)
+            dialoguePanel.SetActive(false);
+
+        activePanelView = panelView;
+        dialoguePanel = panelView.PanelRoot;
+        dialogueText = panelView.DialogueText;
+    }
+
+    private void SetDialoguePanelVisible(bool visible)
+    {
+        if (activePanelView != null)
+        {
+            activePanelView.SetVisible(visible);
+            return;
+        }
+
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(visible);
+    }
+
+    private DialogPanelView ResolveSharedDialogPanel()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (sharedDialogPanel != null && sharedDialogPanel.gameObject.scene == activeScene)
+            return sharedDialogPanel;
+
+        DialogPanelView[] panels = FindObjectsByType<DialogPanelView>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        DialogPanelView fallback = null;
+        for (int i = 0; i < panels.Length; i++)
+        {
+            DialogPanelView panel = panels[i];
+            if (panel == null)
+                continue;
+
+            if (fallback == null)
+                fallback = panel;
+
+            if (panel.gameObject.scene == activeScene)
+            {
+                sharedDialogPanel = panel;
+                return sharedDialogPanel;
+            }
+        }
+
+        sharedDialogPanel = fallback;
+        return sharedDialogPanel;
     }
 
     private void ResolveAnimationBridge()
@@ -214,5 +284,12 @@ public class DialogueTrigger : MonoBehaviour
         {
             pinchAnimator.PlayIdle();
         }
+    }
+
+    private static bool IsPlayer(Collider other)
+    {
+        if (other == null) return false;
+        if (other.GetComponentInParent<PlayerMinionCommander>() != null) return true;
+        return other.CompareTag("Player") || other.transform.root.CompareTag("Player");
     }
 }

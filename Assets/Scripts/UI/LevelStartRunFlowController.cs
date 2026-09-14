@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using PCG.RoomAssembler.Data;
 using TMPro;
 using UnityEngine;
@@ -16,8 +15,6 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     public const int MaxSelectableSupportMinions = RunSetupData.MaxSupportTotal;
     private const string DefaultRunSceneName = "2. Linus Run";
     private const string DefaultLobbyStaticLayoutResourcesPath = "LevelFlow/SO_StaticLayout_Tutorial";
-    private const string RuntimeExitNamePrefix = "Next Level Exit";
-    private const float RuntimeExitPadHalfHeight = 0.12f;
     private const float ExitTestDoorApproachDistance = 1.2f;
     private const float ExitTestNavMeshSampleRadius = 0.9f;
 
@@ -36,6 +33,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private GameObject startButtonObject;
     private GameObject exitObject;
+    private RunMinionSelectionUI selectionUI;
     private Canvas selectionCanvas;
     private TMP_Text totalText;
     private Button startRunButton;
@@ -47,6 +45,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private bool transitioningLevel;
     private bool pendingGenerationAfterRunSceneLoad;
     private bool selectionControlLockActive;
+    private bool lobbyPreparationRunning;
     private string pendingRunSceneName;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -84,8 +83,11 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         LevelStartRunFlowController existing = FindFirstObjectByType<LevelStartRunFlowController>();
         if (existing != null) return existing;
 
-        GameObject host = new GameObject(nameof(LevelStartRunFlowController));
-        return host.AddComponent<LevelStartRunFlowController>();
+        Debug.LogWarning(
+            $"[RunFlow] Start scene '{scene.name}' has no LevelStartRunFlowController. " +
+            "Place PF_LevelSystem or PF_LevelStartRunFlowController in the scene/prefab setup.",
+            null);
+        return null;
     }
 
     private static bool IsLevelStartSceneName(string sceneName)
@@ -118,17 +120,20 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        DontDestroyOnLoad(transform.root != null ? transform.root.gameObject : gameObject);
         SceneManager.sceneLoaded += HandleSceneLoaded;
     }
 
     private void Start()
     {
         LevelFlowController flow = LevelFlowController.EnsureInstance();
-        flow.PrepareStaticStepForScene(SceneManager.GetActiveScene());
         flow.RegisterRuntimeObject(gameObject);
-        ResolveSceneReferences();
-        PrepareLobby();
+
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (IsLevelStartSceneName(activeScene.name))
+        {
+            StartCoroutine(PrepareLobbyWhenSceneIsReady(activeScene));
+        }
     }
 
     private void OnDestroy()
@@ -146,10 +151,19 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     public void OpenSelectionUI()
     {
         EnsureSelectionUI();
+        if (selectionUI == null || selectionCanvas == null || totalText == null || startRunButton == null ||
+            meleeRow == null || rangedRow == null || supportRow == null)
+        {
+            Debug.LogWarning(
+                "[RunFlow] Cannot open minion selection because no valid RunMinionSelectionUI exists in the Start scene.",
+                this);
+            return;
+        }
+
         LoadRowsFromRunSetup();
         UpdateSelectionUI();
 
-        selectionCanvas.gameObject.SetActive(true);
+        selectionUI.SetVisible(true);
         SetSelectionControlsLocked(true);
         Time.timeScale = 0f;
     }
@@ -165,15 +179,14 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         SetSelectionControlsLocked(false);
         Time.timeScale = 1f;
 
-        if (selectionCanvas != null)
+        if (selectionUI != null)
         {
-            selectionCanvas.gameObject.SetActive(false);
+            selectionUI.SetVisible(false);
         }
 
         if (startButtonObject != null)
         {
             startButtonObject.SetActive(false);
-            Destroy(startButtonObject);
             startButtonObject = null;
         }
 
@@ -185,6 +198,14 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         {
             GenerateCurrentLevel();
         }
+    }
+
+    private void StartRunFromSelectionUI()
+    {
+        if (meleeRow == null || rangedRow == null || supportRow == null)
+            return;
+
+        StartSelectedRun(meleeRow.Value, rangedRow.Value, supportRow.Value);
     }
 
     private void SetSelectionControlsLocked(bool locked)
@@ -301,6 +322,11 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        if (IsLevelStartSceneName(scene.name))
+        {
+            StartCoroutine(PrepareLobbyWhenSceneIsReady(scene));
+        }
+
         if (!pendingGenerationAfterRunSceneLoad) return;
         if (!string.Equals(scene.name, pendingRunSceneName, StringComparison.OrdinalIgnoreCase)) return;
 
@@ -456,7 +482,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
                 Environment.TickCount);
         }
 
-        CreateStartButton();
+        BindSceneStartButton();
     }
 
     private void EnsureLobbyPlayer()
@@ -639,6 +665,29 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
                 "Check spawnpoints, budgets, allowedContentIds, and the active SpawnTuningProfile.",
                 this);
         }
+    }
+
+    private IEnumerator PrepareLobbyWhenSceneIsReady(Scene scene)
+    {
+        if (lobbyPreparationRunning)
+            yield break;
+
+        lobbyPreparationRunning = true;
+
+        yield return null;
+
+        if (!scene.IsValid() || !scene.isLoaded || !IsLevelStartSceneName(scene.name))
+        {
+            lobbyPreparationRunning = false;
+            yield break;
+        }
+
+        LevelFlowController flow = LevelFlowController.EnsureInstance();
+        flow.PrepareStaticStepForScene(scene);
+        flow.RegisterRuntimeObject(gameObject);
+
+        PrepareLobby();
+        lobbyPreparationRunning = false;
     }
 
     private void EnsureSelectedMinionPartyNearPlayer(RunSetupData data)
@@ -1148,46 +1197,27 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         return stats == null || !stats.IsDead;
     }
 
-    private void CreateStartButton()
+    private void BindSceneStartButton()
     {
-        if (startButtonObject != null || player == null) return;
-
-        Transform playerBody = PlayerRootResolver.BodyTransform(player);
-        if (playerBody == null) playerBody = player.transform;
-
-        Vector3 forward = playerBody.forward;
-        forward.y = 0f;
-        if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
-        forward.Normalize();
-
-        Vector3 position = playerBody.position + forward * 3f + Vector3.up * 0.12f;
-
-        startButtonObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        startButtonObject.name = "Run Start Button";
-        startButtonObject.transform.SetPositionAndRotation(position, Quaternion.identity);
-        startButtonObject.transform.localScale = new Vector3(0.9f, 0.12f, 0.9f);
-
-        Collider trigger = startButtonObject.GetComponent<Collider>();
-        if (trigger != null) trigger.isTrigger = true;
-
-        Rigidbody rb = startButtonObject.AddComponent<Rigidbody>();
-        rb.isKinematic = true;
-        rb.useGravity = false;
-
-        Renderer renderer = startButtonObject.GetComponent<Renderer>();
-        if (renderer != null)
+        RunStartTrigger trigger = FindSceneStartTrigger();
+        if (trigger == null)
         {
-            renderer.sharedMaterial = CreateGlowMaterial(new Color(1f, 0.05f, 0.02f, 1f), 2.5f);
+            Debug.LogWarning(
+                "[RunFlow] Start scene has no RunStartTrigger. Place PF_RunStartButton in the Start scene.",
+                this);
+            return;
         }
 
-        Light light = startButtonObject.AddComponent<Light>();
-        light.type = LightType.Point;
-        light.color = new Color(1f, 0.08f, 0.03f, 1f);
-        light.range = 5f;
-        light.intensity = 3f;
+        startButtonObject = trigger.gameObject;
+        startButtonObject.SetActive(true);
 
-        RunStartButtonTrigger triggerScript = startButtonObject.AddComponent<RunStartButtonTrigger>();
-        triggerScript.Initialize(this);
+        Collider[] colliders = startButtonObject.GetComponentsInChildren<Collider>(true);
+        if (colliders.Length == 0)
+        {
+            Debug.LogWarning(
+                "[RunFlow] PF_RunStartButton has no Collider. The player cannot trigger the minion selection.",
+                startButtonObject);
+        }
     }
 
     private void PlaceExitInEndRoom()
@@ -1201,45 +1231,66 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             return;
         }
 
-        Vector3 position = GetGroundedExitPosition(GetRoomExitCenter(endRoom.root), endRoom.root);
-
-        exitObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        exitObject.name = $"{RuntimeExitNamePrefix} {RunSetupData.EnsureInstance().levelIndex + 1}";
-        exitObject.transform.SetPositionAndRotation(position, Quaternion.identity);
-        exitObject.transform.localScale = new Vector3(1.35f, RuntimeExitPadHalfHeight, 1.35f);
-
-        Scene endRoomScene = endRoom.root.scene;
-        if (endRoomScene.IsValid() && endRoomScene.isLoaded && exitObject.scene != endRoomScene)
+        RunLevelExitTrigger trigger = FindEndRoomExitTrigger(endRoom.root);
+        if (trigger == null)
         {
-            SceneManager.MoveGameObjectToScene(exitObject, endRoomScene);
+            Debug.LogWarning(
+                "[RunFlow] Generated end room has no RunLevelExitTrigger. Add PF_LevelExitTrigger to the end-room prefab.",
+                endRoom.root);
+            return;
         }
 
-        exitObject.transform.SetParent(endRoom.root.transform, true);
+        exitObject = trigger.gameObject;
+        exitObject.SetActive(true);
 
-        Collider trigger = exitObject.GetComponent<Collider>();
-        if (trigger != null) trigger.isTrigger = true;
-
-        Rigidbody rb = exitObject.AddComponent<Rigidbody>();
-        rb.isKinematic = true;
-        rb.useGravity = false;
-
-        Renderer renderer = exitObject.GetComponent<Renderer>();
-        Material exitMaterial = CreateGlowMaterial(new Color(0.1f, 0.9f, 1f, 1f), 2.2f);
-        if (renderer != null)
+        Collider[] colliders = exitObject.GetComponentsInChildren<Collider>(true);
+        if (colliders.Length == 0)
         {
-            renderer.sharedMaterial = exitMaterial;
+            Debug.LogWarning(
+                "[RunFlow] PF_LevelExitTrigger has no Collider. The player cannot trigger the level transition.",
+                exitObject);
         }
 
-        CreateExitBeacon(exitObject.transform, exitMaterial);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            colliders[i].enabled = true;
+            colliders[i].isTrigger = true;
+        }
 
-        Light light = exitObject.AddComponent<Light>();
-        light.type = LightType.Point;
-        light.color = new Color(0.1f, 0.75f, 1f, 1f);
-        light.range = 6f;
-        light.intensity = 2.8f;
+        trigger.Initialize(this);
+    }
 
-        RunLevelExitTrigger triggerScript = exitObject.AddComponent<RunLevelExitTrigger>();
-        triggerScript.Initialize(this);
+    private static RunStartTrigger FindSceneStartTrigger()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        RunStartTrigger[] triggers = FindObjectsByType<RunStartTrigger>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        RunStartTrigger fallback = null;
+        for (int i = 0; i < triggers.Length; i++)
+        {
+            RunStartTrigger trigger = triggers[i];
+            if (trigger == null)
+                continue;
+
+            if (fallback == null)
+                fallback = trigger;
+
+            if (trigger.gameObject.scene == activeScene)
+                return trigger;
+        }
+
+        return fallback;
+    }
+
+    private static RunLevelExitTrigger FindEndRoomExitTrigger(GameObject endRoomRoot)
+    {
+        if (endRoomRoot == null)
+            return null;
+
+        RunLevelExitTrigger[] triggers = endRoomRoot.GetComponentsInChildren<RunLevelExitTrigger>(true);
+        return triggers.Length > 0 ? triggers[0] : null;
     }
 
     private PlacedRoom FindEndRoom()
@@ -1279,78 +1330,6 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         }
     }
 
-    private static Vector3 GetRoomExitCenter(GameObject roomRoot)
-    {
-        Transform boundsTransform = roomRoot.transform.Find("Bounds");
-        if (boundsTransform != null && boundsTransform.TryGetComponent(out BoxCollider boundsCollider))
-        {
-            Bounds bounds = boundsCollider.bounds;
-            return new Vector3(bounds.center.x, bounds.center.y, bounds.center.z);
-        }
-
-        Renderer[] renderers = roomRoot.GetComponentsInChildren<Renderer>();
-        if (renderers.Length > 0)
-        {
-            Bounds bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
-            {
-                bounds.Encapsulate(renderers[i].bounds);
-            }
-
-            return new Vector3(bounds.center.x, Mathf.Max(bounds.center.y, bounds.min.y + 0.75f), bounds.center.z);
-        }
-
-        return roomRoot.transform.position + Vector3.up * 0.75f;
-    }
-
-    private static Vector3 GetGroundedExitPosition(Vector3 desiredPosition, GameObject roomRoot)
-    {
-        Vector3 grounded = desiredPosition;
-        if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit navHit, 4f, NavMesh.AllAreas))
-        {
-            grounded = navHit.position;
-        }
-        else if (TryGetRoomBounds(roomRoot, out Bounds bounds))
-        {
-            grounded.y = bounds.min.y;
-        }
-        else if (roomRoot != null)
-        {
-            grounded.y = roomRoot.transform.position.y;
-        }
-
-        grounded.y += RuntimeExitPadHalfHeight;
-        return grounded;
-    }
-
-    private static bool TryGetRoomBounds(GameObject roomRoot, out Bounds bounds)
-    {
-        if (roomRoot != null)
-        {
-            Transform boundsTransform = roomRoot.transform.Find("Bounds");
-            if (boundsTransform != null && boundsTransform.TryGetComponent(out BoxCollider boundsCollider))
-            {
-                bounds = boundsCollider.bounds;
-                return true;
-            }
-
-            Renderer[] renderers = roomRoot.GetComponentsInChildren<Renderer>();
-            if (renderers.Length > 0)
-            {
-                bounds = renderers[0].bounds;
-                for (int i = 1; i < renderers.Length; i++)
-                {
-                    bounds.Encapsulate(renderers[i].bounds);
-                }
-
-                return true;
-            }
-        }
-
-        bounds = default;
-        return false;
-    }
-
     private static Vector3 GetRoomCenter(GameObject roomRoot)
     {
         if (roomRoot == null)
@@ -1377,74 +1356,14 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         return roomRoot.transform.position;
     }
 
-    private static void CreateExitBeacon(Transform parent, Material material)
-    {
-        GameObject beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        beam.name = "Exit Beacon Beam";
-        beam.transform.SetParent(parent, false);
-        beam.transform.localPosition = Vector3.up * 0.72f;
-        beam.transform.localScale = new Vector3(0.26f, 0.75f, 0.26f);
-        DisableCollider(beam);
-
-        Renderer beamRenderer = beam.GetComponent<Renderer>();
-        if (beamRenderer != null) beamRenderer.sharedMaterial = material;
-
-        GameObject orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        orb.name = "Exit Beacon Orb";
-        orb.transform.SetParent(parent, false);
-        orb.transform.localPosition = Vector3.up * 1.5f;
-        orb.transform.localScale = Vector3.one * 0.5f;
-        DisableCollider(orb);
-
-        Renderer orbRenderer = orb.GetComponent<Renderer>();
-        if (orbRenderer != null) orbRenderer.sharedMaterial = material;
-    }
-
-    private static void DisableCollider(GameObject target)
-    {
-        Collider collider = target.GetComponent<Collider>();
-        if (collider != null) collider.enabled = false;
-    }
-
     private void ClearExitObject()
     {
-        HashSet<GameObject> exitsToDestroy = new HashSet<GameObject>();
         if (exitObject != null)
         {
-            exitsToDestroy.Add(exitObject);
-        }
-
-        RunLevelExitTrigger[] exitTriggers = FindObjectsByType<RunLevelExitTrigger>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None);
-
-        for (int i = 0; i < exitTriggers.Length; i++)
-        {
-            RunLevelExitTrigger trigger = exitTriggers[i];
-            if (trigger == null)
-                continue;
-
-            GameObject triggerObject = trigger.gameObject;
-            bool namedRuntimeExit = triggerObject.name.StartsWith(RuntimeExitNamePrefix, StringComparison.Ordinal);
-            if (trigger.IsOwnedBy(this) || trigger.IsUnowned || namedRuntimeExit)
+            Collider[] colliders = exitObject.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
             {
-                exitsToDestroy.Add(triggerObject);
-            }
-        }
-
-        foreach (GameObject exit in exitsToDestroy)
-        {
-            if (exit == null)
-                continue;
-
-            exit.SetActive(false);
-            if (Application.isPlaying)
-            {
-                Destroy(exit);
-            }
-            else
-            {
-                DestroyImmediate(exit);
+                colliders[i].enabled = false;
             }
         }
 
@@ -1481,56 +1400,103 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         EnsureEventSystem();
 
-        GameObject canvasObject = new GameObject("Run Selection Canvas");
-        selectionCanvas = canvasObject.AddComponent<Canvas>();
-        selectionCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        selectionCanvas.sortingOrder = 200;
+        RunMinionSelectionUI ui = FindSceneSelectionUI();
+        if (ui == null)
+        {
+            Debug.LogWarning(
+                "[RunFlow] Start scene has no RunMinionSelectionUI. Place PF_RunMinionSelectionUI in the Start scene.",
+                this);
+            return;
+        }
 
-        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        if (!TryBindSelectionUI(ui))
+        {
+            Debug.LogWarning(
+                "[RunFlow] PF_RunMinionSelectionUI is missing one or more bindings. Check Canvas, Total, StartButton, and row buttons.",
+                ui);
+            return;
+        }
 
-        canvasObject.AddComponent<GraphicRaycaster>();
+        selectionUI.SetVisible(false);
+    }
 
-        Image backdrop = CreateImage("Backdrop", selectionCanvas.transform, new Color(0f, 0f, 0f, 0.55f));
-        StretchToParent(backdrop.rectTransform);
+    private bool TryBindSelectionUI(RunMinionSelectionUI ui)
+    {
+        if (ui == null)
+            return false;
 
-        GameObject panelObject = new GameObject("Panel");
-        RectTransform panel = panelObject.AddComponent<RectTransform>();
-        panel.SetParent(selectionCanvas.transform, false);
-        panel.anchorMin = new Vector2(0.5f, 0.5f);
-        panel.anchorMax = new Vector2(0.5f, 0.5f);
-        panel.pivot = new Vector2(0.5f, 0.5f);
-        panel.sizeDelta = new Vector2(460f, 360f);
+        ui.ResolveReferences();
+        if (!ui.IsValid)
+            return false;
 
-        Image panelImage = panelObject.AddComponent<Image>();
-        panelImage.color = new Color(0.05f, 0.06f, 0.07f, 0.94f);
+        selectionUI = ui;
+        selectionCanvas = ui.Canvas;
+        totalText = ui.TotalText;
+        startRunButton = ui.StartButton;
+        meleeRow = CreateSelectionRow(ui.MeleeRow);
+        rangedRow = CreateSelectionRow(ui.RangedRow);
+        supportRow = CreateSelectionRow(ui.SupportRow);
 
-        VerticalLayoutGroup layout = panelObject.AddComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(28, 28, 24, 24);
-        layout.spacing = 14f;
-        layout.childControlWidth = true;
-        layout.childControlHeight = true;
-        layout.childForceExpandWidth = true;
-        layout.childForceExpandHeight = false;
+        if (meleeRow == null || rangedRow == null || supportRow == null)
+            return false;
 
-        TMP_Text title = CreateText("Title", panel, "Minions", 30f, FontStyles.Bold, TextAlignmentOptions.Center);
-        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 44f;
+        BindSelectionRowButtons(meleeRow, isSupportRow: false);
+        BindSelectionRowButtons(rangedRow, isSupportRow: false);
+        BindSelectionRowButtons(supportRow, isSupportRow: true);
 
-        meleeRow = CreateSelectionRow(panel, "Melee");
-        rangedRow = CreateSelectionRow(panel, "Ranged");
-        supportRow = CreateSelectionRow(panel, "Support");
+        startRunButton.onClick.RemoveListener(StartRunFromSelectionUI);
+        startRunButton.onClick.AddListener(StartRunFromSelectionUI);
 
-        totalText = CreateText("Total", panel, string.Empty, 22f, FontStyles.Bold, TextAlignmentOptions.Center);
-        totalText.gameObject.AddComponent<LayoutElement>().preferredHeight = 36f;
+        return true;
+    }
 
-        startRunButton = CreateButton(panel, "StartButton", "Start", new Color(0.1f, 0.65f, 0.45f, 1f));
-        startRunButton.GetComponent<LayoutElement>().preferredHeight = 52f;
-        startRunButton.onClick.AddListener(() =>
-            StartSelectedRun(meleeRow.Value, rangedRow.Value, supportRow.Value));
+    private static RunMinionSelectionUI FindSceneSelectionUI()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        RunMinionSelectionUI[] candidates = FindObjectsByType<RunMinionSelectionUI>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
 
-        selectionCanvas.gameObject.SetActive(false);
+        RunMinionSelectionUI fallback = null;
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            RunMinionSelectionUI candidate = candidates[i];
+            if (candidate == null)
+                continue;
+
+            if (fallback == null)
+                fallback = candidate;
+
+            if (candidate.gameObject.scene == activeScene)
+                return candidate;
+        }
+
+        return fallback;
+    }
+
+    private static SelectionRow CreateSelectionRow(RunMinionSelectionUI.RowBinding binding)
+    {
+        if (binding == null || !binding.IsValid)
+            return null;
+
+        return new SelectionRow(binding.ValueText, binding.MinusButton, binding.PlusButton);
+    }
+
+    private void BindSelectionRowButtons(SelectionRow row, bool isSupportRow)
+    {
+        row.BindButtons(
+            () =>
+            {
+                row.SetValue(row.Value - 1);
+                UpdateSelectionUI();
+            },
+            () =>
+            {
+                if (GetSelectedTotal() >= MaxSelectableMinions) return;
+                if (isSupportRow && row.Value >= MaxSelectableSupportMinions) return;
+                row.SetValue(row.Value + 1);
+                UpdateSelectionUI();
+            });
     }
 
     private void LoadRowsFromRunSetup()
@@ -1541,104 +1507,6 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         meleeRow.SetValue(data.typeA);
         rangedRow.SetValue(data.typeB);
         supportRow.SetValue(data.typeC);
-    }
-
-    private SelectionRow CreateSelectionRow(Transform parent, string label)
-    {
-        GameObject rowObject = new GameObject(label + " Row");
-        RectTransform rowTransform = rowObject.AddComponent<RectTransform>();
-        rowTransform.SetParent(parent, false);
-
-        HorizontalLayoutGroup layout = rowObject.AddComponent<HorizontalLayoutGroup>();
-        layout.spacing = 10f;
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.childControlHeight = true;
-        layout.childControlWidth = true;
-        layout.childForceExpandHeight = false;
-        layout.childForceExpandWidth = false;
-
-        rowObject.AddComponent<LayoutElement>().preferredHeight = 50f;
-
-        TMP_Text labelText = CreateText(label + " Label", rowTransform, label, 22f, FontStyles.Normal, TextAlignmentOptions.Left);
-        LayoutElement labelLayout = labelText.gameObject.AddComponent<LayoutElement>();
-        labelLayout.flexibleWidth = 1f;
-        labelLayout.preferredHeight = 48f;
-
-        Button minusButton = CreateButton(rowTransform, label + " Minus", "-", new Color(0.25f, 0.28f, 0.31f, 1f));
-        Button plusButton = CreateButton(rowTransform, label + " Plus", "+", new Color(0.25f, 0.28f, 0.31f, 1f));
-        TMP_Text valueText = CreateText(label + " Value", rowTransform, "0", 24f, FontStyles.Bold, TextAlignmentOptions.Center);
-        valueText.gameObject.AddComponent<LayoutElement>().preferredWidth = 62f;
-
-        minusButton.transform.SetSiblingIndex(1);
-        valueText.transform.SetSiblingIndex(2);
-        plusButton.transform.SetSiblingIndex(3);
-
-        SelectionRow row = new SelectionRow(valueText, minusButton, plusButton);
-        minusButton.onClick.AddListener(() =>
-        {
-            row.SetValue(row.Value - 1);
-            UpdateSelectionUI();
-        });
-        plusButton.onClick.AddListener(() =>
-        {
-            if (GetSelectedTotal() >= MaxSelectableMinions) return;
-            if (row == supportRow && row.Value >= MaxSelectableSupportMinions) return;
-            row.SetValue(row.Value + 1);
-            UpdateSelectionUI();
-        });
-
-        return row;
-    }
-
-    private Button CreateButton(Transform parent, string name, string text, Color color)
-    {
-        GameObject buttonObject = new GameObject(name);
-        RectTransform rect = buttonObject.AddComponent<RectTransform>();
-        rect.SetParent(parent, false);
-
-        Image image = buttonObject.AddComponent<Image>();
-        image.color = color;
-
-        Button button = buttonObject.AddComponent<Button>();
-        button.targetGraphic = image;
-        button.transition = Selectable.Transition.ColorTint;
-
-        LayoutElement layout = buttonObject.AddComponent<LayoutElement>();
-        layout.preferredWidth = 48f;
-        layout.preferredHeight = 48f;
-
-        TMP_Text label = CreateText("Text", rect, text, 22f, FontStyles.Bold, TextAlignmentOptions.Center);
-        StretchToParent(label.rectTransform);
-
-        return button;
-    }
-
-    private static TMP_Text CreateText(string name, Transform parent, string text, float fontSize, FontStyles style, TextAlignmentOptions alignment)
-    {
-        GameObject textObject = new GameObject(name);
-        RectTransform rect = textObject.AddComponent<RectTransform>();
-        rect.SetParent(parent, false);
-
-        TextMeshProUGUI label = textObject.AddComponent<TextMeshProUGUI>();
-        label.text = text;
-        label.fontSize = fontSize;
-        label.fontStyle = style;
-        label.alignment = alignment;
-        label.color = Color.white;
-        label.textWrappingMode = TextWrappingModes.NoWrap;
-
-        return label;
-    }
-
-    private static Image CreateImage(string name, Transform parent, Color color)
-    {
-        GameObject imageObject = new GameObject(name);
-        RectTransform rect = imageObject.AddComponent<RectTransform>();
-        rect.SetParent(parent, false);
-
-        Image image = imageObject.AddComponent<Image>();
-        image.color = color;
-        return image;
     }
 
     private void UpdateSelectionUI()
@@ -1667,14 +1535,6 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         eventSystemObject.AddComponent<InputSystemUIInputModule>();
     }
 
-    private static void StretchToParent(RectTransform rect)
-    {
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-    }
-
     private static GameObject FindTaggedPlayerRoot()
     {
         try
@@ -1693,29 +1553,6 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         return null;
     }
 
-    private static Material CreateGlowMaterial(Color baseColor, float emissionIntensity)
-    {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Sprites/Default");
-
-        Material material = new Material(shader);
-
-        int baseColorId = Shader.PropertyToID("_BaseColor");
-        int colorId = Shader.PropertyToID("_Color");
-        int emissionId = Shader.PropertyToID("_EmissionColor");
-
-        if (material.HasProperty(baseColorId)) material.SetColor(baseColorId, baseColor);
-        if (material.HasProperty(colorId)) material.SetColor(colorId, baseColor);
-        if (material.HasProperty(emissionId))
-        {
-            material.EnableKeyword("_EMISSION");
-            material.SetColor(emissionId, baseColor * Mathf.Max(0f, emissionIntensity));
-        }
-
-        return material;
-    }
-
     private sealed class SelectionRow
     {
         private readonly TMP_Text valueText;
@@ -1731,6 +1568,12 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             this.plusButton = plusButton;
         }
 
+        public void BindButtons(Action minus, Action plus)
+        {
+            minusButton.onClick.AddListener(() => minus?.Invoke());
+            plusButton.onClick.AddListener(() => plus?.Invoke());
+        }
+
         public void SetValue(int value)
         {
             Value = Mathf.Max(0, value);
@@ -1742,61 +1585,5 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         {
             plusButton.interactable = canAdd;
         }
-    }
-}
-
-public sealed class RunStartButtonTrigger : MonoBehaviour
-{
-    private LevelStartRunFlowController controller;
-
-    public void Initialize(LevelStartRunFlowController owner)
-    {
-        controller = owner;
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-        if (!IsPlayer(other)) return;
-        controller?.OpenSelectionUI();
-    }
-
-    private static bool IsPlayer(Collider other)
-    {
-        if (other == null) return false;
-        if (other.GetComponentInParent<PlayerMinionCommander>() != null) return true;
-        return other.CompareTag("Player") || other.transform.root.CompareTag("Player");
-    }
-}
-
-public sealed class RunLevelExitTrigger : MonoBehaviour
-{
-    private LevelStartRunFlowController controller;
-    private bool triggered;
-
-    public void Initialize(LevelStartRunFlowController owner)
-    {
-        controller = owner;
-    }
-
-    public bool IsOwnedBy(LevelStartRunFlowController owner)
-    {
-        return controller == owner;
-    }
-
-    public bool IsUnowned => controller == null;
-
-    private void OnTriggerEnter(Collider other)
-    {
-        if (triggered || !IsPlayer(other)) return;
-
-        triggered = true;
-        controller?.AdvanceToNextLevel();
-    }
-
-    private static bool IsPlayer(Collider other)
-    {
-        if (other == null) return false;
-        if (other.GetComponentInParent<PlayerMinionCommander>() != null) return true;
-        return other.CompareTag("Player") || other.transform.root.CompareTag("Player");
     }
 }
