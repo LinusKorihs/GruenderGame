@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using PCG.RoomAssembler.Data;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
 public sealed class StaticLevelLayoutBuilder : MonoBehaviour
@@ -97,6 +98,8 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
             if (navMeshBuilder != null)
             {
                 navMeshBuilder.Build(roomsRoot);
+                SnapActorToWalkableSurface(LastPlayer);
+                SnapActorToWalkableSurface(LastBoss);
             }
         }
 
@@ -215,7 +218,7 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
                     reusedActor = existing;
                 }
 
-                reusedActor.transform.SetPositionAndRotation(target.position, target.rotation);
+                MoveActorSafely(reusedActor, target.position, target.rotation);
                 MoveActorToContentRoot(reusedActor, contentRoot);
                 return reusedActor;
             }
@@ -230,7 +233,7 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
         Transform spawn = ResolveSpawnTransform(roomId, spawnKind, fallbackLocalPosition);
         GameObject actor = Instantiate(prefab, spawn.position, spawn.rotation, contentRoot);
         actor.name = actorName;
-        actor.transform.SetPositionAndRotation(spawn.position, spawn.rotation);
+        MoveActorSafely(actor, spawn.position, spawn.rotation);
         return actor;
     }
 
@@ -394,6 +397,72 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
         }
 
         actor.transform.SetParent(contentRoot, true);
+    }
+
+    private static void SnapActorToWalkableSurface(GameObject actor)
+    {
+        if (actor == null)
+            return;
+
+        if (!NavMesh.SamplePosition(actor.transform.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            return;
+
+        MoveActorSafely(actor, hit.position + Vector3.up * 0.05f, actor.transform.rotation);
+    }
+
+    private static void MoveActorSafely(GameObject actor, Vector3 position, Quaternion rotation)
+    {
+        if (actor == null)
+            return;
+
+        CharacterController[] controllers = actor.GetComponentsInChildren<CharacterController>();
+        bool[] controllerStates = new bool[controllers.Length];
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            controllerStates[i] = controllers[i] != null && controllers[i].enabled;
+            if (controllers[i] != null) controllers[i].enabled = false;
+        }
+
+        NavMeshAgent[] agents = actor.GetComponentsInChildren<NavMeshAgent>();
+        bool[] agentStates = new bool[agents.Length];
+        for (int i = 0; i < agents.Length; i++)
+        {
+            agentStates[i] = agents[i] != null && agents[i].enabled;
+            if (agents[i] != null) agents[i].enabled = false;
+        }
+
+        actor.transform.SetPositionAndRotation(position, rotation);
+
+        if (actor.GetComponentInChildren<PlayerMinionCommander>() != null)
+        {
+            Transform body = PlayerRootResolver.BodyTransform(actor);
+            if (body != null && body != actor.transform)
+            {
+                body.localPosition = Vector3.zero;
+                body.localRotation = Quaternion.identity;
+            }
+        }
+
+        Rigidbody[] rigidbodies = actor.GetComponentsInChildren<Rigidbody>();
+        for (int i = 0; i < rigidbodies.Length; i++)
+        {
+            Rigidbody rb = rigidbodies[i];
+            if (rb == null || rb.isKinematic) continue;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        Physics.SyncTransforms();
+
+        for (int i = 0; i < agents.Length; i++)
+        {
+            if (agents[i] != null) agents[i].enabled = agentStates[i];
+        }
+
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            if (controllers[i] != null) controllers[i].enabled = controllerStates[i];
+        }
     }
 
     private static Transform GetOrCreateChild(Transform parent, string childName)

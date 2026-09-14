@@ -25,11 +25,12 @@ public class MinionTypeSelectorHUD : MonoBehaviour
 
     [Header("Tint")]
     [SerializeField] private Color sideTintColor = Color.black;
-    [SerializeField] private Color unavailableTintColor = new Color(1f, 0.05f, 0.03f, 1f);
+    [SerializeField] private Color unavailableTintColor = new Color(1f, 0.16f, 0.08f, 1f);
     [SerializeField, Range(0f, 1f)] private float sideTintAlpha = 0.18f;
-    [SerializeField, Range(0f, 1f)] private float unavailableTintAlpha = 0.58f;
-    [SerializeField, Range(0f, 1f)] private float emptyCenterTintAlpha = 0.34f;
-    [SerializeField] private float emptyFlashDuration = 0.12f;
+    [SerializeField, Range(0f, 1f)] private float unavailableTintAlpha = 0.9f;
+    [SerializeField, Range(0f, 1f)] private float emptyCenterTintAlpha = 0.78f;
+    [SerializeField, Range(0f, 1f)] private float flashTintAlpha = 1f;
+    [SerializeField] private float emptyFlashDuration = 0.28f;
 
     private float flashUntil;
     private MinionRoleType flashRole;
@@ -56,12 +57,15 @@ public class MinionTypeSelectorHUD : MonoBehaviour
 
     private void Update()
     {
-        if (flashUntil > 0f && Time.unscaledTime >= flashUntil)
+        if (flashUntil <= 0f) return;
+
+        if (Time.unscaledTime >= flashUntil)
         {
             flashUntil = 0f;
             hasFlashRole = false;
-            Refresh();
         }
+
+        Refresh();
     }
 
     public void Bind(PlayerMinionCommander newCommander)
@@ -126,6 +130,7 @@ public class MinionTypeSelectorHUD : MonoBehaviour
 
         if (slot.tint == null) return;
 
+        PrepareTint(slot.tint);
         slot.tint.gameObject.SetActive(true);
         slot.tint.transform.SetAsLastSibling();
 
@@ -133,11 +138,29 @@ public class MinionTypeSelectorHUD : MonoBehaviour
         bool warning = unavailable || flashing;
 
         float alpha = isCenter ? 0f : sideTintAlpha;
-        if (warning) alpha = isCenter && !flashing ? emptyCenterTintAlpha : unavailableTintAlpha;
+        if (flashing) alpha = flashTintAlpha;
+        else if (warning) alpha = isCenter ? emptyCenterTintAlpha : unavailableTintAlpha;
 
         Color color = warning ? unavailableTintColor : sideTintColor;
         color.a = alpha;
         slot.tint.color = color;
+    }
+
+    private static void PrepareTint(Image tint)
+    {
+        if (tint == null) return;
+
+        tint.raycastTarget = false;
+        tint.preserveAspect = false;
+
+        RectTransform rect = tint.rectTransform;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = Vector2.zero;
+        rect.localScale = Vector3.one;
     }
 
     private Sprite GetSprite(MinionRoleType role)

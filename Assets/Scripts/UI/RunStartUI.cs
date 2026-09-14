@@ -23,14 +23,15 @@ public class RunStartUI : MonoBehaviour
     public void Open()
     {
         RunSetupData data = RunSetupData.EnsureInstance();
-        maxTotal = Mathf.Max(1, data.maxTotal);
+        maxTotal = Mathf.Clamp(data.maxTotal, 1, RunSetupData.DefaultMaxTotal);
+        data.SetMinionCounts(data.typeA, data.typeB, data.typeC, maxTotal);
 
         gameObject.SetActive(true);
         Time.timeScale = 0f;
 
         rowA.Setup(this, data.typeA);
         rowB.Setup(this, data.typeB);
-        rowC.Setup(this, data.typeC);
+        rowC.Setup(this, data.typeC, RunSetupData.MaxSupportTotal);
 
         UpdateTotal();
     }
@@ -47,7 +48,10 @@ public class RunStartUI : MonoBehaviour
 
     void UpdateTotal()
     {
-        totalText.text = GetTotal() + "/" + maxTotal;
+        totalText.text = GetTotal() + "/" + maxTotal + "  Support " + rowC.GetValue() + "/" + RunSetupData.MaxSupportTotal;
+        rowA.RefreshInteractable();
+        rowB.RefreshInteractable();
+        rowC.RefreshInteractable();
     }
 
     int GetTotal()

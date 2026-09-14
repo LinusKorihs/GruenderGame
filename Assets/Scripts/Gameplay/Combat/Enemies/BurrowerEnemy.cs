@@ -270,7 +270,7 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                     break;
                 }
 
-                float speed = settings != null ? settings.EmergeRiseSpeed : 5f;
+                float speed = SupportSlowTarget.ApplyMoveSpeed(this, settings != null ? settings.EmergeRiseSpeed : 5f);
                 Vector3 ePos = transform.position;
                 ePos.y = Mathf.MoveTowards(ePos.y, targetY, speed * Time.deltaTime);
                 transform.position = ePos;
@@ -293,7 +293,7 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                     break;
                 }
 
-                float speed = settings != null ? settings.FlySpeed : 7f;
+                float speed = SupportSlowTarget.ApplyMoveSpeed(this, settings != null ? settings.FlySpeed : 7f);
                 frame3DVelocity = new Vector3(0f, speed, 0f);
                 break;
             }
@@ -345,7 +345,8 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                     break;
                 }
 
-                float speed = divingAtMinion ? (settings != null ? settings.GrabDescentSpeed : 8f) : (settings != null ? settings.DiveSpeed : 9f);
+                float baseSpeed = divingAtMinion ? (settings != null ? settings.GrabDescentSpeed : 8f) : (settings != null ? settings.DiveSpeed : 9f);
+                float speed = SupportSlowTarget.ApplyMoveSpeed(this, baseSpeed);
                 float hitDist = settings != null ? settings.DiveHitDistance : 1.2f;
 
                 // Move toward the target (both horizontally and vertically).
@@ -367,6 +368,14 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
 
             case BurrowerState.GrabbingMinion:
             {
+                if (IsGrabbedMinionGoneOrDead())
+                {
+                    Log("Grabbed minion gone or dead - recovering");
+                    ReleaseGrabbedMinion();
+                    TransitionAfterAttack();
+                    break;
+                }
+
                 // Post-kill cooldown: hover briefly before flying off.
                 if (postGrabDelayTimer > 0f)
                 {
@@ -377,7 +386,7 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                 }
 
                 float carryY = spawnY + (settings != null ? settings.CarryHeight : 6f);
-                float speed = settings != null ? settings.FlySpeed : 7f;
+                float speed = SupportSlowTarget.ApplyMoveSpeed(this, settings != null ? settings.FlySpeed : 7f);
 
                 // Ascend toward carry height.
                 float yDiff = carryY - transform.position.y;
@@ -397,21 +406,12 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                 }
 
                 // Release after grab duration or when minion dies.
-                bool minionDead = grabbedMinionStats == null || grabbedMinionStats.IsDead;
+                bool minionDead = IsGrabbedMinionGoneOrDead();
                 if (grabTimer <= 0f || minionDead)
                 {
                     Log(minionDead ? "Grabbed minion died — releasing" : "Grab duration ended — releasing minion");
                     ReleaseGrabbedMinion();
-                    if (minionDead)
-                    {
-                        // Brief visual pause before flying off.
-                        postGrabDelayTimer = settings != null ? settings.PostGrabCooldown : 0.3f;
-                        frame3DVelocity    = Vector3.zero;
-                    }
-                    else
-                    {
-                        TransitionAfterAttack();
-                    }
+                    TransitionAfterAttack();
                 }
                 break;
             }
@@ -442,7 +442,7 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                 if (activeDiveCollider != null && transform.position.y < spawnY) RestoreDiveCollision();
 
                 float diff = transform.position.y - burrowedY;
-                float speed = settings != null ? settings.BurrowDescentSpeed : 5f;
+                float speed = SupportSlowTarget.ApplyMoveSpeed(this, settings != null ? settings.BurrowDescentSpeed : 5f);
 
                 if (diff <= 0.05f)
                 {
@@ -554,13 +554,30 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
 
     private void ReleaseGrabbedMinion()
     {
+        bool canResumeMinion =
+            grabbedMinionTransform != null &&
+            grabbedMinionTransform.gameObject.activeInHierarchy &&
+            grabbedMinionStats != null &&
+            !grabbedMinionStats.IsDead;
+
         if (grabbedMinionAI != null)
         {
-            grabbedMinionAI.enabled = true;
+            grabbedMinionAI.enabled = canResumeMinion;
             grabbedMinionAI = null;
         }
         grabbedMinionStats     = null;
         grabbedMinionTransform = null;
+    }
+
+    private bool IsGrabbedMinionGoneOrDead()
+    {
+        if (grabbedMinionTransform == null) return true;
+        if (!grabbedMinionTransform.gameObject.activeInHierarchy) return true;
+
+        if (grabbedMinionStats == null)
+            grabbedMinionStats = grabbedMinionTransform.GetComponentInParent<CombatantStats>();
+
+        return grabbedMinionStats == null || grabbedMinionStats.IsDead;
     }
 
     private Transform FindClosestTarget()
@@ -744,6 +761,7 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                 break;
 
             case BurrowerState.FlyingUp:
+                animationBridge.ResetToHover();
                 animationBridge.SetSpeed(1f);
                 break;
 
@@ -802,6 +820,7 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
     private void OnDied()
     {
         RestoreDiveCollision();
+        ReleaseGrabbedMinion();
         PlayDeathAnimation();
         Destroy(gameObject, deathDestroyDelay);
     }

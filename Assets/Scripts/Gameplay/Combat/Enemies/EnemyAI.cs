@@ -289,7 +289,8 @@ public class EnemyAI : MonoBehaviour
             return;
         }
 
-        float speed = settings != null ? settings.MoveSpeed : 3.5f;
+        float baseSpeed = settings != null ? settings.MoveSpeed : 3.5f;
+        float speed = SupportSlowTarget.ApplyMoveSpeed(this, baseSpeed);
 
         if (settings != null && settings.UseNavMesh)
         {

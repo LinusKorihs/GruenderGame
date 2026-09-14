@@ -5,7 +5,8 @@ using UnityEngine.AI;
 
 public partial class MinionCore
 {
-    private const float PositionCommandArrivalDistance = 0.25f;
+    private const float PositionCommandArrivalDistance = 0.65f;
+    private const float DismissCommandArrivalDistance = 0.75f;
 
     private void ExecuteFollow()
     {
@@ -18,11 +19,16 @@ public partial class MinionCore
             float dist = toFormation.magnitude;
             float arrivalDistance = currentCommand.Type == CommandType.MoveToPosition
                 ? PositionCommandArrivalDistance
-                : Mathf.Max(0f, followStopDistance);
+                : DismissCommandArrivalDistance;
 
             if (dist <= arrivalDistance)
             {
                 // Arrived at position - stay put in idle. Dismiss keeps its resume-range behavior via isDismissed.
+                if (currentCommand.Type == CommandType.MoveToPosition)
+                {
+                    isDismissed = false;
+                }
+
                 ResetNavigationPath();
                 ClearCommand();
                 stateMachine.ForceState(MinionState.Idle);
@@ -86,6 +92,7 @@ public partial class MinionCore
 
         RangePolicy rangePolicy = currentRole.GetRangePolicy();
         float desiredRange = rangePolicy != null ? rangePolicy.DesiredRange : 0f;
+        TryMaintainSupportSlow(currentTime, rangePolicy);
 
         switch (combatPhaseController.CurrentPhase)
         {
@@ -131,6 +138,23 @@ public partial class MinionCore
                 HoldRange(currentTarget.position, desiredRange);
                 break;
         }
+    }
+
+    private void TryMaintainSupportSlow(float currentTime, RangePolicy rangePolicy)
+    {
+        if (roleType != MinionRoleType.Support || currentRole == null) return;
+        if ((currentRole.GetSupportMode() ?? SupportMode.Heal) != SupportMode.Debuff) return;
+        if (!IsEnemyTarget(currentTarget)) return;
+        if (requireLineOfSightForAllAttacks && !hasLineOfSight) return;
+
+        float maxRange = rangePolicy != null
+            ? Mathf.Max(0f, rangePolicy.MaxRange + rangePolicy.RepositionTolerance)
+            : 0f;
+        if (maxRange > 0f && currentDistanceToTarget > maxRange) return;
+        if (currentTime < nextSupportSlowPulseTime) return;
+
+        nextSupportSlowPulseTime = currentTime + SupportSlowPulseInterval;
+        SupportSlowTarget.ApplyPulse(currentTarget, this);
     }
 
     private void MoveTowardsDistance(Vector3 targetPosition, float stopDistance)
@@ -285,7 +309,7 @@ public partial class MinionCore
             Mathf.Max(0.1f, navTargetSampleRadius),
             NavMesh.AllAreas);
 
-        return !hasStart || !hasDestination;
+        return !hasStart && !hasDestination;
     }
 
     private void HandleUnreachablePath()

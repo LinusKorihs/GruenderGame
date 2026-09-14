@@ -57,6 +57,11 @@ public class LevelContentSpawner : MonoBehaviour
         ResetHierarchyCache();
     }
 
+    public Transform GetOrCreateMinionsContentRoot()
+    {
+        return GetOrCreateCategoryRoot(PCGSpawnPointKind.Minion);
+    }
+
     private void Update()
     {
         if (!LogsEnabled) return;

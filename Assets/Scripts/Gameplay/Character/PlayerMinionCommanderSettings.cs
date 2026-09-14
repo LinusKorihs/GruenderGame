@@ -6,6 +6,12 @@ public class PlayerMinionCommanderSettings : ScriptableObject
     [Header("Target Query")]
     public float commandAcquireRadius = 1.1f;
     public float previewAcquireRadius = 0.35f;
+    [Tooltip("Extra horizontal cursor radius for enemy commands. Helps target flying enemies above the ground cursor.")]
+    public float enemyCommandAcquireRadius = 2.2f;
+    [Tooltip("Extra horizontal cursor radius for enemy preview tint. Keep this lower than the command radius so preview stays precise.")]
+    public float enemyPreviewAcquireRadius = 1.4f;
+    [Tooltip("Vertical capsule height above the ground cursor used to find airborne enemies.")]
+    public float enemyAcquireHeight = 8f;
     public LayerMask commandTargetMask = ~0;
     public bool includeTriggers = false;
     public string enemyTag = "Enemy";
@@ -31,8 +37,24 @@ public class PlayerMinionCommanderSettings : ScriptableObject
     public float dismissFormationGroupSpacing = 2f;
     [Tooltip("Spacing between individual minions within the same role group.")]
     public float dismissFormationMemberSpacing = 1.2f;
+    [Tooltip("Minimum spacing between resolved dismiss slots after NavMesh snapping. Prevents several minions from collapsing onto one sampled edge point.")]
+    public float dismissFormationMinResolvedSpacing = 0.6f;
+    [Tooltip("Extra fallback rings searched around each role group if the preferred slot is blocked or off the NavMesh.")]
+    [Range(0, 4)] public int dismissFormationFallbackRings = 2;
     [Tooltip("Color of the call/dismiss range Gizmo sphere drawn in the editor.")]
     public Color callRangeGizmoColor = new Color(0.2f, 0.7f, 1f, 0.25f);
+
+    [Header("Position Commands")]
+    [Tooltip("When true, cursor move and dismiss targets must resolve to a reachable NavMesh point before a command is issued.")]
+    public bool validatePositionCommandsWithNavMesh = true;
+    [Tooltip("Radius used to snap cursor/formation command positions onto the nearest NavMesh point.")]
+    public float positionCommandNavSampleRadius = 1.25f;
+    [Tooltip("When true, direct position commands are still allowed if the minion itself is not on any NavMesh. Keeps simple non-NavMesh test scenes usable.")]
+    public bool allowDirectPositionCommandsWhenMinionOffNavMesh = true;
+    [Tooltip("When true, Call also recalls minions outside the wave radius if they are in player-issued position commands or idle after a failed position command.")]
+    public bool callRecoversPlayerPositionCommandsOutsideRange = true;
+    [Tooltip("When true, dismissed slots keep following the player. Leave off for stable one-shot dismiss groups.")]
+    public bool trackDismissFormationWithPlayer = false;
 
     [Header("Call / Dismiss Visuals")]
     public bool enableCallDismissPulse = true;

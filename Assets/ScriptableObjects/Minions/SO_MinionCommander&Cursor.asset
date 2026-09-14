@@ -14,6 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMinionCommanderSettings
   commandAcquireRadius: 1.1
   previewAcquireRadius: 0.35
+  enemyCommandAcquireRadius: 2.4
+  enemyPreviewAcquireRadius: 1.5
+  enemyAcquireHeight: 8
   commandTargetMask:
     serializedVersion: 2
     m_Bits: 456
@@ -28,8 +31,15 @@ MonoBehaviour:
   cursorLOSHeightOffset: 0.8
   callRange: 6
   dismissResumeFollowRange: 6
-  dismissFormationGroupSpacing: 50
-  dismissFormationMemberSpacing: 20
+  dismissFormationGroupSpacing: 2
+  dismissFormationMemberSpacing: 1.2
+  dismissFormationMinResolvedSpacing: 0.6
+  dismissFormationFallbackRings: 2
+  validatePositionCommandsWithNavMesh: 1
+  positionCommandNavSampleRadius: 1.25
+  allowDirectPositionCommandsWhenMinionOffNavMesh: 1
+  callRecoversPlayerPositionCommandsOutsideRange: 1
+  trackDismissFormationWithPlayer: 0
   callRangeGizmoColor: {r: 0.2, g: 0.7, b: 1, a: 0.25}
   enableCallDismissPulse: 1
   callPulseColor: {r: 0.25, g: 0.75, b: 1, a: 0.9}

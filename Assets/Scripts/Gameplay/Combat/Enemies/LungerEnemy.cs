@@ -608,7 +608,8 @@ public class LungerEnemy : MonoBehaviour
 
         if (dist <= stopDistance) { ResetNavPath(); return; }
 
-        float speed = settings != null ? settings.MoveSpeed : 3.5f;
+        float baseSpeed = settings != null ? settings.MoveSpeed : 3.5f;
+        float speed = SupportSlowTarget.ApplyMoveSpeed(this, baseSpeed);
 
         if (settings != null && settings.UseNavMesh)
         {

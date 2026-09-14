@@ -5,6 +5,8 @@ using UnityEngine.AI;
 [RequireComponent(typeof(CombatantStats))]
 public partial class MinionCore : MonoBehaviour
 {
+    private const float SupportSlowPulseInterval = 0.15f;
+
     [Header("Setup")]
     [SerializeField] private MinionSettings settings;
     [SerializeField] private MinionRoleType roleType = MinionRoleType.Melee;
@@ -72,6 +74,7 @@ public partial class MinionCore : MonoBehaviour
     private float nextNavRepathTime;
     private Vector3 navLastDestination;
     private float nextPathFailureRecoveryTime;
+    private float nextSupportSlowPulseTime;
     // Reused LOS hit buffer to avoid per-frame allocations during combat checks.
     private readonly RaycastHit[] lineOfSightHits = new RaycastHit[16];
 
@@ -122,6 +125,8 @@ public partial class MinionCore : MonoBehaviour
     public MinionRoleType RoleType => roleType; // Exposed runtime metadata for commander/input systems.
     public SupportMode? ActiveSupportMode => currentRole != null ? currentRole.GetSupportMode() : null;
     public bool IsDismissed => isDismissed;
+    public CommandType CurrentCommandType => currentCommand != null ? currentCommand.Type : CommandType.None;
+    public bool HasPlayerPositionCommand => CurrentCommandType == CommandType.Dismiss || CurrentCommandType == CommandType.MoveToPosition;
     public Transform FollowTarget => followTarget;
 
     // Fired just before the GameObject is destroyed due to death.

@@ -309,7 +309,7 @@ public partial class MinionCore
     public void SetMoveToPositionCommand(Vector3 targetPosition, float resumeRange = 10f)
     {
         Log($"Command: MoveToPosition to {targetPosition}");
-        isDismissed = true;
+        isDismissed = false;
         dismissResumeRange = Mathf.Max(0.5f, resumeRange);
         ResetNavigationPath();
 
@@ -459,7 +459,8 @@ public partial class MinionCore
             return;
         }
 
-        Log($"Command: Support ({currentRole?.GetSupportMode()}) → {target.name}");
+        SupportMode mode = currentRole?.GetSupportMode() ?? SupportMode.Heal;
+        Log($"Command: Support ({mode}) → {target.name}");
         ResetNavigationPath();
 
         currentCommand = new MinionCommand
@@ -469,7 +470,7 @@ public partial class MinionCore
             TargetPosition = target != null ? target.position : transform.position,
             Priority = 10,
             IssuedTime = Time.time,
-            TimeToLive = 5f,
+            TimeToLive = mode == SupportMode.Debuff ? 999f : 5f,
             Source = CommandSource.Player,
             InterruptPolicy = InterruptPolicy.Soft,
             LastFailureReason = FailureReason.None
@@ -562,7 +563,7 @@ public partial class MinionCore
                 return supportBuffEffect != null && IsAllyMinionTarget(target);
 
             case SupportMode.Debuff:
-                return supportDebuffEffect != null && IsEnemyTarget(target);
+                return IsEnemyTarget(target);
 
             default:
                 return false;

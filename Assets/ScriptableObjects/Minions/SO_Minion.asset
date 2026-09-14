@@ -154,6 +154,6 @@ MonoBehaviour:
       ProjectilePrefab: {fileID: 0}
       UseHomingProjectiles: 1
       ProjectileSpeed: 10
-    StartMode: 0
+    StartMode: 2
     SupportBuffEffect: {fileID: 0}
     SupportDebuffEffect: {fileID: 11400000, guid: a214a31e51b46cd408e6e828a3f70a00, type: 2}

@@ -4,7 +4,8 @@ public class RunSetupData : MonoBehaviour
 {
     public static RunSetupData Instance;
 
-    public const int DefaultMaxTotal = 20;
+    public const int DefaultMaxTotal = 15;
+    public const int MaxSupportTotal = 3;
 
     public int typeA;
     public int typeB;
@@ -25,8 +26,9 @@ public class RunSetupData : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        maxTotal = Mathf.Max(1, maxTotal);
+        maxTotal = Mathf.Clamp(maxTotal, 1, DefaultMaxTotal);
         levelIndex = Mathf.Max(1, levelIndex);
+        SetMinionCounts(typeA, typeB, typeC, maxTotal);
     }
 
     public static RunSetupData EnsureInstance()
@@ -39,11 +41,11 @@ public class RunSetupData : MonoBehaviour
 
     public void SetMinionCounts(int melee, int ranged, int support, int max)
     {
-        maxTotal = Mathf.Max(1, max);
+        maxTotal = Mathf.Clamp(max, 1, DefaultMaxTotal);
 
         typeA = Mathf.Max(0, melee);
         typeB = Mathf.Max(0, ranged);
-        typeC = Mathf.Max(0, support);
+        typeC = Mathf.Clamp(support, 0, MaxSupportTotal);
 
         int total = TotalMinions;
         if (total <= maxTotal) return;

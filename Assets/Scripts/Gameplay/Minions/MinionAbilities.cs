@@ -171,7 +171,6 @@ public class SupportAbility : AbilityBase
             }
 
             case SupportMode.Buff:
-            case SupportMode.Debuff:
             {
                 if (supportEffect != null)
                 {
@@ -183,6 +182,13 @@ public class SupportAbility : AbilityBase
                 }
 
                 Logger?.Invoke($"cast {supportMode} on [{target.name}].");
+                break;
+            }
+
+            case SupportMode.Debuff:
+            {
+                SupportSlowTarget.ApplyPulse(target, caster);
+                Logger?.Invoke($"channeled Debuff slow on [{target.name}].");
                 break;
             }
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.InputSystem;
 
 public class PlayerMinionCommander : MonoBehaviour
@@ -46,6 +47,7 @@ public class PlayerMinionCommander : MonoBehaviour
     [SerializeField] private bool enableLogs;
 
     private readonly Collider[] commandHits = new Collider[32];
+    private readonly Collider[] elevatedCommandHits = new Collider[64];
 
     // Runtime list of live minions — cleared/updated as minions die or are registered.
     private readonly List<MinionCore> runtimeMinions = new List<MinionCore>();
@@ -54,6 +56,8 @@ public class PlayerMinionCommander : MonoBehaviour
 
     // Formation tracking: dismissed minion slots relative to player position/facing.
     private readonly List<FormationSlot> activeFormationSlots = new List<FormationSlot>();
+    private readonly List<Vector3> issuedFormationPositions = new List<Vector3>();
+    private NavMeshPath positionCommandPath;
     private float nextFormationUpdateTime;
 
     private float nextAutoFindRefreshTime;
@@ -315,9 +319,18 @@ public class PlayerMinionCommander : MonoBehaviour
             if (chosen != null)
             {
                 RemoveFormationSlot(chosen);
-                chosen.SetAttackEnemyCommand(target);
+                if (chosen.RoleType == MinionRoleType.Support)
+                {
+                    chosen.SetSupportCommand(target);
+                    Log($"[MinionCommander] Order: {chosen.name} (Support) -> slow enemy '{target.name}'.");
+                }
+                else
+                {
+                    chosen.SetAttackEnemyCommand(target);
+                    Log($"[MinionCommander] Order: {chosen.name} ({chosen.RoleType}) -> attack enemy '{target.name}'.");
+                }
+
                 ResolveKelpAnimator()?.PlayOrderMinions();
-                Log($"[MinionCommander] Order: {chosen.name} ({chosen.RoleType}) → attack enemy '{target.name}'.");
             }
             else
             {
@@ -406,9 +419,9 @@ public class PlayerMinionCommander : MonoBehaviour
         if (!IsLiveMinion(minion) || target == null) return false;
         if (minion.IsTargeting(target)) return false;
 
-        if (requireEnemy && minion.RoleType == MinionRoleType.Support)
+        if (minion.RoleType == MinionRoleType.Support)
         {
-            return minion.ActiveSupportMode == SupportMode.Debuff;
+            return requireEnemy && minion.CanAcceptSupportTarget(target);
         }
 
         return true;
@@ -420,38 +433,44 @@ public class PlayerMinionCommander : MonoBehaviour
         MinionCore[] minions = ResolveControlledMinions();
         if (minions.Length == 0) return;
 
-        float rangeSq = settings.callRange * settings.callRange;
+        activeFormationSlots.Clear();
+
+        float callRange = settings != null ? settings.callRange : 10f;
+        float rangeSq = callRange * callRange;
         int count = 0;
 
         for (int i = 0; i < minions.Length; i++)
         {
             MinionCore minion = minions[i];
-            if (minion == null) continue;
+            if (!IsLiveMinion(minion)) continue;
 
             Vector3 delta = minion.transform.position - player.position;
             delta.y = 0f;
-            if (delta.sqrMagnitude > rangeSq) continue;
+            bool inRange = delta.sqrMagnitude <= rangeSq;
+            bool recoverPlayerPositionCommand = settings != null
+                && settings.callRecoversPlayerPositionCommandsOutsideRange
+                && (minion.IsDismissed || minion.HasPlayerPositionCommand || minion.CurrentCommandType == CommandType.None);
+
+            if (!inRange && !recoverPlayerPositionCommand) continue;
 
             minion.SetRecallCommand();
             count++;
             Log($"[MinionCommander] Call: {minion.name} ({minion.RoleType}) recalled to player.");
         }
 
-        Log($"[MinionCommander] Call wave fired — {count} minion(s) recalled (range: {settings.callRange}m).");
+        Log($"[MinionCommander] Call wave fired - {count} minion(s) recalled (range: {callRange}m).");
         if (count > 0)
         {
             ResolveKelpAnimator()?.PlayCallMinions();
             PlayCallDismissPulse(settings.callPulseColor);
         }
-
-        activeFormationSlots.Clear();
     }
 
     // Sends all in-range minions to typed formation positions around the player, then idles them.
     public void DismissMinions()
     {
         MinionCore[] minions = ResolveControlledMinions();
-        if (minions.Length == 0) return;
+        if (minions.Length == 0 || settings == null) return;
 
         float rangeSq = settings.callRange * settings.callRange;
 
@@ -484,24 +503,37 @@ public class PlayerMinionCommander : MonoBehaviour
             return;
         }
 
-        // Formation: three group centres spread sideways relative to player facing. Melee left, Ranged middle, Support right.
+        // Formation: active role groups spread sideways relative to player facing. Empty roles no longer leave big gaps.
         Vector3 forward = GetFormationForward();
         Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
-        float gs = settings.dismissFormationGroupSpacing;
-
-        Vector3 meleeCentre   = player.position - right * gs;
-        Vector3 rangedCentre  = player.position;
-        Vector3 supportCentre = player.position + right * gs;
+        float groupSpacing = Mathf.Max(0f, settings.dismissFormationGroupSpacing);
+        int activeRoleGroups = 0;
+        if (meleeGroup.Count > 0) activeRoleGroups++;
+        if (rangedGroup.Count > 0) activeRoleGroups++;
+        if (supportGroup.Count > 0) activeRoleGroups++;
 
         activeFormationSlots.Clear();
-        SendGroupToFormation(meleeGroup,   meleeCentre,   forward, right, -gs);
-        SendGroupToFormation(rangedGroup,  rangedCentre,  forward, right,  0f);
-        SendGroupToFormation(supportGroup, supportCentre, forward, right, +gs);
+        issuedFormationPositions.Clear();
+        int issuedCount = 0;
+        int groupIndex = 0;
+        if (meleeGroup.Count > 0)
+            issuedCount += SendGroupToFormation(meleeGroup, forward, right, GetRoleGroupLateralOffset(groupIndex++, activeRoleGroups, groupSpacing));
+        if (rangedGroup.Count > 0)
+            issuedCount += SendGroupToFormation(rangedGroup, forward, right, GetRoleGroupLateralOffset(groupIndex++, activeRoleGroups, groupSpacing));
+        if (supportGroup.Count > 0)
+            issuedCount += SendGroupToFormation(supportGroup, forward, right, GetRoleGroupLateralOffset(groupIndex++, activeRoleGroups, groupSpacing));
+
+        if (issuedCount == 0)
+        {
+            EmptyMinionSelectionRequested?.Invoke(selectedRole);
+            Log("[MinionCommander] Dismiss: every formation slot was unreachable.");
+            return;
+        }
 
         ResolveKelpAnimator()?.PlayDismiss();
         PlayCallDismissPulse(settings.dismissPulseColor);
 
-        Log($"[MinionCommander] Dismiss: {totalCount} minion(s) sent to formation " +
+        Log($"[MinionCommander] Dismiss: {issuedCount}/{totalCount} minion(s) sent to formation " +
             $"(Melee: {meleeGroup.Count}, Ranged: {rangedGroup.Count}, Support: {supportGroup.Count}).");
     }
 
@@ -523,35 +555,50 @@ public class PlayerMinionCommander : MonoBehaviour
     }
 
     // Distributes a group of minions to staggered positions around a centre point and records their local slots.
-    private void SendGroupToFormation(List<MinionCore> group, Vector3 centre, Vector3 forward, Vector3 right, float centreLateralOffset)
+    private int SendGroupToFormation(List<MinionCore> group, Vector3 forward, Vector3 right, float centreLateralOffset)
     {
-        if (group.Count == 0) return;
+        if (group.Count == 0) return 0;
 
-        float spacing = settings.dismissFormationMemberSpacing;
-        // Offset each member alternately: 0, +1, -1, +2, -2, ...
+        int issuedCount = 0;
+
+        // Keep each role compact around its own centre, then search nearby fallbacks if a slot is invalid.
         for (int i = 0; i < group.Count; i++)
         {
             MinionCore minion = group[i];
-            int slot = i / 2 + 1;
-            float sign = (i % 2 == 0) ? -1f : 1f;
-            float memberLateral = i == 0 ? 0f : slot * sign * spacing;
-            Vector3 formationPos = centre + right * memberLateral - forward * 1.5f;
+            if (!IsLiveMinion(minion)) continue;
 
-            minion.SetDismissCommand(formationPos, settings.dismissResumeFollowRange);
-            Log($"[MinionCommander] Dismiss: {minion.name} ({minion.RoleType}) → formation pos {formationPos}.");
-
-            activeFormationSlots.Add(new FormationSlot
+            if (!TryFindDismissFormationSlot(minion, i, centreLateralOffset, forward, right, out Vector3 resolvedFormationPos, out Vector2 localSlot))
             {
-                Minion             = minion,
-                LocalXZ            = new Vector2(centreLateralOffset + memberLateral, -1.5f),
-                LastIssuedWorldPos = formationPos,
-            });
+                minion.SetFollowCommand();
+                Log($"[MinionCommander] Dismiss: skipped unreachable slot for {minion.name} ({minion.RoleType}).");
+                continue;
+            }
+
+            minion.SetDismissCommand(resolvedFormationPos, settings.dismissResumeFollowRange);
+            Log($"[MinionCommander] Dismiss: {minion.name} ({minion.RoleType}) -> formation pos {resolvedFormationPos}.");
+
+            issuedFormationPositions.Add(resolvedFormationPos);
+
+            if (settings.trackDismissFormationWithPlayer)
+            {
+                activeFormationSlots.Add(new FormationSlot
+                {
+                    Minion             = minion,
+                    LocalXZ            = localSlot,
+                    LastIssuedWorldPos = resolvedFormationPos,
+                });
+            }
+
+            issuedCount++;
         }
+
+        return issuedCount;
     }
 
     // Recomputes world-space slot positions at formationUpdateInterval and pushes them to dismissed minions.
     private void UpdateFormationSlots()
     {
+        if (settings == null || !settings.trackDismissFormationWithPlayer) return;
         if (activeFormationSlots.Count == 0 || settings == null) return;
         if (Time.time < nextFormationUpdateTime) return;
         nextFormationUpdateTime = Time.time + settings.formationUpdateInterval;
@@ -565,7 +612,7 @@ public class PlayerMinionCommander : MonoBehaviour
         for (int i = activeFormationSlots.Count - 1; i >= 0; i--)
         {
             FormationSlot slot = activeFormationSlots[i];
-            if (slot.Minion == null)
+            if (slot.Minion == null || !slot.Minion.IsDismissed || slot.Minion.CurrentCommandType != CommandType.Dismiss)
             {
                 activeFormationSlots.RemoveAt(i);
                 continue;
@@ -577,8 +624,15 @@ public class PlayerMinionCommander : MonoBehaviour
 
             if ((newTarget - slot.LastIssuedWorldPos).sqrMagnitude < thresholdSq) continue;
 
-            slot.Minion.SetDismissCommand(newTarget, settings.dismissResumeFollowRange);
-            slot.LastIssuedWorldPos = newTarget;
+            if (!TryResolveReachableCommandPosition(slot.Minion, newTarget, out Vector3 resolvedTarget))
+            {
+                slot.Minion.SetFollowCommand();
+                activeFormationSlots.RemoveAt(i);
+                continue;
+            }
+
+            slot.Minion.SetDismissCommand(resolvedTarget, settings.dismissResumeFollowRange);
+            slot.LastIssuedWorldPos = resolvedTarget;
             activeFormationSlots[i] = slot;
         }
     }
@@ -600,6 +654,104 @@ public class PlayerMinionCommander : MonoBehaviour
         return dir.normalized;
     }
 
+    private static float GetRoleGroupLateralOffset(int groupIndex, int activeGroupCount, float groupSpacing)
+    {
+        if (activeGroupCount <= 1) return 0f;
+        return (groupIndex - (activeGroupCount - 1) * 0.5f) * groupSpacing;
+    }
+
+    private bool TryFindDismissFormationSlot(
+        MinionCore minion,
+        int memberIndex,
+        float centreLateralOffset,
+        Vector3 forward,
+        Vector3 right,
+        out Vector3 resolvedPosition,
+        out Vector2 localSlot)
+    {
+        float spacing = settings != null ? Mathf.Max(0.5f, settings.dismissFormationMemberSpacing) : 1.2f;
+        float baselineForwardOffset = -1.5f;
+        Vector2 preferredLocal = new Vector2(centreLateralOffset, baselineForwardOffset)
+            + GetDismissMemberLocalOffset(memberIndex, spacing);
+
+        if (TryResolveDismissSlotCandidate(minion, preferredLocal, forward, right, out resolvedPosition))
+        {
+            localSlot = preferredLocal;
+            return true;
+        }
+
+        int fallbackRings = settings != null ? Mathf.Clamp(settings.dismissFormationFallbackRings, 0, 4) : 2;
+        for (int ring = 1; ring <= fallbackRings; ring++)
+        {
+            int samples = Mathf.Max(6, ring * 8);
+            float radius = spacing * ring;
+
+            for (int sample = 0; sample < samples; sample++)
+            {
+                float angle = (sample / (float)samples) * Mathf.PI * 2f;
+                Vector2 fallbackLocal = new Vector2(
+                    centreLateralOffset + Mathf.Cos(angle) * radius,
+                    baselineForwardOffset + Mathf.Sin(angle) * radius);
+
+                if (TryResolveDismissSlotCandidate(minion, fallbackLocal, forward, right, out resolvedPosition))
+                {
+                    localSlot = fallbackLocal;
+                    return true;
+                }
+            }
+        }
+
+        resolvedPosition = player != null ? player.position : transform.position;
+        localSlot = preferredLocal;
+        return false;
+    }
+
+    private bool TryResolveDismissSlotCandidate(MinionCore minion, Vector2 localSlot, Vector3 forward, Vector3 right, out Vector3 resolvedPosition)
+    {
+        Vector3 requestedPosition = player.position
+            + right * localSlot.x
+            + forward * localSlot.y;
+
+        if (!TryResolveReachableCommandPosition(minion, requestedPosition, out resolvedPosition))
+        {
+            return false;
+        }
+
+        return IsDismissSlotFarEnoughFromIssued(resolvedPosition);
+    }
+
+    private bool IsDismissSlotFarEnoughFromIssued(Vector3 position)
+    {
+        float minSpacing = settings != null ? Mathf.Max(0f, settings.dismissFormationMinResolvedSpacing) : 0.6f;
+        if (minSpacing <= 0f) return true;
+
+        float minSpacingSq = minSpacing * minSpacing;
+        for (int i = 0; i < issuedFormationPositions.Count; i++)
+        {
+            Vector3 delta = position - issuedFormationPositions[i];
+            delta.y = 0f;
+            if (delta.sqrMagnitude < minSpacingSq)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static Vector2 GetDismissMemberLocalOffset(int memberIndex, float spacing)
+    {
+        if (memberIndex <= 0) return Vector2.zero;
+
+        int zeroBased = memberIndex - 1;
+        int ring = zeroBased / 6 + 1;
+        int slot = zeroBased % 6;
+        float angle = slot * Mathf.PI * 2f / 6f;
+        if ((ring & 1) == 0) angle += Mathf.PI / 6f;
+
+        return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * spacing * ring;
+    }
+
     // Draws the call/dismiss range sphere in the editor for tuning.
     private void OnDrawGizmosSelected()
     {
@@ -616,17 +768,25 @@ public class PlayerMinionCommander : MonoBehaviour
     // Resolves the command target strictly from the cursor position.
     private Transform ResolveCommandTarget()
     {
-        return ResolveTargetFromCursor(includeLockTarget: false, includeAimAssistTarget: false, acquireRadius: settings.commandAcquireRadius);
+        return ResolveTargetFromCursor(
+            includeLockTarget: false,
+            includeAimAssistTarget: false,
+            acquireRadius: settings.commandAcquireRadius,
+            enemyAcquireRadius: settings.enemyCommandAcquireRadius);
     }
 
     // Resolves preview target strictly from the cursor position (no lock/aim-assist shortcuts).
     private Transform ResolvePreviewTarget()
     {
-        return ResolveTargetFromCursor(includeLockTarget: false, includeAimAssistTarget: false, acquireRadius: settings.previewAcquireRadius);
+        return ResolveTargetFromCursor(
+            includeLockTarget: false,
+            includeAimAssistTarget: false,
+            acquireRadius: settings.previewAcquireRadius,
+            enemyAcquireRadius: settings.enemyPreviewAcquireRadius);
     }
 
     // Shared target resolution for both command issuing and preview modes.
-    private Transform ResolveTargetFromCursor(bool includeLockTarget, bool includeAimAssistTarget, float acquireRadius)
+    private Transform ResolveTargetFromCursor(bool includeLockTarget, bool includeAimAssistTarget, float acquireRadius, float enemyAcquireRadius)
     {
         if (includeLockTarget && cursor.IsLocked && IsValidTarget(cursor.LockedTarget))
         {
@@ -643,7 +803,6 @@ public class PlayerMinionCommander : MonoBehaviour
         string breakableTagValue = settings.breakableTag;
         QueryTriggerInteraction qti = settings.includeTriggers ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
         int hitCount = Physics.OverlapSphereNonAlloc(origin, Mathf.Max(0.05f, acquireRadius), commandHits, settings.commandTargetMask, qti);
-        if (hitCount <= 0) return null;
 
         Transform bestEnemy = null;
         float bestEnemySq = float.PositiveInfinity;
@@ -654,65 +813,119 @@ public class PlayerMinionCommander : MonoBehaviour
 
         for (int i = 0; i < hitCount; i++)
         {
-            Collider hit = commandHits[i];
-            if (hit == null) continue;
+            ConsiderCursorTarget(
+                commandHits[i],
+                origin,
+                enemyTagValue,
+                breakableTagValue,
+                allowBreakableAndUnknown: true,
+                ref bestEnemy,
+                ref bestEnemySq,
+                ref bestBreakable,
+                ref bestBreakableSq,
+                ref bestUnknown,
+                ref bestUnknownSq);
+        }
 
-            Transform candidate = hit.transform;
-            if (!IsValidTarget(candidate)) continue;
-
-            float sq = (candidate.position - origin).sqrMagnitude;
-            Transform enemyTarget = FindTaggedTransform(candidate, enemyTagValue);
-            if (enemyTarget != null)
+        float elevatedRadius = Mathf.Max(0.05f, enemyAcquireRadius);
+        float elevatedHeight = Mathf.Max(0f, settings.enemyAcquireHeight);
+        if (elevatedHeight > 0.05f && elevatedRadius > 0.05f)
+        {
+            Vector3 bottom = origin + Vector3.up * 0.1f;
+            Vector3 top = origin + Vector3.up * elevatedHeight;
+            int elevatedHitCount = Physics.OverlapCapsuleNonAlloc(bottom, top, elevatedRadius, elevatedCommandHits, settings.commandTargetMask, qti);
+            for (int i = 0; i < elevatedHitCount; i++)
             {
-                if (!HasLineOfSightToTarget(enemyTarget)) continue;
-
-                if (sq < bestEnemySq)
-                {
-                    bestEnemySq = sq;
-                    bestEnemy = enemyTarget;
-                }
-                continue;
-            }
-
-            Transform breakableTarget = FindTaggedTransform(candidate, breakableTagValue);
-            if (breakableTarget != null && breakableTagValue != enemyTagValue)
-            {
-                if (!HasLineOfSightToTarget(breakableTarget)) continue;
-
-                if (sq < bestBreakableSq)
-                {
-                    bestBreakableSq = sq;
-                    bestBreakable = breakableTarget;
-                }
-
-                continue;
-            }
-
-            // Ally-minion targeting is intentionally disabled for now.
-            if (candidate.GetComponentInParent<MinionCore>() != null)
-            {
-                continue;
-            }
-
-            // Skip candidates behind walls.
-            if (!HasLineOfSightToTarget(candidate)) continue;
-
-            // Unknown object under cursor
-            if (IsEnvironmentCandidate(candidate))
-            {
-                continue;
-            }
-
-            if (sq < bestUnknownSq)
-            {
-                bestUnknownSq = sq;
-                bestUnknown = candidate;
+                ConsiderCursorTarget(
+                    elevatedCommandHits[i],
+                    origin,
+                    enemyTagValue,
+                    breakableTagValue,
+                    allowBreakableAndUnknown: false,
+                    ref bestEnemy,
+                    ref bestEnemySq,
+                    ref bestBreakable,
+                    ref bestBreakableSq,
+                    ref bestUnknown,
+                    ref bestUnknownSq);
             }
         }
 
         if (bestEnemy != null) return bestEnemy;
         if (bestBreakable != null) return bestBreakable;
         return bestUnknown;
+    }
+
+    private void ConsiderCursorTarget(
+        Collider hit,
+        Vector3 origin,
+        string enemyTagValue,
+        string breakableTagValue,
+        bool allowBreakableAndUnknown,
+        ref Transform bestEnemy,
+        ref float bestEnemySq,
+        ref Transform bestBreakable,
+        ref float bestBreakableSq,
+        ref Transform bestUnknown,
+        ref float bestUnknownSq)
+    {
+        if (hit == null) return;
+
+        Transform candidate = hit.transform;
+        if (!IsValidTarget(candidate)) return;
+
+        Transform enemyTarget = FindTaggedTransform(candidate, enemyTagValue);
+        if (enemyTarget != null)
+        {
+            if (!HasLineOfSightToTarget(enemyTarget)) return;
+
+            float sq = GetHorizontalDistanceSq(GetTargetAimPosition(enemyTarget), origin);
+            if (sq < bestEnemySq)
+            {
+                bestEnemySq = sq;
+                bestEnemy = enemyTarget;
+            }
+
+            return;
+        }
+
+        if (!allowBreakableAndUnknown) return;
+
+        float candidateSq = GetHorizontalDistanceSq(candidate.position, origin);
+        Transform breakableTarget = FindTaggedTransform(candidate, breakableTagValue);
+        if (breakableTarget != null && breakableTagValue != enemyTagValue)
+        {
+            if (!HasLineOfSightToTarget(breakableTarget)) return;
+
+            if (candidateSq < bestBreakableSq)
+            {
+                bestBreakableSq = candidateSq;
+                bestBreakable = breakableTarget;
+            }
+
+            return;
+        }
+
+        // Ally-minion targeting is intentionally disabled for now.
+        if (candidate.GetComponentInParent<MinionCore>() != null)
+        {
+            return;
+        }
+
+        // Skip candidates behind walls.
+        if (!HasLineOfSightToTarget(candidate)) return;
+
+        // Unknown object under cursor
+        if (IsEnvironmentCandidate(candidate))
+        {
+            return;
+        }
+
+        if (candidateSq < bestUnknownSq)
+        {
+            bestUnknownSq = candidateSq;
+            bestUnknown = candidate;
+        }
     }
 
     // Computes and applies command-preview color to cursor visuals.
@@ -733,7 +946,9 @@ public class PlayerMinionCommander : MonoBehaviour
         Transform target = ResolvePreviewTarget();
         if (!IsValidTarget(target))
         {
-            ApplyPreviewColor(settings.previewNoTargetColor);
+            ApplyPreviewColor(HasReachablePositionCommand(minions, cursor.WorldPos)
+                ? settings.previewNoTargetColor
+                : settings.previewInvalidColor);
             return;
         }
 
@@ -768,9 +983,14 @@ public class PlayerMinionCommander : MonoBehaviour
 
         if (isEnemy)
         {
-            return HasAvailableAttacker(minions, target, selectedRole)
-                ? CommandPreviewType.Attack
-                : CommandPreviewType.Invalid;
+            if (!HasAvailableAttacker(minions, target, selectedRole))
+            {
+                return CommandPreviewType.Invalid;
+            }
+
+            return selectedRole == MinionRoleType.Support
+                ? CommandPreviewType.Support
+                : CommandPreviewType.Attack;
         }
 
         if (isBreakable)
@@ -1075,18 +1295,15 @@ public class PlayerMinionCommander : MonoBehaviour
 
     private void OrderSelectedMinionToPosition(MinionCore[] minions, Vector3 targetPosition)
     {
-        MinionCore chosen = PickNextSelectedMinion(minions);
-        if (chosen == null)
+        if (!TryPickNextPositionMinion(minions, targetPosition, true, out MinionCore chosen, out Vector3 commandPosition))
         {
             EmptyMinionSelectionRequested?.Invoke(selectedRole);
+            Log($"[MinionCommander] Order: no reachable cursor position for selected {selectedRole} minion at {targetPosition}.");
             return;
         }
 
         RemoveFormationSlot(chosen);
         float resumeRange = settings != null ? settings.dismissResumeFollowRange : 10f;
-        int liveRoleCount = GetLiveCount(selectedRole);
-        int roleOrdinal = GetLiveRoleOrdinal(minions, chosen);
-        Vector3 commandPosition = GetMoveToPositionSlot(targetPosition, roleOrdinal, liveRoleCount);
         chosen.SetMoveToPositionCommand(commandPosition, resumeRange);
         ResolveKelpAnimator()?.PlayOrderMinions();
         Log($"[MinionCommander] Order: {chosen.name} ({chosen.RoleType}) -> move to cursor slot {commandPosition}.");
@@ -1184,6 +1401,90 @@ public class PlayerMinionCommander : MonoBehaviour
         return targetPosition + offset;
     }
 
+    private bool HasReachablePositionCommand(MinionCore[] minions, Vector3 targetPosition)
+    {
+        return TryPickNextPositionMinion(minions, targetPosition, false, out _, out _);
+    }
+
+    private bool TryPickNextPositionMinion(MinionCore[] minions, Vector3 targetPosition, bool advanceCommandIndex, out MinionCore chosen, out Vector3 commandPosition)
+    {
+        chosen = null;
+        commandPosition = targetPosition;
+
+        if (minions == null || minions.Length == 0) return false;
+
+        int liveRoleCount = GetLiveCount(selectedRole);
+        if (liveRoleCount <= 0) return false;
+
+        int startIndex = Mathf.Clamp(GetNextRoleCommandIndex(selectedRole), 0, minions.Length - 1);
+
+        for (int step = 0; step < minions.Length; step++)
+        {
+            int index = (startIndex + step) % minions.Length;
+            MinionCore minion = minions[index];
+            if (!IsLiveMinion(minion)) continue;
+            if (minion.RoleType != selectedRole) continue;
+
+            int roleOrdinal = GetLiveRoleOrdinal(minions, minion);
+            Vector3 requestedPosition = GetMoveToPositionSlot(targetPosition, roleOrdinal, liveRoleCount);
+            if (!TryResolveReachableCommandPosition(minion, requestedPosition, out Vector3 resolvedPosition))
+            {
+                continue;
+            }
+
+            if (advanceCommandIndex)
+            {
+                SetNextRoleCommandIndex(selectedRole, (index + 1) % minions.Length);
+            }
+
+            chosen = minion;
+            commandPosition = resolvedPosition;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryResolveReachableCommandPosition(MinionCore minion, Vector3 requestedPosition, out Vector3 resolvedPosition)
+    {
+        resolvedPosition = requestedPosition;
+
+        if (minion == null) return false;
+        if (settings == null || !settings.validatePositionCommandsWithNavMesh) return true;
+
+        float sampleRadius = Mathf.Max(0.05f, settings.positionCommandNavSampleRadius);
+        bool hasStart = NavMesh.SamplePosition(minion.transform.position, out NavMeshHit startHit, 1f, NavMesh.AllAreas);
+        if (!hasStart)
+        {
+            return settings.allowDirectPositionCommandsWhenMinionOffNavMesh;
+        }
+
+        if (!NavMesh.SamplePosition(requestedPosition, out NavMeshHit destinationHit, sampleRadius, NavMesh.AllAreas))
+        {
+            return false;
+        }
+
+        resolvedPosition = destinationHit.position;
+
+        Vector3 flatDelta = destinationHit.position - startHit.position;
+        flatDelta.y = 0f;
+        if (flatDelta.sqrMagnitude <= 0.1f * 0.1f)
+        {
+            return true;
+        }
+
+        if (positionCommandPath == null)
+        {
+            positionCommandPath = new NavMeshPath();
+        }
+
+        bool calculated = NavMesh.CalculatePath(startHit.position, destinationHit.position, NavMesh.AllAreas, positionCommandPath);
+        return calculated
+            && positionCommandPath.status == NavMeshPathStatus.PathComplete
+            && positionCommandPath.corners != null
+            && positionCommandPath.corners.Length >= 2;
+    }
+
     private void RemoveFormationSlot(MinionCore minion)
     {
         if (minion == null) return;
@@ -1261,7 +1562,7 @@ public class PlayerMinionCommander : MonoBehaviour
     private bool WasDismissPressedThisFrame()
     {
         if (dismissAction != null) return dismissAction.action.WasPressedThisFrame();
-        return Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame;
+        return Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame;
     }
 
     private bool WasSelectPreviousPressedThisFrame()
@@ -1316,7 +1617,7 @@ public class PlayerMinionCommander : MonoBehaviour
 
         float heightOffset = settings.cursorLOSHeightOffset;
         Vector3 start = player.position + Vector3.up * heightOffset;
-        Vector3 end   = target.position + Vector3.up * heightOffset;
+        Vector3 end   = GetTargetAimPosition(target) + Vector3.up * heightOffset;
         Vector3 dir   = end - start;
         float   dist  = dir.magnitude;
         if (dist <= 0.0001f) return true;
@@ -1327,6 +1628,22 @@ public class PlayerMinionCommander : MonoBehaviour
         }
 
         return true;
+    }
+
+    private static Vector3 GetTargetAimPosition(Transform target)
+    {
+        if (target == null) return Vector3.zero;
+
+        IAimTarget aimTarget = target.GetComponent<IAimTarget>() ?? target.GetComponentInParent<IAimTarget>();
+        Transform aimTransform = aimTarget?.GetAimTransform();
+        return aimTransform != null ? aimTransform.position : target.position;
+    }
+
+    private static float GetHorizontalDistanceSq(Vector3 a, Vector3 b)
+    {
+        Vector3 delta = a - b;
+        delta.y = 0f;
+        return delta.sqrMagnitude;
     }
 
     private static bool IsValidTarget(Transform target)

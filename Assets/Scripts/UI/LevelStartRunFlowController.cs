@@ -13,8 +13,10 @@ using UnityEngine.UI;
 public sealed class LevelStartRunFlowController : MonoBehaviour
 {
     public const int MaxSelectableMinions = RunSetupData.DefaultMaxTotal;
+    public const int MaxSelectableSupportMinions = RunSetupData.MaxSupportTotal;
     private const string DefaultRunSceneName = "2. Linus Run";
     private const string RuntimeExitNamePrefix = "Next Level Exit";
+    private const float RuntimeExitPadHalfHeight = 0.12f;
 
     public static LevelStartRunFlowController Instance { get; private set; }
     public static event Action<bool> LevelTransitionStateChanged;
@@ -505,7 +507,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         PlacedRoom endRoom = FindEndRoom();
         Vector3 targetPosition = endRoom != null
-            ? GetExitApproachPosition(endRoom, exitObject.transform.position)
+            ? GetConnectedRoomApproachPosition(endRoom, exitObject.transform.position)
             : exitObject.transform.position + Vector3.back + Vector3.up * 0.25f;
 
         if (NavMesh.SamplePosition(targetPosition, out NavMeshHit navHit, 2.5f, NavMesh.AllAreas))
@@ -721,6 +723,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
             GameObject root = ResolveGeneratedMinionRoot(minion);
             MoveRootToScene(root, playerRoot.scene);
+            ParentMinionUnderCurrentContent(root);
             Vector3 position = GetFormationPositionNearPlayer(playerBody, slot, Mathf.Max(1, total));
             MoveActor(root, position, playerBody.rotation);
             minion.SetFollowTarget(playerBody);
@@ -777,7 +780,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             if (directionIntoConnectedRoom.sqrMagnitude > 0.001f)
             {
                 directionIntoConnectedRoom.Normalize();
-                position = connectedSocket.CenterWorld + directionIntoConnectedRoom * 1.2f + Vector3.up * 0.25f;
+                position = connectedSocket.CenterWorld + directionIntoConnectedRoom * 2.4f + Vector3.up * 0.25f;
             }
         }
 
@@ -938,6 +941,22 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         return marker != null ? marker.gameObject : minion.gameObject;
     }
 
+    private void ParentMinionUnderCurrentContent(GameObject minionRoot)
+    {
+        if (minionRoot == null || contentSpawner == null)
+            return;
+
+        Transform minionsRoot = contentSpawner.GetOrCreateMinionsContentRoot();
+        if (minionsRoot == null)
+            return;
+
+        Transform minionTransform = minionRoot.transform;
+        if (minionTransform == minionsRoot || minionTransform.IsChildOf(minionsRoot))
+            return;
+
+        minionTransform.SetParent(minionsRoot, true);
+    }
+
     private static bool IsLiveMinion(MinionCore minion)
     {
         if (minion == null || !minion.gameObject.activeInHierarchy)
@@ -1000,12 +1019,12 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             return;
         }
 
-        Vector3 position = GetRoomExitCenter(endRoom.root);
+        Vector3 position = GetGroundedExitPosition(GetRoomExitCenter(endRoom.root), endRoom.root);
 
         exitObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         exitObject.name = $"{RuntimeExitNamePrefix} {RunSetupData.EnsureInstance().levelIndex + 1}";
         exitObject.transform.SetPositionAndRotation(position, Quaternion.identity);
-        exitObject.transform.localScale = new Vector3(1.35f, 0.45f, 1.35f);
+        exitObject.transform.localScale = new Vector3(1.35f, RuntimeExitPadHalfHeight, 1.35f);
 
         Scene endRoomScene = endRoom.root.scene;
         if (endRoomScene.IsValid() && endRoomScene.isLoaded && exitObject.scene != endRoomScene)
@@ -1102,6 +1121,54 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         return roomRoot.transform.position + Vector3.up * 0.75f;
     }
 
+    private static Vector3 GetGroundedExitPosition(Vector3 desiredPosition, GameObject roomRoot)
+    {
+        Vector3 grounded = desiredPosition;
+        if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit navHit, 4f, NavMesh.AllAreas))
+        {
+            grounded = navHit.position;
+        }
+        else if (TryGetRoomBounds(roomRoot, out Bounds bounds))
+        {
+            grounded.y = bounds.min.y;
+        }
+        else if (roomRoot != null)
+        {
+            grounded.y = roomRoot.transform.position.y;
+        }
+
+        grounded.y += RuntimeExitPadHalfHeight;
+        return grounded;
+    }
+
+    private static bool TryGetRoomBounds(GameObject roomRoot, out Bounds bounds)
+    {
+        if (roomRoot != null)
+        {
+            Transform boundsTransform = roomRoot.transform.Find("Bounds");
+            if (boundsTransform != null && boundsTransform.TryGetComponent(out BoxCollider boundsCollider))
+            {
+                bounds = boundsCollider.bounds;
+                return true;
+            }
+
+            Renderer[] renderers = roomRoot.GetComponentsInChildren<Renderer>();
+            if (renderers.Length > 0)
+            {
+                bounds = renderers[0].bounds;
+                for (int i = 1; i < renderers.Length; i++)
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+
+                return true;
+            }
+        }
+
+        bounds = default;
+        return false;
+    }
+
     private static Vector3 GetRoomCenter(GameObject roomRoot)
     {
         if (roomRoot == null)
@@ -1133,8 +1200,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         GameObject beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beam.name = "Exit Beacon Beam";
         beam.transform.SetParent(parent, false);
-        beam.transform.localPosition = Vector3.up * 1.05f;
-        beam.transform.localScale = new Vector3(0.28f, 1.1f, 0.28f);
+        beam.transform.localPosition = Vector3.up * 0.72f;
+        beam.transform.localScale = new Vector3(0.26f, 0.75f, 0.26f);
         DisableCollider(beam);
 
         Renderer beamRenderer = beam.GetComponent<Renderer>();
@@ -1143,8 +1210,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         GameObject orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         orb.name = "Exit Beacon Orb";
         orb.transform.SetParent(parent, false);
-        orb.transform.localPosition = Vector3.up * 2.2f;
-        orb.transform.localScale = Vector3.one * 0.65f;
+        orb.transform.localPosition = Vector3.up * 1.5f;
+        orb.transform.localScale = Vector3.one * 0.5f;
         DisableCollider(orb);
 
         Renderer orbRenderer = orb.GetComponent<Renderer>();
@@ -1287,6 +1354,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private void LoadRowsFromRunSetup()
     {
         RunSetupData data = RunSetupData.EnsureInstance();
+        data.SetMinionCounts(data.typeA, data.typeB, data.typeC, MaxSelectableMinions);
 
         meleeRow.SetValue(data.typeA);
         rangedRow.SetValue(data.typeB);
@@ -1332,6 +1400,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         plusButton.onClick.AddListener(() =>
         {
             if (GetSelectedTotal() >= MaxSelectableMinions) return;
+            if (row == supportRow && row.Value >= MaxSelectableSupportMinions) return;
             row.SetValue(row.Value + 1);
             UpdateSelectionUI();
         });
@@ -1393,13 +1462,13 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private void UpdateSelectionUI()
     {
         int total = GetSelectedTotal();
-        totalText.text = $"{total}/{MaxSelectableMinions}";
+        totalText.text = $"{total}/{MaxSelectableMinions}  Support {supportRow.Value}/{MaxSelectableSupportMinions}";
         startRunButton.interactable = total >= 0 && total <= MaxSelectableMinions;
 
         bool canAdd = total < MaxSelectableMinions;
         meleeRow.SetCanAdd(canAdd);
         rangedRow.SetCanAdd(canAdd);
-        supportRow.SetCanAdd(canAdd);
+        supportRow.SetCanAdd(canAdd && supportRow.Value < MaxSelectableSupportMinions);
     }
 
     private int GetSelectedTotal()

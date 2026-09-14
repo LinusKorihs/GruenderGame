@@ -9,12 +9,14 @@ public class MinionRowUI : MonoBehaviour
     public Button minusButton;
 
     private int value = 0;
+    private int maxValue = int.MaxValue;
     private RunStartUI manager;
 
-    public void Setup(RunStartUI ui, int initialValue = 0)
+    public void Setup(RunStartUI ui, int initialValue = 0, int maxValue = int.MaxValue)
     {
         manager = ui;
-        value = Mathf.Max(0, initialValue);
+        this.maxValue = Mathf.Max(0, maxValue);
+        value = Mathf.Clamp(initialValue, 0, this.maxValue);
 
         plusButton.onClick.RemoveListener(Add);
         minusButton.onClick.RemoveListener(Remove);
@@ -26,7 +28,7 @@ public class MinionRowUI : MonoBehaviour
 
     void Add()
     {
-        if (manager.CanAdd())
+        if (manager.CanAdd() && value < maxValue)
         {
             value++;
             UpdateUI();
@@ -47,6 +49,13 @@ public class MinionRowUI : MonoBehaviour
     void UpdateUI()
     {
         valueText.text = value.ToString();
+        minusButton.interactable = value > 0;
+        plusButton.interactable = manager == null || (manager.CanAdd() && value < maxValue);
+    }
+
+    public void RefreshInteractable()
+    {
+        UpdateUI();
     }
 
     public int GetValue()
@@ -56,7 +65,7 @@ public class MinionRowUI : MonoBehaviour
 
     public void SetValue(int newValue)
     {
-        value = Mathf.Max(0, newValue);
+        value = Mathf.Clamp(newValue, 0, maxValue);
         UpdateUI();
         manager?.OnValueChanged();
     }

@@ -856,11 +856,12 @@ MonoBehaviour:
   rangedSprite: {fileID: 21300000, guid: f5437e78e800c0940a9ebcafe5679a2e, type: 3}
   supportSprite: {fileID: 21300000, guid: cb0efcd6bbd1e0d4c86b3563b16d1ccd, type: 3}
   sideTintColor: {r: 0, g: 0, b: 0, a: 1}
-  unavailableTintColor: {r: 1, g: 0.05, b: 0.03, a: 1}
+  unavailableTintColor: {r: 1, g: 0.16, b: 0.08, a: 1}
   sideTintAlpha: 0.18
-  unavailableTintAlpha: 0.58
-  emptyCenterTintAlpha: 0.34
-  emptyFlashDuration: 0.12
+  unavailableTintAlpha: 0.9
+  emptyCenterTintAlpha: 0.78
+  flashTintAlpha: 1
+  emptyFlashDuration: 0.28
 --- !u!1 &7031814372291943543
 GameObject:
   m_ObjectHideFlags: 0
