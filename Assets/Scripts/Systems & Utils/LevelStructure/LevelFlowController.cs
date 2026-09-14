@@ -281,7 +281,9 @@ public sealed class LevelFlowController : MonoBehaviour
 
         if (UsesRuntimeScene(step))
         {
+            Scene previousScene = activeScene;
             Scene runtimeScene = CreateOrActivateRuntimeScene(step);
+            QueuePreviousLoadedSceneForUnload(previousScene, runtimeScene, step);
             return runtimeScene.IsValid() && runtimeScene.isLoaded;
         }
 
@@ -619,6 +621,23 @@ public sealed class LevelFlowController : MonoBehaviour
         }
 
         return runtimeScene;
+    }
+
+    private void QueuePreviousLoadedSceneForUnload(Scene previousScene, Scene runtimeScene, LevelFlowStep step)
+    {
+        if (step == null || !step.unloadPreviousRuntimeScene)
+            return;
+
+        if (!previousScene.IsValid() || !previousScene.isLoaded)
+            return;
+
+        if (!runtimeScene.IsValid() || !runtimeScene.isLoaded || previousScene == runtimeScene)
+            return;
+
+        if (activeRuntimeFlowScene.IsValid() && previousScene == activeRuntimeFlowScene)
+            return;
+
+        pendingRuntimeSceneToUnload = previousScene;
     }
 
     public void UnloadPreviousRuntimeSceneIfReady()

@@ -15,6 +15,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     public const int MaxSelectableMinions = RunSetupData.DefaultMaxTotal;
     public const int MaxSelectableSupportMinions = RunSetupData.MaxSupportTotal;
     private const string DefaultRunSceneName = "2. Linus Run";
+    private const string DefaultLobbyStaticLayoutResourcesPath = "LevelFlow/SO_StaticLayout_Tutorial";
     private const string RuntimeExitNamePrefix = "Next Level Exit";
     private const float RuntimeExitPadHalfHeight = 0.12f;
 
@@ -95,6 +96,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             .Replace(".", string.Empty);
 
         return string.Equals(normalized, "LevelStart", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "Start", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "WerkschauStart", StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalized, "LinusStart", StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalized, "1LinusStart", StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalized, "LinusTutorial", StringComparison.OrdinalIgnoreCase)
@@ -420,6 +423,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         LevelFlowController.Instance?.RegisterRuntimeObject(data.gameObject);
 
         ResolveSceneReferences();
+        EnsureLobbyPlayer();
+        ResolveSceneReferences();
 
         if (contentSpawner != null && contentSpawner.Config != null && player != null)
         {
@@ -432,6 +437,61 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         }
 
         CreateStartButton();
+    }
+
+    private void EnsureLobbyPlayer()
+    {
+        if (player != null)
+            return;
+
+        StaticLevelLayoutProfile lobbyProfile = Resources.Load<StaticLevelLayoutProfile>(DefaultLobbyStaticLayoutResourcesPath);
+        GameObject playerPrefab = lobbyProfile != null ? lobbyProfile.playerPrefab : null;
+        if (playerPrefab == null)
+        {
+            Debug.LogWarning("[RunFlow] Cannot prepare Start scene because no lobby player prefab was found.", this);
+            return;
+        }
+
+        ResolveLobbyPlayerSpawn(lobbyProfile, out Vector3 position, out Quaternion rotation);
+
+        GameObject playerInstance = Instantiate(playerPrefab, position, rotation);
+        playerInstance.name = "Player";
+
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (activeScene.IsValid() && activeScene.isLoaded && playerInstance.scene != activeScene)
+        {
+            SceneManager.MoveGameObjectToScene(playerInstance, activeScene);
+        }
+
+        player = PlayerRootResolver.FromGameObject(playerInstance);
+        commander = player != null ? player.GetComponentInChildren<PlayerMinionCommander>() : null;
+        EnsurePlayerKelpVisual();
+    }
+
+    private static void ResolveLobbyPlayerSpawn(StaticLevelLayoutProfile lobbyProfile, out Vector3 position, out Quaternion rotation)
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        PCGSpawnPoint[] spawnPoints = FindObjectsByType<PCGSpawnPoint>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            PCGSpawnPoint spawnPoint = spawnPoints[i];
+            if (spawnPoint == null ||
+                spawnPoint.kind != PCGSpawnPointKind.Player ||
+                spawnPoint.gameObject.scene != activeScene)
+            {
+                continue;
+            }
+
+            position = spawnPoint.transform.position;
+            rotation = spawnPoint.transform.rotation;
+            return;
+        }
+
+        position = lobbyProfile != null ? lobbyProfile.playerFallbackLocalPosition : Vector3.up;
+        rotation = Quaternion.identity;
     }
 
     private void GenerateCurrentLevel()

@@ -16,9 +16,9 @@ MonoBehaviour:
   - stepId: Tutorial
     displayName: Tutorial Werkschau
     stepType: 0
-    sceneMode: 1
-    sceneName: 1. Tutorial
-    runtimeSceneName: 1. Tutorial
+    sceneMode: 0
+    sceneName: Start
+    runtimeSceneName:
     unloadPreviousRuntimeScene: 1
     levelProfile: {fileID: 11400000, guid: 4d99598890434befa5e18c3427faecc9, type: 2}
     staticLayoutProfile: {fileID: 0}
