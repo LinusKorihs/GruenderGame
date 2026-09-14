@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -245,6 +246,7 @@ public class CameraOcclusion : MonoBehaviour
 
         Material[] runtimeMaterials = rend.materials;
         bool applied = false;
+        bool assignedReplacementMaterial = false;
 
         for (int i = 0; i < runtimeMaterials.Length; i++)
         {
@@ -253,8 +255,25 @@ public class CameraOcclusion : MonoBehaviour
 
             Material sourceMaterial = i < state.originalSharedMaterials.Length ? state.originalSharedMaterials[i] : material;
             if (ApplyTransparentMaterial(rend, i, material, sourceMaterial, TransparentAlpha))
+            {
                 applied = true;
+                continue;
+            }
+
+            if (TryCreateOcclusionReplacementMaterial(material, out Material replacementMaterial) &&
+                ApplyTransparentMaterial(rend, i, replacementMaterial, replacementMaterial, TransparentAlpha))
+            {
+                runtimeMaterials[i] = replacementMaterial;
+                assignedReplacementMaterial = true;
+                applied = true;
+
+                if (DebugEnabled)
+                    Debug.Log($"[CameraOcclusion] SWAP -> '{rend.name}' slot={i} sourceShader='{material.shader.name}' replacement='{replacementMaterial.name}' alpha={TransparentAlpha}");
+            }
         }
+
+        if (assignedReplacementMaterial)
+            rend.materials = runtimeMaterials;
 
         if (!applied)
         {
@@ -344,6 +363,33 @@ public class CameraOcclusion : MonoBehaviour
         }
 
         return string.Join(", ", descriptions);
+    }
+
+    private bool TryCreateOcclusionReplacementMaterial(Material sourceMaterial, out Material replacementMaterial)
+    {
+        replacementMaterial = null;
+
+        if (!sourceMaterial || !sourceMaterial.shader || settings == null || settings.occlusionMaterialSwaps == null)
+            return false;
+
+        string sourceShaderName = sourceMaterial.shader.name;
+        for (int i = 0; i < settings.occlusionMaterialSwaps.Length; i++)
+        {
+            CameraOcclusionMaterialSwap swap = settings.occlusionMaterialSwaps[i];
+            if (string.IsNullOrWhiteSpace(swap.sourceShaderName) || !swap.replacementMaterial)
+                continue;
+
+            if (!string.Equals(sourceShaderName, swap.sourceShaderName, StringComparison.Ordinal))
+                continue;
+
+            replacementMaterial = new Material(swap.replacementMaterial)
+            {
+                name = $"{sourceMaterial.name}_OcclusionInstance"
+            };
+            return true;
+        }
+
+        return false;
     }
 
     private void ApplyUnsupportedTransparencyFallback(Renderer rend, OccluderState state)

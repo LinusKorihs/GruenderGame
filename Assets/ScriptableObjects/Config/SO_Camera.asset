@@ -61,13 +61,16 @@ MonoBehaviour:
     m_Bits: 192
   makeTransparent: 1
   transparentAlpha: 0.25
+  occlusionMaterialSwaps:
+  - sourceShaderName: Shader Graphs/TEX_Wall
+    replacementMaterial: {fileID: 2100000, guid: d62c48d43c774b418458ed184d5d3c39, type: 2}
   occlusionRadius: 0.35
   paddingFromCamera: 0.2
   paddingFromTarget: 0.1
   hideWhenTransparencyUnsupported: 1
   staleFramesToRestore: 2
-  debugEnabled: 1
-  drawGizmos: 1
+  debugEnabled: 0
+  drawGizmos: 0
   lookSensitivityX: 180
   lookSensitivityY: 120
   invertY: 0

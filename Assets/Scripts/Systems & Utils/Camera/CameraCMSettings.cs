@@ -62,6 +62,16 @@ public struct CameraStageSettings
     }
 }
 
+[Serializable]
+public struct CameraOcclusionMaterialSwap
+{
+    [Tooltip("Original shader name that should use a temporary occlusion material while it blocks the camera.")]
+    public string sourceShaderName;
+
+    [Tooltip("Transparent material used only while this shader blocks the camera.")]
+    public Material replacementMaterial;
+}
+
 [CreateAssetMenu(menuName = "SO/Camera/CM Settings", fileName = "CameraCMSettings")]
 public class CameraCMSettings : ScriptableObject
 {
@@ -105,6 +115,10 @@ public class CameraCMSettings : ScriptableObject
 
     [Tooltip("Target alpha while transparent occlusion is active. 0.05 is almost invisible, 1 keeps the object opaque.")]
     [Range(0.05f, 1f)] public float transparentAlpha = 0.25f;
+
+    [Header("Occlusion - Material Swaps")]
+    [Tooltip("Temporary transparent replacements for shaders that do not expose a runtime alpha property.")]
+    public CameraOcclusionMaterialSwap[] occlusionMaterialSwaps = Array.Empty<CameraOcclusionMaterialSwap>();
 
     [Header("Occlusion - Detection Shape")]
     [Tooltip("Thickness of the capsule checked between camera and player. Higher values catch more corners but affect more objects.")]

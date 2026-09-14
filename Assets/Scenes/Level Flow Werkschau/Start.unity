@@ -260,6 +260,39 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 4249769014877302414, guid: b908169cb4606c84ea618cd0672a1dd4, type: 3}
   m_PrefabInstance: {fileID: 6238004}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &162175648
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 162175649}
+  m_Layer: 6
+  m_Name: Tile
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &162175649
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 162175648}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 632818950779066581}
+  - {fileID: 3399292346880629289}
+  m_Father: {fileID: 1958463639}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &219686135
 GameObject:
   m_ObjectHideFlags: 0
@@ -1762,6 +1795,7 @@ MonoBehaviour:
   controllerKey: 330
   playDialogueAnimation: 1
   playAnimationOnEachLine: 1
+  restartAnimationOnEachLine: 1
   returnToIdleWhenDialogueEnds: 1
   elderKoiAnimator: {fileID: 0}
   pinchAnimator: {fileID: 0}
@@ -2031,6 +2065,7 @@ MonoBehaviour:
   controllerKey: 330
   playDialogueAnimation: 1
   playAnimationOnEachLine: 1
+  restartAnimationOnEachLine: 1
   returnToIdleWhenDialogueEnds: 1
   elderKoiAnimator: {fileID: 0}
   pinchAnimator: {fileID: 0}
@@ -2105,10 +2140,9 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 632818950779066581}
+  - {fileID: 162175649}
   - {fileID: 1197540714}
   - {fileID: 219686139}
-  - {fileID: 3399292346880629289}
   - {fileID: 1579554717}
   m_Father: {fileID: 231676340}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -2338,7 +2372,7 @@ Transform:
   - {fileID: 3299384907278797446}
   - {fileID: 4452598361573070572}
   - {fileID: 3622005255034198834}
-  m_Father: {fileID: 1958463639}
+  m_Father: {fileID: 162175649}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &749028050871753033
 MeshFilter:
@@ -2716,7 +2750,7 @@ Transform:
   - {fileID: 3778413427180285464}
   - {fileID: 4984496590101028474}
   - {fileID: 3901690865079847471}
-  m_Father: {fileID: 1958463639}
+  m_Father: {fileID: 162175649}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &3436342201212507017
 Transform:
