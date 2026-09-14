@@ -1215,10 +1215,26 @@ MonoBehaviour:
   dialoguePanel: {fileID: 1813613595}
   dialogueText: {fileID: 91801713}
   dialogueLines:
-  - Tessawd
-  - dwadwa
+  - "Well, look who made it back! The name\u2019s Pinch, I am the Shopkeeper \u2014
+    yer one-stop shell for success!"
+  - "See, once my wares are fully unpacked, ye\u2019ll be buyin\u2019 permanent upgrades
+    right here. Better brawn for Kelp, and plenty o' perks to make those little Sluglings
+    hit harder than an angry reef!"
+  - "What\u2019s the catch? Cold, hard Cursed Doubloons, o' course! I don't run a
+    charity here, kid!"
+  - "How d\u2019ye get 'em? Simple: do well on yer Run! The deeper ye plunge and
+    the more ruckus ye cause, the fatter yer pockets get"
+  - "..Now don\u2019t go shovin\u2019 yer claws in me face just yet! Both the upgrades
+    and the loot system are still Work in Progress!"
+  - "A crab\u2019s gotta set up shop first, don\u2019t he? Hammerin' shelves, polishin'
+    trinkets... it's honest sweat!"
   keyboardKey: 101
   controllerKey: 330
+  playDialogueAnimation: 1
+  playAnimationOnEachLine: 1
+  returnToIdleWhenDialogueEnds: 1
+  elderKoiAnimator: {fileID: 0}
+  pinchAnimator: {fileID: 0}
 --- !u!135 &1667529469
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1328,15 +1344,25 @@ MonoBehaviour:
   dialoguePanel: {fileID: 1851672594}
   dialogueText: {fileID: 1882458645}
   dialogueLines:
-  - I am The Lore Keeper and Guide of this Game
-  - To start a Run, step into the marking in the Center of the Room
-  - You can choose how many Sluglings of each Type you want to bring on your andventure
-  - (Support Slugling still WIP)
-  - After choosing your Army, you will be transported to Procedually Generated Layers
-    filled with enemies
-  - Use the Sluglings to defeat these enemies and find the exit to the Next Layer.
+  - I am the Elder Koi, the Lore Keeper and thy guide through this game.
+  - To begin thy run, step into the marking at the center of the room.
+  - Before thou venturest forth, choose how many Sluglings of each type shall follow
+    thee.
+  - 'A word of caution: the Support Sluglings art still a Work in Progress.'
+  - Once thy army is chosen, thou shalt be cast into procedurally generated layers
+    teeming with foes.
+  - Command thy Sluglings to conquer these enemies, and seek the exit to the next
+    layer.
+  - "The spirits of this realm are still shaping the deep. If thou shouldst see the
+    world stutter or fade at the seams\u2026 pay it no heed. Creation is an untamed
+    tide."
   keyboardKey: 101
   controllerKey: 330
+  playDialogueAnimation: 1
+  playAnimationOnEachLine: 1
+  returnToIdleWhenDialogueEnds: 1
+  elderKoiAnimator: {fileID: 0}
+  pinchAnimator: {fileID: 0}
 --- !u!135 &1699592008
 SphereCollider:
   m_ObjectHideFlags: 0
