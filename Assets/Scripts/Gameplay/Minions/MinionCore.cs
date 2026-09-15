@@ -97,6 +97,8 @@ public partial class MinionCore : MonoBehaviour
     [SerializeField] private MinionState currentState;
     [SerializeField] private CombatPhase currentCombatPhase;
     [SerializeField] private CommandType currentCommandType;
+    [SerializeField] private Vector3 currentCommandTargetPosition;
+    [SerializeField] private float currentCommandTargetDistance;
     [SerializeField] private float currentDistanceToTarget;
 
     // Previous-frame values used solely to detect and log transitions.

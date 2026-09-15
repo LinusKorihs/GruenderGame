@@ -90,6 +90,7 @@ public class PlayerMinionCommander : MonoBehaviour
 
         if (cursor == null) cursor = GetComponentInChildren<GroundCursor>();
         if (player == null) player = transform;
+        ResolveMovingPlayerReference();
         // Resolve PlayerAim for formation facing. Search the player hierarchy first, then the scene.
         playerAim = player.GetComponentInParent<PlayerAim>();
         if (playerAim == null) playerAim = player.GetComponentInChildren<PlayerAim>();
@@ -106,6 +107,24 @@ public class PlayerMinionCommander : MonoBehaviour
         }
 
         previewPropertyBlock = new MaterialPropertyBlock();
+    }
+
+    private void ResolveMovingPlayerReference()
+    {
+        GameObject playerRoot = player != null
+            ? PlayerRootResolver.FromTransform(player)
+            : PlayerRootResolver.FromTransform(transform);
+        Transform body = PlayerRootResolver.BodyTransform(playerRoot);
+
+        if (body != null)
+        {
+            player = body;
+        }
+
+        if (playerMesh == null && body != null)
+        {
+            playerMesh = body;
+        }
     }
 
     private void ResolveInputActions()
@@ -679,7 +698,7 @@ public class PlayerMinionCommander : MonoBehaviour
         out Vector2 localSlot)
     {
         float spacing = settings != null ? Mathf.Max(0.5f, settings.dismissFormationMemberSpacing) : 1.2f;
-        float baselineForwardOffset = -1.5f;
+        float baselineForwardOffset = settings != null ? settings.dismissFormationForwardOffset : 0f;
         Vector2 preferredLocal = new Vector2(centreLateralOffset, baselineForwardOffset)
             + GetDismissMemberLocalOffset(memberIndex, spacing);
 
@@ -1466,12 +1485,20 @@ public class PlayerMinionCommander : MonoBehaviour
         bool hasStart = NavMesh.SamplePosition(minion.transform.position, out NavMeshHit startHit, 1f, areaMask);
         if (!hasStart)
         {
-            if (NavMesh.SamplePosition(requestedPosition, out NavMeshHit offMeshDestinationHit, sampleRadius, areaMask))
+            bool hasDestination = NavMesh.SamplePosition(requestedPosition, out NavMeshHit offMeshDestinationHit, sampleRadius, areaMask);
+            if (hasDestination)
             {
                 resolvedPosition = offMeshDestinationHit.position;
             }
 
-            return settings.allowDirectPositionCommandsWhenMinionOffNavMesh;
+            if (!settings.allowDirectPositionCommandsWhenMinionOffNavMesh)
+            {
+                return false;
+            }
+
+            bool playerHasNavMeshNearby = player != null
+                && NavMesh.SamplePosition(player.position, out _, Mathf.Max(1f, sampleRadius), areaMask);
+            return hasDestination || !playerHasNavMeshNearby;
         }
 
         if (!NavMesh.SamplePosition(requestedPosition, out NavMeshHit destinationHit, sampleRadius, areaMask))

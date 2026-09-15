@@ -944,15 +944,93 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         Vector3 radial = right * Mathf.Cos(angle) - forward * Mathf.Sin(angle);
         Vector3 position = playerBody.position - forward * 1.5f + radial * radius;
 
-        if (NavMesh.SamplePosition(position, out NavMeshHit hit, 1.1f, NavMesh.AllAreas))
+        if (TryResolveNearbyPlayerNavMeshPosition(playerBody, position, index, total, out Vector3 navMeshPosition))
         {
-            Vector3 delta = hit.position - position;
-            delta.y = 0f;
-            if (delta.sqrMagnitude <= 1.1f * 1.1f)
-                position = hit.position;
+            return navMeshPosition;
         }
 
         return position;
+    }
+
+    private static bool TryResolveNearbyPlayerNavMeshPosition(
+        Transform playerBody,
+        Vector3 preferredPosition,
+        int index,
+        int total,
+        out Vector3 navMeshPosition)
+    {
+        navMeshPosition = preferredPosition;
+
+        if (playerBody == null)
+            return false;
+
+        if (TryResolveWalkablePathPosition(playerBody.position, preferredPosition, 1.1f, out navMeshPosition))
+            return true;
+
+        Vector3 forward = playerBody.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+        forward.Normalize();
+
+        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+        float baseAngle = total <= 1 ? 0f : (index / (float)Mathf.Max(1, total)) * Mathf.PI * 2f;
+
+        for (int ring = 0; ring < 3; ring++)
+        {
+            float radius = 1.2f + ring * 0.7f;
+            int samples = 8 + ring * 4;
+
+            for (int sample = 0; sample < samples; sample++)
+            {
+                float angle = baseAngle + (sample / (float)samples) * Mathf.PI * 2f;
+                Vector3 radial = right * Mathf.Cos(angle) - forward * Mathf.Sin(angle);
+                Vector3 candidate = playerBody.position + radial * radius;
+
+                if (TryResolveWalkablePathPosition(playerBody.position, candidate, 0.85f, out navMeshPosition))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryResolveWalkablePathPosition(Vector3 startPosition, Vector3 requestedPosition, float sampleRadius, out Vector3 navMeshPosition)
+    {
+        navMeshPosition = requestedPosition;
+        int areaMask = WalkableNavMeshAreaMask();
+        float radius = Mathf.Max(0.05f, sampleRadius);
+
+        if (!NavMesh.SamplePosition(requestedPosition, out NavMeshHit destinationHit, radius, areaMask))
+            return false;
+
+        Vector3 delta = destinationHit.position - requestedPosition;
+        delta.y = 0f;
+        if (delta.sqrMagnitude > radius * radius)
+            return false;
+
+        if (!NavMesh.SamplePosition(startPosition, out NavMeshHit startHit, Mathf.Max(1f, radius), areaMask))
+        {
+            navMeshPosition = destinationHit.position;
+            return true;
+        }
+
+        Vector3 flatDelta = destinationHit.position - startHit.position;
+        flatDelta.y = 0f;
+        if (flatDelta.sqrMagnitude <= 0.1f * 0.1f)
+        {
+            navMeshPosition = destinationHit.position;
+            return true;
+        }
+
+        NavMeshPath path = new NavMeshPath();
+        if (!NavMesh.CalculatePath(startHit.position, destinationHit.position, areaMask, path) ||
+            path.status != NavMeshPathStatus.PathComplete)
+        {
+            return false;
+        }
+
+        navMeshPosition = destinationHit.position;
+        return true;
     }
 
     private static Vector3 GetConnectedRoomApproachPosition(PlacedRoom endRoom, Vector3 exitPosition)
@@ -1159,7 +1237,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private static bool TryProjectToRoomNavMesh(PlacedRoom room, Vector3 position, out Vector3 navMeshPosition)
     {
         navMeshPosition = position;
-        if (!NavMesh.SamplePosition(position, out NavMeshHit hit, ExitTestNavMeshSampleRadius, NavMesh.AllAreas))
+        if (!NavMesh.SamplePosition(position, out NavMeshHit hit, ExitTestNavMeshSampleRadius, WalkableNavMeshAreaMask()))
             return false;
 
         Vector3 sampled = hit.position + Vector3.up * 0.25f;
@@ -1168,6 +1246,12 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         navMeshPosition = sampled;
         return true;
+    }
+
+    private static int WalkableNavMeshAreaMask()
+    {
+        int notWalkable = NavMesh.GetAreaFromName("Not Walkable");
+        return notWalkable >= 0 ? NavMesh.AllAreas & ~(1 << notWalkable) : NavMesh.AllAreas;
     }
 
     private static bool IsInsideRoomBounds(PlacedRoom room, Vector3 position, float margin)

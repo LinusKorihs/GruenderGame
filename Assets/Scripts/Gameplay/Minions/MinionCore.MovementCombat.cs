@@ -188,6 +188,14 @@ public partial class MinionCore
                 stopPoint.y = targetPosition.y;
             }
 
+            Vector3 toStopPoint = stopPoint - transform.position;
+            toStopPoint.y = 0f;
+            if (toStopPoint.sqrMagnitude <= Mathf.Max(0.05f, navWaypointTolerance) * Mathf.Max(0.05f, navWaypointTolerance))
+            {
+                MoveDirectly(toTarget / Mathf.Max(distance, 0.0001f));
+                return;
+            }
+
             if (TryMoveAlongNavPath(stopPoint))
             {
                 return;
@@ -353,7 +361,7 @@ public partial class MinionCore
         // Position commands should never trap a minion forever on an unreachable wall/crowd point.
         if (isPositionCommand)
         {
-            Log($"Path failure ({currentCommand.Type}) - returning to follow fallback.");
+            Log($"Path failure ({currentCommand.Type}) - returning to follow fallback. target={currentCommand.TargetPosition:F2}, position={transform.position:F2}");
             isDismissed = false;
 
             if (IsValidTarget(followTarget))
@@ -580,6 +588,10 @@ public partial class MinionCore
         currentState       = stateMachine.CurrentState;
         currentCombatPhase = combatPhaseController.CurrentPhase;
         currentCommandType = currentCommand != null ? currentCommand.Type : CommandType.None;
+        currentCommandTargetPosition = currentCommand != null ? currentCommand.TargetPosition : transform.position;
+        Vector3 toCommandTarget = currentCommandTargetPosition - transform.position;
+        toCommandTarget.y = 0f;
+        currentCommandTargetDistance = toCommandTarget.magnitude;
 
         if (currentState != _prevLogState)
         {
@@ -595,10 +607,28 @@ public partial class MinionCore
 
         if (currentCommandType != _prevLogCommand)
         {
-            string targetName = currentCommand?.Target is UnityEngine.Object obj ? obj.name : "none";
-            Log($"Command: {_prevLogCommand} → {currentCommandType} (target: {targetName})");
+            string targetDescription = DescribeCurrentCommandTarget();
+            Log($"Command: {_prevLogCommand} → {currentCommandType} ({targetDescription})");
             _prevLogCommand = currentCommandType;
         }
+    }
+
+    private string DescribeCurrentCommandTarget()
+    {
+        if (currentCommand == null)
+        {
+            return "target: none";
+        }
+
+        if (currentCommand.Type == CommandType.Dismiss || currentCommand.Type == CommandType.MoveToPosition)
+        {
+            Vector3 delta = currentCommand.TargetPosition - transform.position;
+            delta.y = 0f;
+            return $"position: {currentCommand.TargetPosition:F2}, distance: {delta.magnitude:F2}m";
+        }
+
+        string targetName = currentCommand.Target is UnityEngine.Object obj ? obj.name : "none";
+        return $"target: {targetName}";
     }
 
     private float GetDistanceToTarget(Transform target)

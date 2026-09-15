@@ -318,7 +318,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMinionCommander
   settings: {fileID: 11400000, guid: 7b9a1e875b094dd4f841959d9b1b60a6, type: 2}
   cursor: {fileID: 3391111788512607623}
-  player: {fileID: 1273055997037786594}
+  player: {fileID: 2151853351454571588}
   playerMesh: {fileID: 2151853351454571588}
   commandAction: {fileID: 0}
   callAction: {fileID: 0}
