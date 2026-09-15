@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: SO_Atmosphere_Boss
   m_EditorClassIdentifier: Assembly-CSharp::LevelAtmosphereProfile
   skyboxMode: 2
-  proceduralSkyTint: {r: 0.32, g: 0.25, b: 0.38, a: 1}
-  proceduralGroundColor: {r: 0.05, g: 0.035, b: 0.06, a: 1}
+  skyboxMaterial: {fileID: 0}
+  proceduralSkyTint: {r: 0.47201768, g: 0.3931559, b: 0.5377358, a: 1}
+  proceduralGroundColor: {r: 0.19188322, g: 0.12281951, b: 0.2264151, a: 1}
   proceduralExposure: 0.78
   proceduralAtmosphereThickness: 1.45
   manageDirectionalLight: 1
@@ -22,7 +23,7 @@ MonoBehaviour:
   disableDuplicateDirectionalLights: 1
   directionalLightName: Directional Light
   directionalLightEulerAngles: {x: 62, y: -70, z: 0}
-  directionalLightColor: {r: 0.9, g: 0.72, b: 1, a: 1}
+  directionalLightColor: {r: 1, g: 1, b: 1, a: 1}
   directionalLightIntensity: 0.82
   directionalLightIndirectMultiplier: 0.75
   directionalLightShadowStrength: 1
@@ -33,6 +34,30 @@ MonoBehaviour:
   useUrpPipelineLightSettings: 1
   useRuntimeBlend: 1
   blendDuration: 1.4
+  blendCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   applyAmbient: 1
   ambientMode: 0
   ambientLightColor: {r: 0.12, g: 0.09, b: 0.14, a: 1}
