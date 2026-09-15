@@ -40,6 +40,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 3467853268470046082}
     m_Modifications:
+    - target: {fileID: 7554217183270964386, guid: 83c6c8c004b207f40a81b43cbccea9a5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: -876546973899608171, guid: 5268fe87ec35d084b847707a19a44c47, type: 3}
     - target: {fileID: 8346582918133132663, guid: 83c6c8c004b207f40a81b43cbccea9a5, type: 3}
       propertyPath: m_Name
       value: MDL_V3Stone
