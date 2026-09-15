@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5783344357072284014}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: PF_CurvedRail
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -80,9 +80,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -2463303067149376639, guid: 55140c9b31d6af14fb1a478f1b32b332, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 278697222380430092, guid: 55140c9b31d6af14fb1a478f1b32b332, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 55140c9b31d6af14fb1a478f1b32b332, type: 3}
       propertyPath: m_Name
       value: MDL_CurvedRail
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 55140c9b31d6af14fb1a478f1b32b332, type: 3}
+      propertyPath: m_Layer
+      value: 6
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -84,6 +84,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: MDL_V5Stone
       objectReference: {fileID: 0}
+    - target: {fileID: 3590842831129711176, guid: 0bf00c79469d6cf45ab270302a631b9d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: -876546973899608171, guid: 5268fe87ec35d084b847707a19a44c47, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
