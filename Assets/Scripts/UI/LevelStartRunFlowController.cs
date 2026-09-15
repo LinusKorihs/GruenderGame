@@ -8,6 +8,9 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public sealed class LevelStartRunFlowController : MonoBehaviour
 {
@@ -17,6 +20,9 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private const string DefaultLobbyStaticLayoutResourcesPath = "LevelFlow/SO_StaticLayout_Tutorial";
     private const float ExitTestDoorApproachDistance = 1.2f;
     private const float ExitTestNavMeshSampleRadius = 0.9f;
+#if UNITY_EDITOR
+    private const string LevelSystemPrefabPath = "Assets/Prefabs/Systems/Levels/PF_LevelSystem.prefab";
+#endif
 
     public static LevelStartRunFlowController Instance { get; private set; }
     public static event Action<bool> LevelTransitionStateChanged;
@@ -80,14 +86,57 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     {
         if (!IsLevelStartSceneName(scene.name)) return null;
 
-        LevelStartRunFlowController existing = FindFirstObjectByType<LevelStartRunFlowController>();
+        LevelStartRunFlowController existing = FindFirstObjectByType<LevelStartRunFlowController>(FindObjectsInactive.Include);
         if (existing != null) return existing;
+
+        TryCreateLevelSystemForStartScene(scene);
+
+        existing = FindFirstObjectByType<LevelStartRunFlowController>(FindObjectsInactive.Include);
+        if (existing != null) return existing;
+
+        GameObject fallback = new GameObject(nameof(LevelStartRunFlowController));
+        if (scene.IsValid() && scene.isLoaded)
+        {
+            SceneManager.MoveGameObjectToScene(fallback, scene);
+        }
 
         Debug.LogWarning(
             $"[RunFlow] Start scene '{scene.name}' has no LevelStartRunFlowController. " +
-            "Place PF_LevelSystem or PF_LevelStartRunFlowController in the scene/prefab setup.",
-            null);
-        return null;
+            "Created a runtime fallback. Add PF_LevelSystem to the scene if this should be authored permanently.",
+            fallback);
+        return fallback.AddComponent<LevelStartRunFlowController>();
+    }
+
+    private static void TryCreateLevelSystemForStartScene(Scene scene)
+    {
+        if (!Application.isPlaying)
+            return;
+
+        if (LevelSystemController.Instance != null ||
+            FindFirstObjectByType<LevelSystemController>(FindObjectsInactive.Include) != null ||
+            LevelFlowController.Instance != null ||
+            FindFirstObjectByType<LevelFlowController>(FindObjectsInactive.Include) != null)
+        {
+            return;
+        }
+
+#if UNITY_EDITOR
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(LevelSystemPrefabPath);
+        if (prefab == null)
+            return;
+
+        GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        if (instance == null)
+        {
+            instance = UnityEngine.Object.Instantiate(prefab);
+        }
+
+        if (instance == null)
+            return;
+
+        instance.name = "PF_LevelSystem";
+        Debug.Log($"[RunFlow] Created PF_LevelSystem fallback for Start scene '{scene.name}'.", instance);
+#endif
     }
 
     private static bool IsLevelStartSceneName(string sceneName)
@@ -687,7 +736,29 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         flow.RegisterRuntimeObject(gameObject);
 
         PrepareLobby();
+        RefreshLobbyFogOfWar(flow, scene);
         lobbyPreparationRunning = false;
+    }
+
+    private void RefreshLobbyFogOfWar(LevelFlowController flow, Scene scene)
+    {
+        LevelFogOfWarController fogOfWar = ResolveFogOfWarController();
+
+        if (fogOfWar != null && player != null)
+        {
+            Transform revealTarget = PlayerRootResolver.BodyTransform(player);
+            fogOfWar.SetRevealTarget(revealTarget != null ? revealTarget : player.transform);
+        }
+
+        flow?.RefreshCurrentStepAtmosphereForScene(scene);
+    }
+
+    private static LevelFogOfWarController ResolveFogOfWarController()
+    {
+        if (LevelSystemController.Instance != null && LevelSystemController.Instance.FogOfWar != null)
+            return LevelSystemController.Instance.FogOfWar;
+
+        return FindFirstObjectByType<LevelFogOfWarController>(FindObjectsInactive.Include);
     }
 
     private void EnsureSelectedMinionPartyNearPlayer(RunSetupData data)
@@ -873,15 +944,93 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         Vector3 radial = right * Mathf.Cos(angle) - forward * Mathf.Sin(angle);
         Vector3 position = playerBody.position - forward * 1.5f + radial * radius;
 
-        if (NavMesh.SamplePosition(position, out NavMeshHit hit, 1.1f, NavMesh.AllAreas))
+        if (TryResolveNearbyPlayerNavMeshPosition(playerBody, position, index, total, out Vector3 navMeshPosition))
         {
-            Vector3 delta = hit.position - position;
-            delta.y = 0f;
-            if (delta.sqrMagnitude <= 1.1f * 1.1f)
-                position = hit.position;
+            return navMeshPosition;
         }
 
         return position;
+    }
+
+    private static bool TryResolveNearbyPlayerNavMeshPosition(
+        Transform playerBody,
+        Vector3 preferredPosition,
+        int index,
+        int total,
+        out Vector3 navMeshPosition)
+    {
+        navMeshPosition = preferredPosition;
+
+        if (playerBody == null)
+            return false;
+
+        if (TryResolveWalkablePathPosition(playerBody.position, preferredPosition, 1.1f, out navMeshPosition))
+            return true;
+
+        Vector3 forward = playerBody.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+        forward.Normalize();
+
+        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+        float baseAngle = total <= 1 ? 0f : (index / (float)Mathf.Max(1, total)) * Mathf.PI * 2f;
+
+        for (int ring = 0; ring < 3; ring++)
+        {
+            float radius = 1.2f + ring * 0.7f;
+            int samples = 8 + ring * 4;
+
+            for (int sample = 0; sample < samples; sample++)
+            {
+                float angle = baseAngle + (sample / (float)samples) * Mathf.PI * 2f;
+                Vector3 radial = right * Mathf.Cos(angle) - forward * Mathf.Sin(angle);
+                Vector3 candidate = playerBody.position + radial * radius;
+
+                if (TryResolveWalkablePathPosition(playerBody.position, candidate, 0.85f, out navMeshPosition))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryResolveWalkablePathPosition(Vector3 startPosition, Vector3 requestedPosition, float sampleRadius, out Vector3 navMeshPosition)
+    {
+        navMeshPosition = requestedPosition;
+        int areaMask = WalkableNavMeshAreaMask();
+        float radius = Mathf.Max(0.05f, sampleRadius);
+
+        if (!NavMesh.SamplePosition(requestedPosition, out NavMeshHit destinationHit, radius, areaMask))
+            return false;
+
+        Vector3 delta = destinationHit.position - requestedPosition;
+        delta.y = 0f;
+        if (delta.sqrMagnitude > radius * radius)
+            return false;
+
+        if (!NavMesh.SamplePosition(startPosition, out NavMeshHit startHit, Mathf.Max(1f, radius), areaMask))
+        {
+            navMeshPosition = destinationHit.position;
+            return true;
+        }
+
+        Vector3 flatDelta = destinationHit.position - startHit.position;
+        flatDelta.y = 0f;
+        if (flatDelta.sqrMagnitude <= 0.1f * 0.1f)
+        {
+            navMeshPosition = destinationHit.position;
+            return true;
+        }
+
+        NavMeshPath path = new NavMeshPath();
+        if (!NavMesh.CalculatePath(startHit.position, destinationHit.position, areaMask, path) ||
+            path.status != NavMeshPathStatus.PathComplete)
+        {
+            return false;
+        }
+
+        navMeshPosition = destinationHit.position;
+        return true;
     }
 
     private static Vector3 GetConnectedRoomApproachPosition(PlacedRoom endRoom, Vector3 exitPosition)
@@ -1088,7 +1237,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private static bool TryProjectToRoomNavMesh(PlacedRoom room, Vector3 position, out Vector3 navMeshPosition)
     {
         navMeshPosition = position;
-        if (!NavMesh.SamplePosition(position, out NavMeshHit hit, ExitTestNavMeshSampleRadius, NavMesh.AllAreas))
+        if (!NavMesh.SamplePosition(position, out NavMeshHit hit, ExitTestNavMeshSampleRadius, WalkableNavMeshAreaMask()))
             return false;
 
         Vector3 sampled = hit.position + Vector3.up * 0.25f;
@@ -1097,6 +1246,12 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         navMeshPosition = sampled;
         return true;
+    }
+
+    private static int WalkableNavMeshAreaMask()
+    {
+        int notWalkable = NavMesh.GetAreaFromName("Not Walkable");
+        return notWalkable >= 0 ? NavMesh.AllAreas & ~(1 << notWalkable) : NavMesh.AllAreas;
     }
 
     private static bool IsInsideRoomBounds(PlacedRoom room, Vector3 position, float margin)

@@ -99,6 +99,9 @@ AnimatorStateTransition:
   m_PrefabAsset: {fileID: 0}
   m_Name: 
   m_Conditions:
+  - m_ConditionMode: 1
+    m_ConditionEvent: Dialog
+    m_EventTreshold: 0
   - m_ConditionMode: 6
     m_ConditionEvent: DialogVariant
     m_EventTreshold: 2
@@ -115,7 +118,7 @@ AnimatorStateTransition:
   m_HasFixedDuration: 1
   m_InterruptionSource: 0
   m_OrderedInterruption: 1
-  m_CanTransitionToSelf: 0
+  m_CanTransitionToSelf: 1
 --- !u!1101 &-3137714030485562313
 AnimatorStateTransition:
   m_ObjectHideFlags: 1
@@ -322,7 +325,7 @@ AnimatorState:
   m_MirrorParameterActive: 0
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
-  m_Motion: {fileID: -623603649343465320, guid: a5f0769aab8ece549a7f4f17c441f600, type: 3}
+  m_Motion: {fileID: -623603649343465320, guid: 80087304c89a6b9498bf6858b1fc1b1e, type: 3}
   m_Tag: 
   m_SpeedParameter: 
   m_MirrorParameter: 
@@ -336,6 +339,9 @@ AnimatorStateTransition:
   m_PrefabAsset: {fileID: 0}
   m_Name: 
   m_Conditions:
+  - m_ConditionMode: 1
+    m_ConditionEvent: Dialog
+    m_EventTreshold: 0
   - m_ConditionMode: 6
     m_ConditionEvent: DialogVariant
     m_EventTreshold: 1
@@ -352,7 +358,7 @@ AnimatorStateTransition:
   m_HasFixedDuration: 1
   m_InterruptionSource: 0
   m_OrderedInterruption: 1
-  m_CanTransitionToSelf: 0
+  m_CanTransitionToSelf: 1
 --- !u!1101 &5383635379551520664
 AnimatorStateTransition:
   m_ObjectHideFlags: 1
@@ -383,6 +389,9 @@ AnimatorStateTransition:
   m_PrefabAsset: {fileID: 0}
   m_Name: 
   m_Conditions:
+  - m_ConditionMode: 1
+    m_ConditionEvent: Dialog
+    m_EventTreshold: 0
   - m_ConditionMode: 6
     m_ConditionEvent: DialogVariant
     m_EventTreshold: 3
@@ -399,4 +408,4 @@ AnimatorStateTransition:
   m_HasFixedDuration: 1
   m_InterruptionSource: 0
   m_OrderedInterruption: 1
-  m_CanTransitionToSelf: 0
+  m_CanTransitionToSelf: 1

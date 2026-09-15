@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: SO_Atmosphere_Level1
   m_EditorClassIdentifier: Assembly-CSharp::LevelAtmosphereProfile
   skyboxMode: 2
+  skyboxMaterial: {fileID: 0}
   proceduralSkyTint: {r: 0.5, g: 0.57, b: 0.72, a: 1}
   proceduralGroundColor: {r: 0.12, g: 0.14, b: 0.16, a: 1}
   proceduralExposure: 1
@@ -33,6 +34,30 @@ MonoBehaviour:
   useUrpPipelineLightSettings: 1
   useRuntimeBlend: 1
   blendDuration: 0.9
+  blendCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   applyAmbient: 1
   ambientMode: 0
   ambientLightColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}

@@ -30,7 +30,9 @@ MonoBehaviour:
   requireLineOfSightForCursorTargets: 1
   cursorLOSHeightOffset: 0.8
   callRange: 6
+  dismissRange: 20
   dismissResumeFollowRange: 6
+  dismissFormationForwardOffset: 0
   dismissFormationGroupSpacing: 2
   dismissFormationMemberSpacing: 1.2
   dismissFormationMinResolvedSpacing: 0.6
@@ -39,6 +41,8 @@ MonoBehaviour:
   positionCommandNavSampleRadius: 1.25
   allowDirectPositionCommandsWhenMinionOffNavMesh: 1
   callRecoversPlayerPositionCommandsOutsideRange: 1
+  callRecallsAllRegisteredMinions: 1
+  dismissAffectsAllRegisteredMinions: 1
   trackDismissFormationWithPlayer: 0
   callRangeGizmoColor: {r: 0.2, g: 0.7, b: 1, a: 0.25}
   enableCallDismissPulse: 1

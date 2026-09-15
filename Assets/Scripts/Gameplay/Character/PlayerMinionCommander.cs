@@ -90,6 +90,7 @@ public class PlayerMinionCommander : MonoBehaviour
 
         if (cursor == null) cursor = GetComponentInChildren<GroundCursor>();
         if (player == null) player = transform;
+        ResolveMovingPlayerReference();
         // Resolve PlayerAim for formation facing. Search the player hierarchy first, then the scene.
         playerAim = player.GetComponentInParent<PlayerAim>();
         if (playerAim == null) playerAim = player.GetComponentInChildren<PlayerAim>();
@@ -106,6 +107,24 @@ public class PlayerMinionCommander : MonoBehaviour
         }
 
         previewPropertyBlock = new MaterialPropertyBlock();
+    }
+
+    private void ResolveMovingPlayerReference()
+    {
+        GameObject playerRoot = player != null
+            ? PlayerRootResolver.FromTransform(player)
+            : PlayerRootResolver.FromTransform(transform);
+        Transform body = PlayerRootResolver.BodyTransform(playerRoot);
+
+        if (body != null)
+        {
+            player = body;
+        }
+
+        if (playerMesh == null && body != null)
+        {
+            playerMesh = body;
+        }
     }
 
     private void ResolveInputActions()
@@ -443,6 +462,7 @@ public class PlayerMinionCommander : MonoBehaviour
 
         float callRange = settings != null ? settings.callRange : 10f;
         float rangeSq = callRange * callRange;
+        bool recallAllRegistered = settings != null && settings.callRecallsAllRegisteredMinions;
         int count = 0;
 
         for (int i = 0; i < minions.Length; i++)
@@ -457,7 +477,7 @@ public class PlayerMinionCommander : MonoBehaviour
                 && settings.callRecoversPlayerPositionCommandsOutsideRange
                 && (minion.IsDismissed || minion.HasPlayerPositionCommand || minion.CurrentCommandType == CommandType.None);
 
-            if (!inRange && !recoverPlayerPositionCommand) continue;
+            if (!recallAllRegistered && !inRange && !recoverPlayerPositionCommand) continue;
 
             minion.SetRecallCommand();
             count++;
@@ -468,7 +488,7 @@ public class PlayerMinionCommander : MonoBehaviour
         if (count > 0)
         {
             ResolveKelpAnimator()?.PlayCallMinions();
-            PlayCallDismissPulse(settings.callPulseColor);
+            PlayCallDismissPulse(settings != null ? settings.callPulseColor : Color.cyan);
         }
     }
 
@@ -478,7 +498,9 @@ public class PlayerMinionCommander : MonoBehaviour
         MinionCore[] minions = ResolveControlledMinions();
         if (minions.Length == 0 || settings == null) return;
 
-        float rangeSq = settings.callRange * settings.callRange;
+        float dismissRange = settings.dismissRange > 0f ? settings.dismissRange : settings.callRange;
+        float rangeSq = dismissRange * dismissRange;
+        bool affectAllRegistered = settings.dismissAffectsAllRegisteredMinions;
 
         // Collect affected minions per role.
         var meleeGroup   = new List<MinionCore>();
@@ -492,7 +514,7 @@ public class PlayerMinionCommander : MonoBehaviour
 
             Vector3 delta = minion.transform.position - player.position;
             delta.y = 0f;
-            if (delta.sqrMagnitude > rangeSq) continue;
+            if (!affectAllRegistered && delta.sqrMagnitude > rangeSq) continue;
 
             switch (minion.RoleType)
             {
@@ -505,7 +527,7 @@ public class PlayerMinionCommander : MonoBehaviour
         int totalCount = meleeGroup.Count + rangedGroup.Count + supportGroup.Count;
         if (totalCount == 0)
         {
-            Log("[MinionCommander] Dismiss: no minions within range.");
+            Log("[MinionCommander] Dismiss: no minions within dismiss range.");
             return;
         }
 
@@ -676,7 +698,7 @@ public class PlayerMinionCommander : MonoBehaviour
         out Vector2 localSlot)
     {
         float spacing = settings != null ? Mathf.Max(0.5f, settings.dismissFormationMemberSpacing) : 1.2f;
-        float baselineForwardOffset = -1.5f;
+        float baselineForwardOffset = settings != null ? settings.dismissFormationForwardOffset : 0f;
         Vector2 preferredLocal = new Vector2(centreLateralOffset, baselineForwardOffset)
             + GetDismissMemberLocalOffset(memberIndex, spacing);
 
@@ -1459,13 +1481,27 @@ public class PlayerMinionCommander : MonoBehaviour
         if (settings == null || !settings.validatePositionCommandsWithNavMesh) return true;
 
         float sampleRadius = Mathf.Max(0.05f, settings.positionCommandNavSampleRadius);
-        bool hasStart = NavMesh.SamplePosition(minion.transform.position, out NavMeshHit startHit, 1f, NavMesh.AllAreas);
+        int areaMask = WalkableNavMeshAreaMask();
+        bool hasStart = NavMesh.SamplePosition(minion.transform.position, out NavMeshHit startHit, 1f, areaMask);
         if (!hasStart)
         {
-            return settings.allowDirectPositionCommandsWhenMinionOffNavMesh;
+            bool hasDestination = NavMesh.SamplePosition(requestedPosition, out NavMeshHit offMeshDestinationHit, sampleRadius, areaMask);
+            if (hasDestination)
+            {
+                resolvedPosition = offMeshDestinationHit.position;
+            }
+
+            if (!settings.allowDirectPositionCommandsWhenMinionOffNavMesh)
+            {
+                return false;
+            }
+
+            bool playerHasNavMeshNearby = player != null
+                && NavMesh.SamplePosition(player.position, out _, Mathf.Max(1f, sampleRadius), areaMask);
+            return hasDestination || !playerHasNavMeshNearby;
         }
 
-        if (!NavMesh.SamplePosition(requestedPosition, out NavMeshHit destinationHit, sampleRadius, NavMesh.AllAreas))
+        if (!NavMesh.SamplePosition(requestedPosition, out NavMeshHit destinationHit, sampleRadius, areaMask))
         {
             return false;
         }
@@ -1484,11 +1520,17 @@ public class PlayerMinionCommander : MonoBehaviour
             positionCommandPath = new NavMeshPath();
         }
 
-        bool calculated = NavMesh.CalculatePath(startHit.position, destinationHit.position, NavMesh.AllAreas, positionCommandPath);
+        bool calculated = NavMesh.CalculatePath(startHit.position, destinationHit.position, areaMask, positionCommandPath);
         return calculated
             && positionCommandPath.status == NavMeshPathStatus.PathComplete
             && positionCommandPath.corners != null
             && positionCommandPath.corners.Length >= 2;
+    }
+
+    private static int WalkableNavMeshAreaMask()
+    {
+        int notWalkable = NavMesh.GetAreaFromName("Not Walkable");
+        return notWalkable >= 0 ? NavMesh.AllAreas & ~(1 << notWalkable) : NavMesh.AllAreas;
     }
 
     private void RemoveFormationSlot(MinionCore minion)

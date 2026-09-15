@@ -167,10 +167,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: PF_LevelSystem
       objectReference: {fileID: 0}
-    - target: {fileID: 4955449912460069813, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
-      propertyPath: staticLayoutBuilder
-      value: 
-      objectReference: {fileID: 0}
     - target: {fileID: 5878695739281186272, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

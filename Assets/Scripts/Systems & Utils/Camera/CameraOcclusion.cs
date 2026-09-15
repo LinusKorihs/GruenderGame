@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -25,9 +26,17 @@ public class CameraOcclusion : MonoBehaviour
     private Rigidbody rb;
 
     private readonly HashSet<Renderer> activeOccluders = new();
+    private readonly HashSet<Renderer> scanRenderers = new();
     private readonly Dictionary<Renderer, OccluderState> occluderStates = new();
-    private readonly Dictionary<Renderer, int> overlapCounts = new();
     private readonly Dictionary<Renderer, int> lastSeenFrame = new();
+    private readonly Collider[] scanHits = new Collider[128];
+
+    private const int DebugProbeIntervalFrames = 30;
+    private int lastProbeLogFrame = -DebugProbeIntervalFrames;
+    private int lastTriggerStayLogFrame = -DebugProbeIntervalFrames;
+    private int lastProbeColliderHits = -1;
+    private int lastProbeRendererHits = -1;
+    private int lastProbeMissingRenderers = -1;
 
     private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorId = Shader.PropertyToID("_Color");
@@ -108,79 +117,28 @@ public class CameraOcclusion : MonoBehaviour
         rb.MovePosition(mid);
         rb.MoveRotation(rot);
 
+        ScanOcclusionCapsule(start, end);
         CleanupStaleOccluders();
         RefreshActiveOccluders();
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!IsInMask(other.gameObject.layer, OccluderMask)) return;
-
-        Renderer rend = other.GetComponentInParent<Renderer>();
-        if (!rend)
-        {
-            if (DebugEnabled) Debug.Log($"[CameraOcclusion] ENTER '{other.name}' but no Renderer found.");
-            return;
-        }
-
-        MarkSeen(rend);
-
-        overlapCounts.TryGetValue(rend, out int count);
-        count++;
-        overlapCounts[rend] = count;
-
-        if (DebugEnabled) Debug.Log($"[CameraOcclusion] ENTER '{other.name}' -> '{rend.name}' count={count}");
-
-        if (count == 1) ApplyOcclusion(rend);
+        LogTriggerProbe(other, "ENTER");
     }
 
     private void OnTriggerStay(Collider other)
     {
-        if (!IsInMask(other.gameObject.layer, OccluderMask)) return;
+        if (Time.frameCount - lastTriggerStayLogFrame < DebugProbeIntervalFrames)
+            return;
 
-        Renderer rend = other.GetComponentInParent<Renderer>();
-        if (!rend) return;
-
-        MarkSeen(rend);
-
-        if (!activeOccluders.Contains(rend))
-        {
-            overlapCounts.TryGetValue(rend, out int count);
-            overlapCounts[rend] = Mathf.Max(1, count);
-            ApplyOcclusion(rend);
-
-            if (DebugEnabled) Debug.Log($"[CameraOcclusion] STAY '{other.name}' -> '{rend.name}' count={overlapCounts[rend]}");
-        }
+        lastTriggerStayLogFrame = Time.frameCount;
+        LogTriggerProbe(other, "STAY");
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (!IsInMask(other.gameObject.layer, OccluderMask)) return;
-
-        Renderer rend = other.GetComponentInParent<Renderer>();
-        if (!rend)
-        {
-            if (DebugEnabled) Debug.Log($"[CameraOcclusion] EXIT '{other.name}' but no Renderer found.");
-            return;
-        }
-
-        overlapCounts.TryGetValue(rend, out int count);
-        count = Mathf.Max(0, count - 1);
-
-        if (count == 0)
-        {
-            overlapCounts.Remove(rend);
-            lastSeenFrame.Remove(rend);
-            RestoreOne(rend);
-
-            if (DebugEnabled) Debug.Log($"[CameraOcclusion] EXIT '{other.name}' -> '{rend.name}' restored (count=0)");
-        }
-        else
-        {
-            overlapCounts[rend] = count;
-
-            if (DebugEnabled) Debug.Log($"[CameraOcclusion] EXIT '{other.name}' -> '{rend.name}' count={count}");
-        }
+        LogTriggerProbe(other, "EXIT");
     }
 
     private void OnDisable()
@@ -193,8 +151,8 @@ public class CameraOcclusion : MonoBehaviour
 
         activeOccluders.Clear();
         occluderStates.Clear();
-        overlapCounts.Clear();
         lastSeenFrame.Clear();
+        scanRenderers.Clear();
     }
 
     private void ApplyOcclusion(Renderer rend)
@@ -247,7 +205,6 @@ public class CameraOcclusion : MonoBehaviour
             if (!ReferenceEquals(rend, null))
             {
                 occluderStates.Remove(rend);
-                overlapCounts.Remove(rend);
                 lastSeenFrame.Remove(rend);
             }
             return;
@@ -289,6 +246,7 @@ public class CameraOcclusion : MonoBehaviour
 
         Material[] runtimeMaterials = rend.materials;
         bool applied = false;
+        bool assignedReplacementMaterial = false;
 
         for (int i = 0; i < runtimeMaterials.Length; i++)
         {
@@ -297,12 +255,36 @@ public class CameraOcclusion : MonoBehaviour
 
             Material sourceMaterial = i < state.originalSharedMaterials.Length ? state.originalSharedMaterials[i] : material;
             if (ApplyTransparentMaterial(rend, i, material, sourceMaterial, TransparentAlpha))
+            {
                 applied = true;
+                continue;
+            }
+
+            if (TryCreateOcclusionReplacementMaterial(material, out Material replacementMaterial) &&
+                ApplyTransparentMaterial(rend, i, replacementMaterial, replacementMaterial, TransparentAlpha))
+            {
+                runtimeMaterials[i] = replacementMaterial;
+                assignedReplacementMaterial = true;
+                applied = true;
+
+                if (DebugEnabled)
+                    Debug.Log($"[CameraOcclusion] SWAP -> '{rend.name}' slot={i} sourceShader='{material.shader.name}' replacement='{replacementMaterial.name}' alpha={TransparentAlpha}");
+            }
         }
+
+        if (assignedReplacementMaterial)
+            rend.materials = runtimeMaterials;
 
         if (!applied)
         {
-            if (DebugEnabled) Debug.LogWarning($"[CameraOcclusion] Shader on '{rend.name}' has no supported color/alpha property. Keeping original visibility.");
+            if (DebugEnabled)
+            {
+                string fallbackAction = HideWhenTransparencyUnsupported
+                    ? "Hiding renderer fallback."
+                    : "Keeping original visibility.";
+                Debug.LogWarning($"[CameraOcclusion] Shader on '{rend.name}' has no supported color/alpha property. {fallbackAction} materials={DescribeMaterials(runtimeMaterials)}");
+            }
+
             ApplyUnsupportedTransparencyFallback(rend, state);
             return;
         }
@@ -359,6 +341,55 @@ public class CameraOcclusion : MonoBehaviour
 
         if (applied) ConfigureTransparentMaterial(material);
         return applied;
+    }
+
+    private static string DescribeMaterials(Material[] materials)
+    {
+        if (materials == null || materials.Length == 0)
+            return "none";
+
+        List<string> descriptions = new();
+        for (int i = 0; i < materials.Length; i++)
+        {
+            Material material = materials[i];
+            if (!material)
+            {
+                descriptions.Add($"slot{i}: NULL");
+                continue;
+            }
+
+            string shaderName = material.shader ? material.shader.name : "NULL";
+            descriptions.Add($"slot{i}: material='{material.name}' shader='{shaderName}'");
+        }
+
+        return string.Join(", ", descriptions);
+    }
+
+    private bool TryCreateOcclusionReplacementMaterial(Material sourceMaterial, out Material replacementMaterial)
+    {
+        replacementMaterial = null;
+
+        if (!sourceMaterial || !sourceMaterial.shader || settings == null || settings.occlusionMaterialSwaps == null)
+            return false;
+
+        string sourceShaderName = sourceMaterial.shader.name;
+        for (int i = 0; i < settings.occlusionMaterialSwaps.Length; i++)
+        {
+            CameraOcclusionMaterialSwap swap = settings.occlusionMaterialSwaps[i];
+            if (string.IsNullOrWhiteSpace(swap.sourceShaderName) || !swap.replacementMaterial)
+                continue;
+
+            if (!string.Equals(sourceShaderName, swap.sourceShaderName, StringComparison.Ordinal))
+                continue;
+
+            replacementMaterial = new Material(swap.replacementMaterial)
+            {
+                name = $"{sourceMaterial.name}_OcclusionInstance"
+            };
+            return true;
+        }
+
+        return false;
     }
 
     private void ApplyUnsupportedTransparencyFallback(Renderer rend, OccluderState state)
@@ -488,17 +519,110 @@ public class CameraOcclusion : MonoBehaviour
                 if (!ReferenceEquals(rend, null))
                 {
                     occluderStates.Remove(rend);
-                    overlapCounts.Remove(rend);
                     lastSeenFrame.Remove(rend);
                 }
                 continue;
             }
 
-            overlapCounts.Remove(rend);
             lastSeenFrame.Remove(rend);
             RestoreOne(rend);
 
             if (DebugEnabled) Debug.Log($"[CameraOcclusion] FAILSAFE RESTORE -> '{rend.name}' (stale)");
         }
+    }
+
+    private void ScanOcclusionCapsule(Vector3 start, Vector3 end)
+    {
+        scanRenderers.Clear();
+
+        int hitCount = Physics.OverlapCapsuleNonAlloc(
+            start,
+            end,
+            Radius,
+            scanHits,
+            OccluderMask,
+            QueryTriggerInteraction.Ignore);
+
+        int colliderHits = 0;
+        int rendererHits = 0;
+        int missingRenderers = 0;
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = scanHits[i];
+            scanHits[i] = null;
+
+            if (!hit || hit == capsule)
+                continue;
+
+            colliderHits++;
+
+            Renderer rend = FindOccluderRenderer(hit);
+            if (!rend)
+            {
+                missingRenderers++;
+                continue;
+            }
+
+            if (!scanRenderers.Add(rend))
+                continue;
+
+            MarkSeen(rend);
+            ApplyOcclusion(rend);
+            rendererHits++;
+        }
+
+        LogScanProbe(hitCount, colliderHits, rendererHits, missingRenderers);
+    }
+
+    private Renderer FindOccluderRenderer(Collider other)
+    {
+        if (!other)
+            return null;
+
+        if (other.TryGetComponent(out Renderer directRenderer))
+            return directRenderer;
+
+        Renderer parentRenderer = other.GetComponentInParent<Renderer>();
+        if (parentRenderer)
+            return parentRenderer;
+
+        return other.GetComponentInChildren<Renderer>();
+    }
+
+    private void LogTriggerProbe(Collider other, string phase)
+    {
+        if (!DebugEnabled || !other || !IsInMask(other.gameObject.layer, OccluderMask))
+            return;
+
+        Renderer rend = FindOccluderRenderer(other);
+        Debug.Log($"[CameraOcclusion] TRIGGER {phase} '{other.name}' -> '{(rend ? rend.name : "NO_RENDERER")}'");
+    }
+
+    private void LogScanProbe(int rawHitCount, int colliderHits, int rendererHits, int missingRenderers)
+    {
+        if (!DebugEnabled)
+            return;
+
+        bool changed =
+            colliderHits != lastProbeColliderHits ||
+            rendererHits != lastProbeRendererHits ||
+            missingRenderers != lastProbeMissingRenderers;
+
+        bool intervalElapsed = Time.frameCount - lastProbeLogFrame >= DebugProbeIntervalFrames;
+        bool bufferFilled = rawHitCount >= scanHits.Length;
+
+        if (!changed && !intervalElapsed && !bufferFilled)
+            return;
+
+        lastProbeLogFrame = Time.frameCount;
+        lastProbeColliderHits = colliderHits;
+        lastProbeRendererHits = rendererHits;
+        lastProbeMissingRenderers = missingRenderers;
+
+        Debug.Log($"[CameraOcclusion] PROBE colliders={colliderHits} renderers={rendererHits} missingRenderers={missingRenderers} active={activeOccluders.Count} alpha={TransparentAlpha} mask={OccluderMask.value}");
+
+        if (bufferFilled)
+            Debug.LogWarning($"[CameraOcclusion] PROBE hit buffer is full ({scanHits.Length}). Increase buffer size if occluders are missed.");
     }
 }

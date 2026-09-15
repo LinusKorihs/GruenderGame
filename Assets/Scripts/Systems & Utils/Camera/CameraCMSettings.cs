@@ -62,6 +62,16 @@ public struct CameraStageSettings
     }
 }
 
+[Serializable]
+public struct CameraOcclusionMaterialSwap
+{
+    [Tooltip("Original shader name that should use a temporary occlusion material while it blocks the camera.")]
+    public string sourceShaderName;
+
+    [Tooltip("Transparent material used only while this shader blocks the camera.")]
+    public Material replacementMaterial;
+}
+
 [CreateAssetMenu(menuName = "SO/Camera/CM Settings", fileName = "CameraCMSettings")]
 public class CameraCMSettings : ScriptableObject
 {
@@ -106,7 +116,11 @@ public class CameraCMSettings : ScriptableObject
     [Tooltip("Target alpha while transparent occlusion is active. 0.05 is almost invisible, 1 keeps the object opaque.")]
     [Range(0.05f, 1f)] public float transparentAlpha = 0.25f;
 
-    [Header("Occlusion - Trigger Shape")]
+    [Header("Occlusion - Material Swaps")]
+    [Tooltip("Temporary transparent replacements for shaders that do not expose a runtime alpha property.")]
+    public CameraOcclusionMaterialSwap[] occlusionMaterialSwaps = Array.Empty<CameraOcclusionMaterialSwap>();
+
+    [Header("Occlusion - Detection Shape")]
     [Tooltip("Thickness of the capsule checked between camera and player. Higher values catch more corners but affect more objects.")]
     public float occlusionRadius = 0.35f;
 
@@ -120,11 +134,11 @@ public class CameraCMSettings : ScriptableObject
     [Tooltip("If disabled, unsupported shaders stay visible instead of hiding the whole renderer.")]
     public bool hideWhenTransparencyUnsupported = false;
 
-    [Tooltip("How many frames an occluder can miss trigger updates before it is force-restored.")]
+    [Tooltip("How many frames an occluder can miss capsule scan updates before it is force-restored.")]
     public int staleFramesToRestore = 2;
 
     [Header("Occlusion - Debug")]
-    [Tooltip("Print camera and occlusion debug logs.")]
+    [Tooltip("Print camera occlusion probe logs. PROBE means the capsule scan found colliders/renderers, FADE means transparency was applied.")]
     public bool debugEnabled = true;
 
     [Tooltip("Draw the occlusion capsule line and endpoints in Scene View.")]
