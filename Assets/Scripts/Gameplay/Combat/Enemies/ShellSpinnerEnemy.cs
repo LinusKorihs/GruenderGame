@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 /* <Summary / Notes>
      Enemy 2 — Shell Spinner (Koopa / Armos-like).
@@ -148,6 +149,9 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
         if (visualRoot == null && animationBridge != null)
             visualRoot = animationBridge.transform;
+
+        if (targetingLine == null)
+            targetingLine = GetComponentInChildren<LineRenderer>(true);
 
         ApplyVisualOrientationOffset();
 
@@ -310,11 +314,11 @@ public class ShellSpinnerEnemy : MonoBehaviour
                 if (!spinHitIds.Contains(id) && !ts.IsDead)
                 {
                     spinHitIds.Add(id);
-                    ts.ApplyDamage(settings != null ? settings.SpinDamage : 18f);
+                    ts.ApplyDamage(GetSpinDamage(ts, isMinion));
                     // For the player, apply knockback to playerTransform 
                     Transform knockbackTarget = (isPlayer && playerTransform != null) ? playerTransform : ts.transform;
                     ApplyKnockback(knockbackTarget);
-                    Log($"Spin hit {ts.name} for {settings.SpinDamage}");
+                    Log($"Spin hit {ts.name} for {GetSpinDamage(ts, isMinion)}");
                 }
             }
             // SpinUntilWall lets the shell pass through targets.
@@ -329,6 +333,16 @@ public class ShellSpinnerEnemy : MonoBehaviour
     private static CombatantStats GetStats(Transform t)
     {
         return EnemyTargetUtility.GetStats(t);
+    }
+
+    private float GetSpinDamage(CombatantStats targetStats, bool isMinion)
+    {
+        if (targetStats != null && isMinion && settings != null && settings.OneShotMinionsOnSpin)
+        {
+            return targetStats.GetStat(CombatStatType.MaxHealth) * targetStats.GetStat(CombatStatType.Defense);
+        }
+
+        return settings != null ? settings.SpinDamage : 18f;
     }
 
     private void OnDamageTaken(float _)
@@ -789,7 +803,11 @@ public class ShellSpinnerEnemy : MonoBehaviour
             ? Quaternion.LookRotation(aimDir.normalized, Vector3.up)
             : transform.rotation;
 
-        MinionProjectile projectile = Instantiate(prefab, spawnPos, spawnRot).GetComponent<MinionProjectile>();
+        GameObject projectileObject = Instantiate(prefab, spawnPos, spawnRot);
+        float scaleMultiplier = settings != null ? Mathf.Max(0.01f, settings.ProjectileScaleMultiplier) : 1f;
+        projectileObject.transform.localScale *= scaleMultiplier;
+
+        MinionProjectile projectile = projectileObject.GetComponent<MinionProjectile>();
         if (projectile != null)
         {
             float damage = currentProjectileVariant == ProjectileVariant.Fast ? settings.FastProjectileDamage : settings.HeavyProjectileDamage;
@@ -896,7 +914,10 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
     public void OnSpinAttackEndFrame()
     {
-        if (currentState == SpinnerState.Windup || currentState == SpinnerState.Spinning)
+        if (currentState == SpinnerState.Windup)
+            return;
+
+        if (currentState == SpinnerState.Spinning)
         {
             SetContinueSpinningAnimation(true);
             return;
@@ -994,5 +1015,147 @@ public class ShellSpinnerEnemy : MonoBehaviour
             animationBridge.SetDead(true);
 
         Destroy(gameObject, deathDestroyDelay);
+    }
+}
+
+[DisallowMultipleComponent]
+public sealed class BossEncounterController : MonoBehaviour
+{
+    [SerializeField] private CombatantStats bossStats;
+    [SerializeField] private bool showVictoryScreenOnDeath = true;
+    [SerializeField] private string victoryTitle = "Victory";
+    [SerializeField] private string victorySubtitle = "Boss defeated";
+
+    private GameplayHUDController hud;
+    private bool completed;
+
+    private void OnEnable()
+    {
+        ResolveBossStats();
+        Subscribe();
+        TryBindHud();
+    }
+
+    private void OnDisable()
+    {
+        Unsubscribe();
+    }
+
+    private void Update()
+    {
+        if (completed)
+            return;
+
+        TryBindHud();
+    }
+
+    public void Bind(GameObject bossRoot)
+    {
+        Unsubscribe();
+        bossStats = bossRoot != null ? bossRoot.GetComponentInChildren<CombatantStats>(true) : null;
+        Subscribe();
+        TryBindHud();
+    }
+
+    private void ResolveBossStats()
+    {
+        if (bossStats == null)
+            bossStats = GetComponentInChildren<CombatantStats>(true);
+    }
+
+    private void Subscribe()
+    {
+        if (bossStats != null)
+            bossStats.Died += HandleBossDied;
+    }
+
+    private void Unsubscribe()
+    {
+        if (bossStats != null)
+            bossStats.Died -= HandleBossDied;
+    }
+
+    private void TryBindHud()
+    {
+        if (bossStats == null)
+            return;
+
+        if (hud == null)
+            hud = FindFirstObjectByType<GameplayHUDController>(FindObjectsInactive.Include);
+
+        if (hud != null)
+            hud.BindBoss(bossStats);
+    }
+
+    private void HandleBossDied()
+    {
+        if (completed)
+            return;
+
+        completed = true;
+        TryBindHud();
+
+        LevelFlowController flow = LevelFlowController.Instance;
+        if (flow != null)
+            flow.AdvanceAfterCurrentLevelExit();
+
+        if (showVictoryScreenOnDeath)
+            ShowVictoryScreen();
+    }
+
+    private void ShowVictoryScreen()
+    {
+        const string overlayName = "VictoryScreen_Runtime";
+        if (GameObject.Find(overlayName) != null)
+            return;
+
+        GameObject root = new GameObject(overlayName);
+        Canvas canvas = root.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 500;
+
+        CanvasScaler scaler = root.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        root.AddComponent<GraphicRaycaster>();
+
+        GameObject panel = new GameObject("Panel");
+        panel.transform.SetParent(root.transform, false);
+        RectTransform panelRect = panel.AddComponent<RectTransform>();
+        panelRect.anchorMin = Vector2.zero;
+        panelRect.anchorMax = Vector2.one;
+        panelRect.offsetMin = Vector2.zero;
+        panelRect.offsetMax = Vector2.zero;
+
+        Image background = panel.AddComponent<Image>();
+        background.color = new Color(0.02f, 0.02f, 0.03f, 0.82f);
+
+        CreateLabel(panel.transform, victoryTitle, 72, new Vector2(0f, 48f), FontStyle.Bold);
+        CreateLabel(panel.transform, victorySubtitle, 32, new Vector2(0f, -40f), FontStyle.Normal);
+    }
+
+    private static void CreateLabel(Transform parent, string text, int fontSize, Vector2 anchoredPosition, FontStyle style)
+    {
+        GameObject label = new GameObject(string.IsNullOrWhiteSpace(text) ? "Label" : text);
+        label.transform.SetParent(parent, false);
+
+        RectTransform rect = label.AddComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(900f, 120f);
+        rect.anchoredPosition = anchoredPosition;
+
+        Text uiText = label.AddComponent<Text>();
+        uiText.text = text;
+        uiText.alignment = TextAnchor.MiddleCenter;
+        uiText.fontSize = fontSize;
+        uiText.fontStyle = style;
+        uiText.color = Color.white;
+        uiText.raycastTarget = false;
+        uiText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                      ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 }

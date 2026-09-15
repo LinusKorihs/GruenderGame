@@ -33,6 +33,7 @@ MonoBehaviour:
   MaxSameAttackRepeats: 2
   SpinSpeed: 10
   SpinDamage: 20
+  OneShotMinionsOnSpin: 1
   SpinUntilWall: 1
   MaxSpinRange: 30
   HitPauseDuration: 0.15
@@ -42,6 +43,7 @@ MonoBehaviour:
   RangedWindupDuration: 0.35
   RangedRecoveryDuration: 0.35
   ProjectileLifetime: 6
+  ProjectileScaleMultiplier: 3
   UseHomingProjectiles: 0
   FastProjectilePrefab: {fileID: 4717478648976455647, guid: 1dd73af9804f6e443a9a6bcba00329b9, type: 3}
   FastProjectileCount: 6

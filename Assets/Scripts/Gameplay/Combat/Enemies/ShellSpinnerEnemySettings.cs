@@ -47,6 +47,8 @@ public class ShellSpinnerEnemySettings : ScriptableObject
     public float SpinSpeed = 10f;
     [Tooltip("Damage dealt to any player or minion touched during the spin.")]
     public float SpinDamage = 18f;
+    [Tooltip("When enabled, spin contact kills minions regardless of their current max health/defense. Player damage still uses SpinDamage.")]
+    public bool OneShotMinionsOnSpin = false;
     [Tooltip("When disabled (default) the spin stops as soon as it touches a player or minion. " + "When enabled the spin passes through all targets (dealing damage to each once) " + "and only stops when hitting a wall or travelling MaxSpinRange units.")]
     public bool SpinUntilWall = false;
     [Tooltip("Maximum travel distance before the spin automatically ends. 0 = unlimited.")]
@@ -71,6 +73,8 @@ public class ShellSpinnerEnemySettings : ScriptableObject
     public float RangedRecoveryDuration = 0.35f;
     [Tooltip("Projectile lifetime in seconds.")]
     public float ProjectileLifetime = 6f;
+    [Tooltip("Visual/gameplay scale multiplier applied to spawned projectile instances.")]
+    public float ProjectileScaleMultiplier = 1f;
     [Tooltip("When true, spawned projectiles keep steering toward the current target.")]
     public bool UseHomingProjectiles = true;
 

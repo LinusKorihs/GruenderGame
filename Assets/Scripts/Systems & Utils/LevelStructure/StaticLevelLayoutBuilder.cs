@@ -103,8 +103,22 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
             }
         }
 
+        ConfigureBossEncounter(LastBoss);
+
         Debug.Log($"[Static Layout] Built '{profile.name}' with {placedRooms.Count} room(s).", this);
         return true;
+    }
+
+    private static void ConfigureBossEncounter(GameObject boss)
+    {
+        if (boss == null)
+            return;
+
+        BossEncounterController encounter = boss.GetComponent<BossEncounterController>();
+        if (encounter == null)
+            encounter = boss.AddComponent<BossEncounterController>();
+
+        encounter.Bind(boss);
     }
 
     private bool TryPlaceRoom(StaticLevelRoomEntry entry, int index, Transform roomsRoot, out PlacedRoom placedRoom)

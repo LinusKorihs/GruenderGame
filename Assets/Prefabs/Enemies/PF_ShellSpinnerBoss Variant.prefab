@@ -64,6 +64,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: PF_ShellSpinnerBoss Variant
       objectReference: {fileID: 0}
+    - target: {fileID: 4865906418768922772, guid: e2fb01c9109db6d41a3b2f6342749c3d, type: 3}
+      propertyPath: settings
+      value: 
+      objectReference: {fileID: 11400000, guid: e312e6a7dc9ba4146a49592fa999eab2, type: 2}
+    - target: {fileID: 7272819733732786336, guid: e2fb01c9109db6d41a3b2f6342749c3d, type: 3}
+      propertyPath: baseProfile
+      value: 
+      objectReference: {fileID: 11400000, guid: b18a4e5f75d34ceaa9f0b18ea65e1b2d, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
