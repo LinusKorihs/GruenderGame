@@ -23,6 +23,9 @@ public class KelpAnimationEvents : MonoBehaviour
     public void OnPunchHit()
     {
         LogEvent("Punch hit frame reached");
+        PlayerPunch punch = GetComponentInParent<PlayerPunch>();
+        if (punch != null)
+            punch.OnAnimationPunchHit();
     }
 
     public void OnDodgeStart()

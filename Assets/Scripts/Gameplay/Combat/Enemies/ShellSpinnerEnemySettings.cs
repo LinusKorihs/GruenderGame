@@ -16,6 +16,10 @@ public class ShellSpinnerEnemySettings : ScriptableObject
     public float DetectRadius = 12f;
     [Tooltip("Target is forgotten when it leaves this radius.")]
     public float ForgetRadius = 18f;
+    [Tooltip("Optional larger radius used after the Spinner has entered combat. Set to 0 to keep using ForgetRadius.")]
+    public float EncounterForgetRadius;
+    [Tooltip("Keep a living target through windup, attacks and recovery so a long spin cannot reset the encounter.")]
+    public bool RetainTargetDuringAttackCycle = true;
     public LayerMask DetectMask = ~0;
     [Tooltip("Only wake up to targets the Spinner can actually see.")]
     public bool RequireLOSToDetect = true;
@@ -60,6 +64,8 @@ public class ShellSpinnerEnemySettings : ScriptableObject
     public LayerMask SpinBlockMask = ~0;
     [Min(0f), Tooltip("Small safety gap kept in front of blocking geometry.")]
     public float SpinCollisionSkin = 0.05f;
+    [Min(0f), Tooltip("Distance moved backwards after a wall prediction so the next spin cannot immediately hit the same blocker again.")]
+    public float SpinWallRecoveryDistance = 0.5f;
 
     [Header("Hit Pause")]
     [Tooltip("Duration of the brief impact-stop when the spinner hits anything. Still in shell / invincible.")]
@@ -84,6 +90,8 @@ public class ShellSpinnerEnemySettings : ScriptableObject
     public float ProjectileScaleMultiplier = 1f;
     [Range(0.05f, 1f), Tooltip("Collider radius multiplier after projectile scaling. Use a lower value when the visible mesh is much smaller than its root scale.")]
     public float ProjectileHitboxRadiusMultiplier = 1f;
+    [Min(0f), Tooltip("Optional world-space trail width override for this Spinner's projectiles. 0 keeps the projectile prefab's normal enemy width.")]
+    public float ProjectileTrailWidthOverride;
     [Tooltip("When true, spawned projectiles keep steering toward the current target.")]
     public bool UseHomingProjectiles = true;
 

@@ -16,6 +16,8 @@ MonoBehaviour:
   MinionTag: Ally
   DetectRadius: 10
   ForgetRadius: 16
+  EncounterForgetRadius: 45
+  RetainTargetDuringAttackCycle: 1
   DetectMask:
     serializedVersion: 2
     m_Bits: 520
@@ -25,7 +27,7 @@ MonoBehaviour:
     m_Bits: 192
   LosHeightOffset: 0.8
   RotationSpeed: 0
-  WindupDuration: 3
+  WindupDuration: 1.5
   GroundMask:
     serializedVersion: 2
     m_Bits: 192
@@ -43,6 +45,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 192
   SpinCollisionSkin: 0.08
+  SpinWallRecoveryDistance: 0.65
   HitPauseDuration: 0.15
   SpinCollisionGrace: 0.11
   KnockbackForce: 15
@@ -52,6 +55,7 @@ MonoBehaviour:
   ProjectileLifetime: 6
   ProjectileScaleMultiplier: 3
   ProjectileHitboxRadiusMultiplier: 0.2
+  ProjectileTrailWidthOverride: 0.3
   UseHomingProjectiles: 0
   FastProjectilePrefab: {fileID: 4717478648976455647, guid: 1dd73af9804f6e443a9a6bcba00329b9, type: 3}
   FastProjectileCount: 6

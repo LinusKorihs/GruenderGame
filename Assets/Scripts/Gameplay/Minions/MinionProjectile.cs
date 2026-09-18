@@ -98,6 +98,12 @@ public class MinionProjectile : MonoBehaviour
         }
     }
 
+    public void SetVisibilityTrailWidth(float width)
+    {
+        if (visibilityTrail != null)
+            visibilityTrail.startWidth = Mathf.Max(0.01f, width);
+    }
+
     // Returns the world-space point projectiles should steer toward.
     // Uses IAimTarget if the target implements it (e.g. burrowed enemy with a visible head).
     private Vector3 GetAimPosition()

@@ -20,6 +20,8 @@ public class PlayerPunch : MonoBehaviour
 
     [Header("Debug")]
     [SerializeField] private bool drawGizmos = true;
+    [SerializeField] private bool enableLogs;
+    [SerializeField, Min(0.05f)] private float animationEventFallbackDelay = 0.35f;
 
     private PlayerMovementCC movement;
     private PlayerAim aim;
@@ -29,6 +31,10 @@ public class PlayerPunch : MonoBehaviour
 
     private float cooldownTimer;
     private float punchLockTimer;
+    private float pendingHitTimer;
+    private bool hitPending;
+    private Vector3 pendingDirection;
+    private readonly System.Collections.Generic.HashSet<int> hitStatsIds = new System.Collections.Generic.HashSet<int>();
 
     private void Awake()
     {
@@ -40,6 +46,16 @@ public class PlayerPunch : MonoBehaviour
     {
         if (cooldownTimer > 0f) cooldownTimer -= dt;
         if (punchLockTimer > 0f) punchLockTimer -= dt;
+
+        if (hitPending)
+        {
+            pendingHitTimer -= dt;
+            if (pendingHitTimer <= 0f)
+            {
+                if (enableLogs) Debug.Log("[PlayerPunch] Animation event missing; resolving hit from fallback timer.", this);
+                ResolvePendingHit();
+            }
+        }
     }
 
     public bool TryPunch(Vector3 dir)
@@ -50,29 +66,65 @@ public class PlayerPunch : MonoBehaviour
         if (dir.sqrMagnitude < 0.0001f) return false;
         dir.Normalize();
 
-        Vector3 origin = movement != null ? movement.BodyTransform.position : transform.position;
-        Vector3 center = origin + Vector3.up * HitboxBufferUpwards + dir * Range;
+        punchLockTimer = config.punchLockDuration;
+        cooldownTimer = Cooldown;
+        pendingDirection = dir;
+        pendingHitTimer = animationEventFallbackDelay;
+        hitPending = true;
+        ResolveKelpAnimator()?.PlayPunch();
+        return true;
+    }
 
+    public void OnAnimationPunchHit()
+    {
+        ResolvePendingHit();
+    }
 
+    private void ResolvePendingHit()
+    {
+        if (!hitPending) return;
+        hitPending = false;
+
+        Vector3 origin = movement != null && movement.BodyTransform != null
+            ? movement.BodyTransform.position
+            : transform.position;
+        Vector3 center = origin + Vector3.up * HitboxBufferUpwards + pendingDirection * Range;
         Collider[] hits = Physics.OverlapSphere(center, Radius, hitMask, QueryTriggerInteraction.Ignore);
+        CombatantStats attackerStats = GetComponentInParent<CombatantStats>();
+        float damage = attackerStats != null ? attackerStats.GetStat(CombatStatType.Damage) : 10f;
+        int damagedTargets = 0;
+        hitStatsIds.Clear();
 
         for (int i = 0; i < hits.Length; i++)
         {
-            var col = hits[i];
-            Rigidbody rb = col.attachedRigidbody != null ? col.attachedRigidbody : col.GetComponentInParent<Rigidbody>();
-            if (rb != null && !rb.isKinematic)
-            {
-                Vector3 kb = dir * KnockbackForce;
-                if (UpwardKnock != 0f) kb.y += UpwardKnock;
+            Collider col = hits[i];
+            CombatantStats targetStats = EnemyTargetUtility.GetStats(col.transform);
+            if (targetStats == null || targetStats == attackerStats || targetStats.IsDead)
+                continue;
 
-                rb.AddForce(kb, ForceMode.VelocityChange);
+            int statsId = targetStats.GetInstanceID();
+            if (!hitStatsIds.Add(statsId))
+                continue;
+
+            float dealtDamage = targetStats.ApplyDamage(damage);
+            if (dealtDamage <= 0f)
+                continue;
+
+            damagedTargets++;
+            Rigidbody targetRb = col.attachedRigidbody != null ? col.attachedRigidbody : col.GetComponentInParent<Rigidbody>();
+            if (targetRb != null && !targetRb.isKinematic)
+            {
+                Vector3 knockback = pendingDirection * KnockbackForce;
+                knockback.y += UpwardKnock;
+                targetRb.AddForce(knockback, ForceMode.VelocityChange);
             }
+
+            if (enableLogs)
+                Debug.Log($"[PlayerPunch] Hit {targetStats.name}: raw={damage:F1}, dealt={dealtDamage:F1}.", targetStats);
         }
 
-        punchLockTimer = config.punchLockDuration;
-        cooldownTimer = Cooldown;
-        ResolveKelpAnimator()?.PlayPunch();
-        return true;
+        if (enableLogs)
+            Debug.Log($"[PlayerPunch] Resolved hit: colliders={hits.Length}, damagedTargets={damagedTargets}, center={center}.", this);
     }
 
     private Vector3 GetPunchDirection()

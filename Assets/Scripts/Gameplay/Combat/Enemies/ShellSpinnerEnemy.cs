@@ -111,6 +111,8 @@ public class ShellSpinnerEnemy : MonoBehaviour
     private bool isAsleep = true;
 
     private Vector3 spinDirection; // locked when the shell closes; never updated mid-spin
+    private Vector3 lastKnownTargetPosition;
+    private bool hasLastKnownTargetPosition;
     private Vector3 spinStartPosition; // recorded when Spinning begins; used for MaxSpinRange
     private bool spinHitSomething; // set by OnCollisionEnter, consumed in ExecuteState
 
@@ -246,22 +248,57 @@ public class ShellSpinnerEnemy : MonoBehaviour
     private void LateUpdate()
     {
         if (currentState != SpinnerState.Windup || targetingLine == null || !targetingLine.enabled) return;
-        if (currentTarget == null) return;
+        if (currentTarget != null)
+        {
+            lastKnownTargetPosition = currentTarget.position;
+            hasLastKnownTargetPosition = true;
+        }
+        if (!hasLastKnownTargetPosition) return;
         int segmentCount = Mathf.Max(2, settings != null ? settings.TargetingLineSegments : 10);
         if (targetingLine.positionCount != segmentCount)
             targetingLine.positionCount = segmentCount;
 
         Vector3 start = transform.position;
-        Vector3 end = currentTarget.position;
+        Vector3 end = lastKnownTargetPosition;
+        float referenceGroundY = FindReferenceGroundY(start);
         for (int i = 0; i < segmentCount; i++)
         {
             float t = i / (float)(segmentCount - 1);
-            targetingLine.SetPosition(i, SnapToGround(Vector3.Lerp(start, end, t)));
+            targetingLine.SetPosition(i, SnapToGround(Vector3.Lerp(start, end, t), referenceGroundY));
         }
     }
 
-    // Projects a world-space point down onto the ground surface.
-    private Vector3 SnapToGround(Vector3 worldPos)
+    // Uses the walkable height below the Spinner as the reference. This avoids selecting
+    // prop tops or lower geometry when floor and props share the Generated layer.
+    private float FindReferenceGroundY(Vector3 worldPos)
+    {
+        float rayHeight = settings != null ? settings.TargetingLineRayHeight : 8f;
+        if (settings == null || settings.GroundMask == 0)
+            return transform.position.y;
+
+        Vector3 origin = worldPos + Vector3.up * rayHeight;
+        RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, rayHeight + 4f, settings.GroundMask, QueryTriggerInteraction.Ignore);
+        bool found = false;
+        float bestY = transform.position.y;
+        float bestDistance = float.PositiveInfinity;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (hits[i].transform.IsChildOf(transform) || hits[i].normal.y < 0.8f || hits[i].point.y > transform.position.y - 0.5f)
+                continue;
+
+            float distance = Mathf.Abs(transform.position.y - hits[i].point.y);
+            if (distance < bestDistance)
+            {
+                found = true;
+                bestDistance = distance;
+                bestY = hits[i].point.y;
+            }
+        }
+        return found ? bestY : transform.position.y;
+    }
+
+    // Projects a world-space point onto the surface closest to the arena floor height.
+    private Vector3 SnapToGround(Vector3 worldPos, float referenceGroundY)
     {
         float offset = settings != null ? settings.TargetingLineGroundOffset : 0.04f;
         float rayHeight = settings != null ? settings.TargetingLineRayHeight : 8f;
@@ -271,37 +308,42 @@ public class ShellSpinnerEnemy : MonoBehaviour
             RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, rayHeight + 2f, settings.GroundMask, QueryTriggerInteraction.Ignore);
             bool foundGround = false;
             RaycastHit groundHit = default;
+            float bestHeightDelta = float.PositiveInfinity;
             for (int i = 0; i < hits.Length; i++)
             {
-                if (hits[i].transform.IsChildOf(transform) || hits[i].normal.y < 0.65f)
+                if (hits[i].transform.IsChildOf(transform) || hits[i].normal.y < 0.8f)
                     continue;
-                if (!foundGround || hits[i].point.y < groundHit.point.y)
+                float heightDelta = Mathf.Abs(hits[i].point.y - referenceGroundY);
+                if (!foundGround || heightDelta < bestHeightDelta)
                 {
                     foundGround = true;
                     groundHit = hits[i];
+                    bestHeightDelta = heightDelta;
                 }
             }
             if (foundGround)
                 return groundHit.point + Vector3.up * offset;
         }
-        return new Vector3(worldPos.x, transform.position.y + offset, worldPos.z);
+        return new Vector3(worldPos.x, referenceGroundY + offset, worldPos.z);
     }
 
     private void FixedUpdate()
     {
         if (rb == null || stats == null || stats.IsDead) return;
 
-        if (currentState == SpinnerState.Spinning && WouldSpinHitBlocker(frameVelocity))
+        if (currentState == SpinnerState.Spinning && !spinHitSomething && WouldSpinHitBlocker(frameVelocity, out RaycastHit blockerHit))
         {
             frameVelocity = Vector3.zero;
+            RecoverFromPredictedBlocker(blockerHit);
             spinHitSomething = true;
         }
 
         rb.linearVelocity = new Vector3(frameVelocity.x, rb.linearVelocity.y, frameVelocity.z);
     }
 
-    private bool WouldSpinHitBlocker(Vector3 velocity)
+    private bool WouldSpinHitBlocker(Vector3 velocity, out RaycastHit blockerHit)
     {
+        blockerHit = default;
         Vector3 horizontalVelocity = new Vector3(velocity.x, 0f, velocity.z);
         float speed = horizontalVelocity.magnitude;
         if (speed <= 0.001f || settings == null || settings.SpinBlockMask == 0)
@@ -322,12 +364,51 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
             if ((settings.SpinBlockMask.value & (1 << hitCollider.gameObject.layer)) != 0)
             {
+                blockerHit = hits[i];
                 Log($"Predictive spin block: collider={hitCollider.name}, layer={LayerMask.LayerToName(hitCollider.gameObject.layer)}, distance={hits[i].distance:F2}");
                 return true;
             }
         }
 
         return false;
+    }
+
+    private void RecoverFromPredictedBlocker(RaycastHit blockerHit)
+    {
+        float recoveryDistance = settings != null ? settings.SpinWallRecoveryDistance : 0.5f;
+        if (recoveryDistance <= 0f)
+            return;
+
+        Vector3 away = blockerHit.normal;
+        away.y = 0f;
+        if (away.sqrMagnitude < 0.0001f)
+            away = -spinDirection;
+        away.Normalize();
+
+        float safeDistance = recoveryDistance;
+        if (rb != null && settings != null)
+        {
+            RaycastHit[] recoveryHits = rb.SweepTestAll(away, recoveryDistance, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < recoveryHits.Length; i++)
+            {
+                Collider recoveryCollider = recoveryHits[i].collider;
+                if (recoveryCollider == null || recoveryCollider == blockerHit.collider || recoveryCollider.transform.IsChildOf(transform))
+                    continue;
+                if ((settings.SpinBlockMask.value & (1 << recoveryCollider.gameObject.layer)) == 0)
+                    continue;
+
+                safeDistance = Mathf.Min(safeDistance, Mathf.Max(0f, recoveryHits[i].distance - settings.SpinCollisionSkin));
+            }
+        }
+
+        Vector3 before = rb != null ? rb.position : transform.position;
+        Vector3 after = before + away * safeDistance;
+        if (rb != null)
+            rb.position = after;
+        else
+            transform.position = after;
+
+        Log($"Wall recovery: blocker={blockerHit.collider.name}, from={before}, to={after}, away={away}, requested={recoveryDistance:F2}, applied={safeDistance:F2}");
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -436,15 +517,30 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
     private void RefreshTarget()
     {
-        float forgetRadius = settings != null ? settings.ForgetRadius : 18f;
+        bool activeAttackCycle = currentState != SpinnerState.Idle;
+        float baseForgetRadius = settings != null ? settings.ForgetRadius : 18f;
+        float encounterForgetRadius = settings != null && settings.EncounterForgetRadius > 0f
+            ? settings.EncounterForgetRadius
+            : baseForgetRadius;
+        float forgetRadius = !isAsleep ? encounterForgetRadius : baseForgetRadius;
 
         if (currentTarget != null)
         {
             CombatantStats ts = GetStats(currentTarget);
             bool dead = ts != null && ts.IsDead;
-            bool far = HorizontalDistance(currentTarget.position) > forgetRadius;
+            bool retainForCycle = settings != null && settings.RetainTargetDuringAttackCycle && activeAttackCycle;
+            bool far = !retainForCycle && HorizontalDistance(currentTarget.position) > forgetRadius;
 
-            if (dead || far || !currentTarget.gameObject.activeInHierarchy) currentTarget = null;
+            if (dead || far || !currentTarget.gameObject.activeInHierarchy)
+            {
+                Log($"Target lost: name={currentTarget.name}, dead={dead}, far={far}, distance={HorizontalDistance(currentTarget.position):F2}, forgetRadius={forgetRadius:F2}, state={currentState}");
+                currentTarget = null;
+            }
+            else
+            {
+                lastKnownTargetPosition = currentTarget.position;
+                hasLastKnownTargetPosition = true;
+            }
         }
 
         if (currentTarget != null) return;
@@ -559,11 +655,19 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
                 if (stateTimer <= 0f)
                 {
-                    Vector3 dir = currentTarget != null ? currentTarget.position - transform.position : transform.forward;
+                    if (currentTarget != null)
+                    {
+                        lastKnownTargetPosition = currentTarget.position;
+                        hasLastKnownTargetPosition = true;
+                    }
+                    Vector3 dir = hasLastKnownTargetPosition
+                        ? lastKnownTargetPosition - transform.position
+                        : transform.forward;
                     dir.y = 0f;
                     spinDirection = dir.sqrMagnitude > 0.0001f ? dir.normalized : transform.forward;
                     spinHitSomething = false;
                     spinHitIds.Clear();
+                    Log($"Spin locked: direction={spinDirection}, target={(currentTarget != null ? currentTarget.name : "none")}, lastKnown={lastKnownTargetPosition}");
                     SetState(SpinnerState.Spinning);
                 }
                 break;
@@ -739,6 +843,11 @@ public class ShellSpinnerEnemy : MonoBehaviour
                 SetAnimationSpeed(0f);
                 PlaySpinAttackAnimation(true);
                 stateTimer = settings != null ? settings.WindupDuration : 0.6f;
+                if (currentTarget != null)
+                {
+                    lastKnownTargetPosition = currentTarget.position;
+                    hasLastKnownTargetPosition = true;
+                }
                 if (targetingLine != null)
                 {
                     targetingLine.positionCount = Mathf.Max(2, settings != null ? settings.TargetingLineSegments : 10);
@@ -913,10 +1022,33 @@ public class ShellSpinnerEnemy : MonoBehaviour
                 ownerTag,
                 settings.ProjectileLifetime,
                 string.Empty);
+            if (settings.ProjectileTrailWidthOverride > 0f)
+                projectile.SetVisibilityTrailWidth(settings.ProjectileTrailWidthOverride);
+        }
+
+        Renderer projectileRenderer = FindProjectileVisualRenderer(projectileObject);
+        if (enableLogs && projectileCollider != null && projectileRenderer != null)
+        {
+            Vector3 colliderSize = projectileCollider.bounds.size;
+            Vector3 rendererSize = projectileRenderer.bounds.size;
+            Log($"Projectile bounds: variant={currentProjectileVariant}, renderer={rendererSize}, collider={colliderSize}, " +
+                $"radiusRatio={(rendererSize.x > 0.001f ? projectileCollider.bounds.extents.x / (rendererSize.x * 0.5f) : 0f):F2}");
         }
 
         if (currentProjectileVariant == ProjectileVariant.Heavy) ApplyRangedRecoil();
         Log($"Fired {currentProjectileVariant} projectile");
+    }
+
+    private static Renderer FindProjectileVisualRenderer(GameObject projectileObject)
+    {
+        Renderer[] renderers = projectileObject.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] is TrailRenderer || renderers[i] is ParticleSystemRenderer)
+                continue;
+            return renderers[i];
+        }
+        return null;
     }
 
     private bool TryFireRangedProjectile(string source)
