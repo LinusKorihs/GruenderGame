@@ -26,7 +26,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 192
   LosHeightOffset: 0.8
-  RotationSpeed: 0
+  RotationSpeed: 8
   WindupDuration: 1.5
   GroundMask:
     serializedVersion: 2

@@ -85,6 +85,7 @@ public partial class MinionCore : MonoBehaviour
 
     // Tracks movement direction this frame so separation can allow sliding past other minions.
     private bool wasMovingThisFrame;
+    private bool followHoldingPosition;
     private Vector3 lastMoveDir;
 
     [Header("Debug Visuals")]

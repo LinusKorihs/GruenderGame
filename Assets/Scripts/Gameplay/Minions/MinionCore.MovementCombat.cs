@@ -51,9 +51,24 @@ public partial class MinionCore
         Vector3 toTarget = target.position - transform.position;
         toTarget.y = 0f;
         float distance = toTarget.magnitude;
+        float stopDistance = Mathf.Max(0f, followStopDistance);
+        const float followArrivalBuffer = 0.2f;
+        const float followResumeBuffer = 0.55f;
 
-        if (distance <= Mathf.Max(0f, followStopDistance))
+        if (followHoldingPosition)
         {
+            if (distance <= stopDistance + followResumeBuffer)
+            {
+                ResetNavigationPath();
+                return;
+            }
+
+            followHoldingPosition = false;
+        }
+
+        if (distance <= stopDistance + followArrivalBuffer)
+        {
+            followHoldingPosition = true;
             if (distance > 0.0001f)
             {
                 SmoothFaceDirection(toTarget / Mathf.Max(distance, 0.0001f));
@@ -69,7 +84,7 @@ public partial class MinionCore
             return;
         }
 
-        MoveTowardsDistance(target.position, followStopDistance);
+        MoveTowardsDistance(target.position, stopDistance);
     }
 
     private Transform ResolveFollowTarget()
@@ -404,6 +419,12 @@ public partial class MinionCore
     private void ApplyLocalSeparation(float deltaTime)
     {
         if (!useLocalSeparation) return;
+
+        // Once a follower has settled near the player, continuous separation would push it
+        // outside the follow radius and the follow code would immediately pull it back in.
+        // Holding the settled position removes that visible push/pull jitter.
+        if (followHoldingPosition && stateMachine.CurrentState == MinionState.Follow && !wasMovingThisFrame)
+            return;
 
         // During post-attack recovery (Recover) the minion is briefly stationary — skip separation.
         // Approach is intentionally NOT skipped: the anti-movement stripping below keeps the forward

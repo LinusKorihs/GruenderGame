@@ -131,11 +131,20 @@ public class ShellSpinnerAnimatorBridge : MonoBehaviour
             animator.SetBool(continueShootingHash, continueShooting);
 
         ResetAttackTriggers();
-        animator.SetTrigger(projectileAttackHash);
-        PlayStateDirectly(projectileAttackState);
+        if (playStatesDirectly)
+        {
+            // As with the spin attack, leaving the trigger pending after a direct crossfade
+            // can enter the first projectile state a second time and replay the head tuck.
+            PlayStateDirectly(projectileAttackState);
+            animator.ResetTrigger(projectileAttackHash);
+        }
+        else
+        {
+            animator.SetTrigger(projectileAttackHash);
+        }
 
         if (logAnimatorCalls)
-            Debug.Log("[ShellSpinnerAnimatorBridge:" + name + "] Trigger ProjectileAttack", this);
+            Debug.Log("[ShellSpinnerAnimatorBridge:" + name + "] Start ProjectileAttack via " + (playStatesDirectly ? "direct state" : "trigger"), this);
     }
 
     public void PlaySpinAttack()
@@ -152,11 +161,20 @@ public class ShellSpinnerAnimatorBridge : MonoBehaviour
             animator.SetBool(continueSpinningHash, continueSpinning);
 
         ResetAttackTriggers();
-        animator.SetTrigger(spinAttackHash);
-        PlayStateDirectly(spinAttackState);
+        if (playStatesDirectly)
+        {
+            // Direct playback and a pending trigger both enter the first spin state.
+            // Using both restarts the tuck-in animation once the trigger transition fires.
+            PlayStateDirectly(spinAttackState);
+            animator.ResetTrigger(spinAttackHash);
+        }
+        else
+        {
+            animator.SetTrigger(spinAttackHash);
+        }
 
         if (logAnimatorCalls)
-            Debug.Log("[ShellSpinnerAnimatorBridge:" + name + "] Trigger SpinAttack", this);
+            Debug.Log("[ShellSpinnerAnimatorBridge:" + name + "] Start SpinAttack via " + (playStatesDirectly ? "direct state" : "trigger"), this);
     }
 
     public void StopSpinning()

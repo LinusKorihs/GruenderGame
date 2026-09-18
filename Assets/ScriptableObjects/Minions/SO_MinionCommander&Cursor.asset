@@ -57,8 +57,8 @@ MonoBehaviour:
   formationUpdateInterval: 0.1
   formationUpdateThreshold: 0.05
   enableCommandPreview: 1
-  previewNoTargetColor: {r: 0.65, g: 0.65, b: 0.65, a: 1}
+  previewNoTargetColor: {r: 0.35, g: 0.55, b: 1, a: 1}
   previewAttackColor: {r: 1, g: 0.25, b: 0.25, a: 1}
-  previewSupportColor: {r: 0.2, g: 0.9, b: 0.45, a: 1}
-  previewInvalidColor: {r: 0.35, g: 0.55, b: 1, a: 1}
+  previewSupportColor: {r: 1, g: 0.25, b: 0.25, a: 1}
+  previewInvalidColor: {r: 0.55, g: 0.06, b: 0.06, a: 1}
   previewEmissionIntensity: 0.35

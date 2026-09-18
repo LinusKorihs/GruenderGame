@@ -74,6 +74,9 @@ public class ShellSpinnerEnemy : MonoBehaviour
     [Header("Targeting Line")]
     [Tooltip("LineRenderer used to draw a live aim line toward the target during the windup. " + "Assign a child LineRenderer (2 positions, world space). Leave empty to skip.")]
     [SerializeField] private LineRenderer targetingLine;
+    private Mesh targetingStripMesh;
+    private MeshRenderer targetingStripRenderer;
+    private MeshFilter targetingStripFilter;
 
     [Header("Ranged Attack")]
     [Tooltip("Optional child transform projectiles spawn from. If empty, the settings ProjectileSpawnOffset is used.")]
@@ -191,6 +194,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
             targetingLine.receiveShadows = false;
             targetingLine.positionCount = Mathf.Max(2, settings != null ? settings.TargetingLineSegments : 10);
             targetingLine.enabled = false;
+            InitializeTargetingStrip();
         }
     }
 
@@ -201,6 +205,9 @@ public class ShellSpinnerEnemy : MonoBehaviour
             stats.Died -= OnDied;
             stats.DamageTaken -= OnDamageTaken;
         }
+
+        if (targetingStripMesh != null)
+            Destroy(targetingStripMesh);
     }
 
     private void EnsureAnimatedVisual()
@@ -247,7 +254,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
     // Updates the targeting line after transform and physics motion settles.
     private void LateUpdate()
     {
-        if (currentState != SpinnerState.Windup || targetingLine == null || !targetingLine.enabled) return;
+        if (currentState != SpinnerState.Windup || targetingStripRenderer == null || !targetingStripRenderer.enabled) return;
         if (currentTarget != null)
         {
             lastKnownTargetPosition = currentTarget.position;
@@ -255,17 +262,88 @@ public class ShellSpinnerEnemy : MonoBehaviour
         }
         if (!hasLastKnownTargetPosition) return;
         int segmentCount = Mathf.Max(2, settings != null ? settings.TargetingLineSegments : 10);
-        if (targetingLine.positionCount != segmentCount)
-            targetingLine.positionCount = segmentCount;
-
         Vector3 start = transform.position;
         Vector3 end = lastKnownTargetPosition;
         float referenceGroundY = FindReferenceGroundY(start);
+        Vector3[] points = new Vector3[segmentCount];
         for (int i = 0; i < segmentCount; i++)
         {
             float t = i / (float)(segmentCount - 1);
-            targetingLine.SetPosition(i, SnapToGround(Vector3.Lerp(start, end, t), referenceGroundY));
+            points[i] = SnapToGround(Vector3.Lerp(start, end, t), referenceGroundY);
         }
+        UpdateTargetingStrip(points);
+    }
+
+    private void InitializeTargetingStrip()
+    {
+        GameObject stripObject = new GameObject("Ground Targeting Strip");
+        stripObject.transform.SetParent(transform, false);
+        targetingStripFilter = stripObject.AddComponent<MeshFilter>();
+        targetingStripRenderer = stripObject.AddComponent<MeshRenderer>();
+        targetingStripRenderer.sharedMaterial = targetingLine.sharedMaterial;
+        targetingStripRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        targetingStripRenderer.receiveShadows = false;
+        targetingStripRenderer.sortingLayerID = targetingLine.sortingLayerID;
+        targetingStripRenderer.sortingOrder = targetingLine.sortingOrder;
+
+        targetingStripMesh = new Mesh { name = "Shell Spinner Ground Targeting Strip" };
+        targetingStripMesh.MarkDynamic();
+        targetingStripFilter.sharedMesh = targetingStripMesh;
+        targetingStripRenderer.enabled = false;
+    }
+
+    private void UpdateTargetingStrip(Vector3[] worldPoints)
+    {
+        if (targetingStripMesh == null || worldPoints == null || worldPoints.Length < 2)
+            return;
+
+        int count = worldPoints.Length;
+        Vector3[] vertices = new Vector3[count * 2];
+        Vector2[] uvs = new Vector2[count * 2];
+        int[] triangles = new int[(count - 1) * 6];
+        float width = targetingLine != null ? Mathf.Max(0.02f, targetingLine.widthMultiplier) : 0.3f;
+        float halfWidth = width * 0.5f;
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector3 previous = worldPoints[Mathf.Max(0, i - 1)];
+            Vector3 next = worldPoints[Mathf.Min(count - 1, i + 1)];
+            Vector3 forward = next - previous;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.0001f)
+                forward = transform.forward;
+            Vector3 side = Vector3.Cross(Vector3.up, forward.normalized);
+
+            vertices[i * 2] = transform.InverseTransformPoint(worldPoints[i] - side * halfWidth);
+            vertices[i * 2 + 1] = transform.InverseTransformPoint(worldPoints[i] + side * halfWidth);
+            float v = i / (float)(count - 1);
+            uvs[i * 2] = new Vector2(0f, v);
+            uvs[i * 2 + 1] = new Vector2(1f, v);
+
+            if (i >= count - 1) continue;
+            int triangle = i * 6;
+            int vertex = i * 2;
+            triangles[triangle] = vertex;
+            triangles[triangle + 1] = vertex + 2;
+            triangles[triangle + 2] = vertex + 1;
+            triangles[triangle + 3] = vertex + 1;
+            triangles[triangle + 4] = vertex + 2;
+            triangles[triangle + 5] = vertex + 3;
+        }
+
+        targetingStripMesh.Clear();
+        targetingStripMesh.vertices = vertices;
+        targetingStripMesh.uv = uvs;
+        targetingStripMesh.triangles = triangles;
+        targetingStripMesh.RecalculateBounds();
+    }
+
+    private void SetTargetingIndicatorVisible(bool visible)
+    {
+        if (targetingLine != null)
+            targetingLine.enabled = false;
+        if (targetingStripRenderer != null)
+            targetingStripRenderer.enabled = visible;
     }
 
     // Uses the walkable height below the Spinner as the reference. This avoids selecting
@@ -331,14 +409,96 @@ public class ShellSpinnerEnemy : MonoBehaviour
     {
         if (rb == null || stats == null || stats.IsDead) return;
 
-        if (currentState == SpinnerState.Spinning && !spinHitSomething && WouldSpinHitBlocker(frameVelocity, out RaycastHit blockerHit))
+        if (currentState == SpinnerState.Spinning && !spinHitSomething)
         {
-            frameVelocity = Vector3.zero;
-            RecoverFromPredictedBlocker(blockerHit);
-            spinHitSomething = true;
+            ProcessSpinActorSweep(frameVelocity);
+
+            if (WouldSpinHitBlocker(frameVelocity, out RaycastHit blockerHit))
+            {
+                frameVelocity = Vector3.zero;
+                RecoverFromPredictedBlocker(blockerHit);
+                spinHitSomething = true;
+            }
         }
 
         rb.linearVelocity = new Vector3(frameVelocity.x, rb.linearVelocity.y, frameVelocity.z);
+    }
+
+    private void ProcessSpinActorSweep(Vector3 velocity)
+    {
+        if (shellCollider == null || settings == null)
+            return;
+
+        Vector3 horizontalVelocity = new Vector3(velocity.x, 0f, velocity.z);
+        float speed = horizontalVelocity.magnitude;
+        if (speed <= 0.001f)
+            return;
+
+        Bounds bounds = shellCollider.bounds;
+        float radius = Mathf.Max(0.1f, Mathf.Min(bounds.extents.x, bounds.extents.z) * 0.9f);
+        float distance = speed * Time.fixedDeltaTime + settings.SpinCollisionSkin;
+        Vector3 direction = horizontalVelocity / speed;
+
+        Collider[] overlaps = Physics.OverlapSphere(bounds.center, radius, settings.DetectMask, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            if (TryApplySpinHit(overlaps[i], "overlap") && !settings.SpinUntilWall)
+            {
+                spinHitSomething = true;
+                return;
+            }
+        }
+
+        RaycastHit[] hits = Physics.SphereCastAll(bounds.center, radius, direction, distance, settings.DetectMask, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (TryApplySpinHit(hits[i].collider, "sweep") && !settings.SpinUntilWall)
+            {
+                spinHitSomething = true;
+                return;
+            }
+        }
+    }
+
+    private bool TryApplySpinHit(Collider hitCollider, string source)
+    {
+        if (hitCollider == null || hitCollider.transform.IsChildOf(transform) || settings == null)
+            return false;
+
+        Transform player = EnemyTargetUtility.FindTaggedActor(hitCollider.transform, settings.PlayerTag);
+        Transform minion = EnemyTargetUtility.FindTaggedActor(hitCollider.transform, settings.MinionTag);
+        bool isPlayer = player != null;
+        bool isMinion = minion != null;
+        if (!isPlayer && !isMinion)
+            return false;
+
+        Transform statsRoot = isPlayer && playerTransform != null ? playerTransform : hitCollider.transform;
+        CombatantStats targetStats = GetStats(statsRoot);
+        if (targetStats == null || targetStats.IsDead)
+        {
+            Log($"Spin damage ignored ({source}): target={(targetStats != null ? targetStats.name : hitCollider.name)}, deadOrMissing=true");
+            return false;
+        }
+
+        int id = targetStats.GetInstanceID();
+        if (!spinHitIds.Add(id))
+        {
+            Log($"Spin damage ignored ({source}): target={targetStats.name}, alreadyHit=true");
+            return false;
+        }
+
+        if (settings.SpinUntilWall && shellCollider != null && hitCollider != shellCollider && !ignoredColliders.Contains(hitCollider))
+        {
+            Physics.IgnoreCollision(shellCollider, hitCollider, true);
+            ignoredColliders.Add(hitCollider);
+        }
+
+        float requestedDamage = GetSpinDamage(targetStats, isMinion);
+        float dealtDamage = targetStats.ApplyDamage(requestedDamage);
+        Transform knockbackTarget = isPlayer && playerTransform != null ? playerTransform : targetStats.transform;
+        ApplyKnockback(knockbackTarget);
+        Log($"Spin damage applied ({source}): target={targetStats.name}, requested={requestedDamage:F1}, dealt={dealtDamage:F1}, collider={hitCollider.name}");
+        return true;
     }
 
     private bool WouldSpinHitBlocker(Vector3 velocity, out RaycastHit blockerHit)
@@ -420,6 +580,14 @@ public class ShellSpinnerEnemy : MonoBehaviour
         bool isPlayer = player != null;
         bool isMinion = minion != null;
 
+        if (isPlayer || isMinion)
+        {
+            bool hit = TryApplySpinHit(collision.collider, "collision");
+            if (hit && (settings == null || !settings.SpinUntilWall))
+                spinHitSomething = true;
+            return;
+        }
+
         // Ignore floor / ceiling: only horizontal contacts (wall normals) matter.
         bool hasHorizontalContact = false;
         for (int i = 0; i < collision.contactCount; i++)
@@ -439,41 +607,9 @@ public class ShellSpinnerEnemy : MonoBehaviour
             if (Time.time < spinStartTime + grace) return;
         }
 
-        if (isPlayer || isMinion)
-        {
-            // SpinUntilWall: physically pass through this target so the shell isn't stopped
-            if (settings != null && settings.SpinUntilWall && shellCollider != null
-                && !ignoredColliders.Contains(collision.collider))
-            {
-                Physics.IgnoreCollision(shellCollider, collision.collider, true);
-                ignoredColliders.Add(collision.collider);
-            }
-
-            // Deal damage to the hit target (once per spin per target).
-            Transform statsRoot = (isPlayer && playerTransform != null) ? playerTransform : collision.transform;
-            CombatantStats ts = GetStats(statsRoot);
-            if (ts != null)
-            {
-                int id = ts.GetInstanceID();
-                if (!spinHitIds.Contains(id) && !ts.IsDead)
-                {
-                    spinHitIds.Add(id);
-                    ts.ApplyDamage(GetSpinDamage(ts, isMinion));
-                    // For the player, apply knockback to playerTransform 
-                    Transform knockbackTarget = (isPlayer && playerTransform != null) ? playerTransform : ts.transform;
-                    ApplyKnockback(knockbackTarget);
-                    Log($"Spin hit {ts.name} for {GetSpinDamage(ts, isMinion)}");
-                }
-            }
-            // SpinUntilWall lets the shell pass through targets.
-            if (settings == null || !settings.SpinUntilWall) spinHitSomething = true;
-        }
-        else
-        {
-            Log($"Spin collision: blocker={collision.collider.name}, contacts={collision.contactCount}, position={transform.position}");
-            ResolveBlockingOverlap(collision.collider);
-            spinHitSomething = true;
-        }
+        Log($"Spin collision: blocker={collision.collider.name}, contacts={collision.contactCount}, position={transform.position}");
+        ResolveBlockingOverlap(collision.collider);
+        spinHitSomething = true;
     }
 
     private void ResolveBlockingOverlap(Collider blocker)
@@ -652,8 +788,9 @@ public class ShellSpinnerEnemy : MonoBehaviour
             case SpinnerState.Windup:
             {
                 stateTimer -= Time.deltaTime;
+                FaceTarget();
 
-                if (stateTimer <= 0f)
+                if (stateTimer <= 0f && IsFacingTarget())
                 {
                     if (currentTarget != null)
                     {
@@ -735,7 +872,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
                 stateTimer -= Time.deltaTime;
                 frameVelocity = Vector3.zero;
                 FaceTarget();
-                if (stateTimer <= 0f) SetState(SpinnerState.RangedAttack);
+                if (stateTimer <= 0f && IsFacingTarget()) SetState(SpinnerState.RangedAttack);
                 break;
             }
 
@@ -786,6 +923,16 @@ public class ShellSpinnerEnemy : MonoBehaviour
         if (dir.sqrMagnitude > 0.0001f) SmoothFaceDirection(dir.normalized);
     }
 
+    private bool IsFacingTarget(float maximumAngle = 6f)
+    {
+        if (currentTarget == null) return false;
+        Vector3 direction = currentTarget.position - transform.position;
+        direction.y = 0f;
+        if (direction.sqrMagnitude <= 0.0001f) return true;
+
+        return Vector3.Angle(transform.forward, direction.normalized) <= maximumAngle;
+    }
+
     private void FaceTowards(Vector3 direction)
     {
         direction.y = 0f;
@@ -826,7 +973,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
         Log($"State: {currentState} → {newState}");
         currentState = newState;
 
-        if (targetingLine != null) targetingLine.enabled = false;
+        SetTargetingIndicatorVisible(false);
 
         switch (newState)
         {
@@ -850,8 +997,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
                 }
                 if (targetingLine != null)
                 {
-                    targetingLine.positionCount = Mathf.Max(2, settings != null ? settings.TargetingLineSegments : 10);
-                    targetingLine.enabled = true;
+                    SetTargetingIndicatorVisible(true);
                 }
                 break;
 
@@ -1063,6 +1209,13 @@ public class ShellSpinnerEnemy : MonoBehaviour
         {
             StopShootingAnimation();
             Log($"Ignored projectile {source}: no projectiles remaining.");
+            return false;
+        }
+
+        if (!IsFacingTarget())
+        {
+            nextProjectileTime = Time.time + 0.05f;
+            Log($"Delayed projectile {source}: boss is still turning towards the target.");
             return false;
         }
 

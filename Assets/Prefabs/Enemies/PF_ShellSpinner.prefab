@@ -153,7 +153,7 @@ MonoBehaviour:
   - {fileID: 7470426654782078142}
   autoRefreshRenderers: 1
   highlightColor: {r: 0.042452812, g: 0.20989934, b: 1, a: 1}
-  intensity: 2
+  intensity: 0.35
   addToExistingEmission: 1
 --- !u!114 &7272819733732786336
 MonoBehaviour:

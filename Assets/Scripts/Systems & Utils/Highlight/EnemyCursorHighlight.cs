@@ -7,8 +7,13 @@ public class EnemyCursorHighlight : MonoBehaviour, ICursorHighlight
 
     [Header("Highlight Look")]
     [SerializeField] private Color highlightColor = new Color(1f, 1f, 1f, 1f); // can be overridden per enemy prefab
-    [SerializeField, Range(0f, 8f)] private float intensity = 2.0f;            // HDR-ish
+    [SerializeField, Range(0f, 8f)] private float intensity = 0.35f;
     [SerializeField] private bool addToExistingEmission = true;
+
+    [Header("Damage Feedback")]
+    [SerializeField] private Color damageColor = new Color(1f, 0.05f, 0.05f, 1f);
+    [SerializeField, Range(0f, 8f)] private float damageIntensity = 0.8f;
+    [SerializeField, Min(0.01f)] private float damageDuration = 0.14f;
 
     private MaterialPropertyBlock mpb;
     private static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
@@ -17,6 +22,8 @@ public class EnemyCursorHighlight : MonoBehaviour, ICursorHighlight
     private Color[][] originalEmission;
 
     private bool isHighlighted;
+    private float damageTimer;
+    private CombatantStats stats;
     public bool IsHighlighted => isHighlighted;
 
     private void Awake()
@@ -26,6 +33,35 @@ public class EnemyCursorHighlight : MonoBehaviour, ICursorHighlight
             RefreshRenderers(reapplyHighlight: false);
         else
             CacheOriginalEmission();
+
+        stats = GetComponentInParent<CombatantStats>() ?? GetComponentInChildren<CombatantStats>();
+    }
+
+    private void OnEnable()
+    {
+        if (stats != null)
+            stats.DamageTaken += HandleDamageTaken;
+    }
+
+    private void OnDisable()
+    {
+        if (stats != null)
+            stats.DamageTaken -= HandleDamageTaken;
+    }
+
+    private void Update()
+    {
+        if (damageTimer <= 0f)
+            return;
+
+        damageTimer = Mathf.Max(0f, damageTimer - Time.deltaTime);
+        ApplyHighlight();
+    }
+
+    private void HandleDamageTaken(float _)
+    {
+        damageTimer = damageDuration;
+        ApplyHighlight();
     }
 
     public void RefreshRenderers()
@@ -101,11 +137,13 @@ public class EnemyCursorHighlight : MonoBehaviour, ICursorHighlight
                 ren.GetPropertyBlock(mpb, m);
 
                 Color baseE = (originalEmission[r] != null && m < originalEmission[r].Length) ? originalEmission[r][m] : Color.black;
-                Color addE  = highlightColor * intensity;
-
-                Color final = isHighlighted
-                    ? (addToExistingEmission ? (baseE + addE) : addE)
-                    : baseE;
+                Color cursorEmission = isHighlighted ? highlightColor * intensity : Color.black;
+                float damage01 = damageDuration > 0f ? Mathf.Clamp01(damageTimer / damageDuration) : 0f;
+                Color damageEmission = damageColor * (damageIntensity * damage01);
+                Color effectEmission = cursorEmission + damageEmission;
+                Color final = (isHighlighted || damage01 > 0f) && !addToExistingEmission
+                    ? effectEmission
+                    : baseE + effectEmission;
 
                 mpb.SetColor(EmissionColor, final);
                 ren.SetPropertyBlock(mpb, m);

@@ -175,7 +175,7 @@ MonoBehaviour:
   renderers:
   - {fileID: 6083767334897502394}
   highlightColor: {r: 0.042452812, g: 0.20989934, b: 1, a: 1}
-  intensity: 2
+  intensity: 0.35
   addToExistingEmission: 1
 --- !u!114 &6167974990188645855
 MonoBehaviour:
