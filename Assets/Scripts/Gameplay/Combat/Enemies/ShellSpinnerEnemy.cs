@@ -71,6 +71,12 @@ public class ShellSpinnerEnemy : MonoBehaviour
     [Tooltip("Child GameObject containing the shell-only collider. Active while the spinner is inside the shell (invincible). " + "This is the collider that physically contacts players/walls during the spin.")]
     [SerializeField] private GameObject shellObject;
 
+    [Header("Runtime Fallback Hitbox")]
+    [Tooltip("Used when Body Object and Shell Object do not provide a collider. Values are local-space and scale with the enemy root.")]
+    [SerializeField, Min(0.05f)] private float fallbackColliderRadius = 0.5f;
+    [SerializeField, Min(0.1f)] private float fallbackColliderHeight = 1f;
+    [SerializeField] private Vector3 fallbackColliderCenter = Vector3.up * 0.5f;
+
     [Header("Targeting Line")]
     [Tooltip("LineRenderer used to draw a live aim line toward the target during the windup. " + "Assign a child LineRenderer (2 positions, world space). Leave empty to skip.")]
     [SerializeField] private LineRenderer targetingLine;
@@ -183,9 +189,9 @@ public class ShellSpinnerEnemy : MonoBehaviour
         if (fallbackCollider == null)
         {
             CapsuleCollider capsule = gameObject.AddComponent<CapsuleCollider>();
-            capsule.radius = 0.5f;
-            capsule.height = 1.5f;
-            capsule.center = Vector3.up * 0.5f;
+            capsule.radius = Mathf.Max(0.05f, fallbackColliderRadius);
+            capsule.height = Mathf.Max(capsule.radius * 2f, fallbackColliderHeight);
+            capsule.center = fallbackColliderCenter;
             fallbackCollider = capsule;
         }
 

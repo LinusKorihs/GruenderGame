@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -143,7 +144,73 @@ public sealed class RunLifecycleController : MonoBehaviour
     {
         if (deathRoutine != null) return;
         deadPlayer = boundPlayerStats != null ? PlayerRootResolver.FromGameObject(boundPlayerStats.gameObject) : null;
+        FreezeCombatAfterPlayerDeath();
         deathRoutine = StartCoroutine(PlayerDeathRoutine());
+    }
+
+    private void FreezeCombatAfterPlayerDeath()
+    {
+        HashSet<GameObject> frozenActors = new HashSet<GameObject>();
+
+        FreezeActors(FindObjectsByType<MinionCore>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), frozenActors);
+        FreezeActors(FindObjectsByType<EnemyAI>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), frozenActors);
+        FreezeActors(FindObjectsByType<LungerEnemy>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), frozenActors);
+        FreezeActors(FindObjectsByType<BurrowerEnemy>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), frozenActors);
+        FreezeActors(FindObjectsByType<ShellSpinnerEnemy>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), frozenActors);
+
+        MinionProjectile[] projectiles = FindObjectsByType<MinionProjectile>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < projectiles.Length; i++)
+        {
+            MinionProjectile projectile = projectiles[i];
+            if (projectile == null) continue;
+
+            projectile.enabled = false;
+            Collider projectileCollider = projectile.GetComponent<Collider>();
+            if (projectileCollider != null) projectileCollider.enabled = false;
+
+            Rigidbody projectileBody = projectile.GetComponent<Rigidbody>();
+            if (projectileBody != null)
+            {
+                projectileBody.linearVelocity = Vector3.zero;
+                projectileBody.angularVelocity = Vector3.zero;
+                projectileBody.isKinematic = true;
+            }
+        }
+
+        Log($"Combat frozen after player death: actors={frozenActors.Count}, projectiles={projectiles.Length}.");
+    }
+
+    private static void FreezeActors<T>(T[] behaviours, HashSet<GameObject> frozenActors) where T : MonoBehaviour
+    {
+        if (behaviours == null) return;
+
+        for (int i = 0; i < behaviours.Length; i++)
+        {
+            T behaviour = behaviours[i];
+            if (behaviour == null) continue;
+
+            behaviour.enabled = false;
+            CombatantStats stats = behaviour.GetComponent<CombatantStats>() ?? behaviour.GetComponentInParent<CombatantStats>();
+            GameObject actor = stats != null ? stats.gameObject : behaviour.gameObject;
+            if (!frozenActors.Add(actor)) continue;
+
+            Rigidbody[] bodies = actor.GetComponentsInChildren<Rigidbody>(true);
+            for (int bodyIndex = 0; bodyIndex < bodies.Length; bodyIndex++)
+            {
+                Rigidbody body = bodies[bodyIndex];
+                if (body == null) continue;
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.isKinematic = true;
+            }
+
+            Animator[] animators = actor.GetComponentsInChildren<Animator>(true);
+            for (int animatorIndex = 0; animatorIndex < animators.Length; animatorIndex++)
+            {
+                if (animators[animatorIndex] != null)
+                    animators[animatorIndex].enabled = false;
+            }
+        }
     }
 
     private IEnumerator PlayerDeathRoutine()
