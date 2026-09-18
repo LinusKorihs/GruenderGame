@@ -32,7 +32,7 @@ MonoBehaviour:
   callRange: 6
   dismissRange: 20
   dismissResumeFollowRange: 6
-  dismissFormationForwardOffset: 0
+  dismissFormationForwardOffset: 2.5
   dismissFormationGroupSpacing: 2
   dismissFormationMemberSpacing: 1.2
   dismissFormationMinResolvedSpacing: 0.6

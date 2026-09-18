@@ -133,6 +133,7 @@ public partial class MinionCore : MonoBehaviour
     public MinionRoleType RoleType => roleType; // Exposed runtime metadata for commander/input systems.
     public SupportMode? ActiveSupportMode => currentRole != null ? currentRole.GetSupportMode() : null;
     public bool IsDismissed => isDismissed;
+    public bool UsesNavMeshNavigation => useNavMeshNavigation;
     public CommandType CurrentCommandType => currentCommand != null ? currentCommand.Type : CommandType.None;
     public bool HasPlayerPositionCommand => CurrentCommandType == CommandType.Dismiss || CurrentCommandType == CommandType.MoveToPosition;
     public Transform FollowTarget => followTarget;
@@ -148,6 +149,12 @@ public partial class MinionCore : MonoBehaviour
         {
             SetFollowCommand();
         }
+    }
+
+    public void SetRuntimeNavMeshNavigation(bool enabled)
+    {
+        useNavMeshNavigation = enabled;
+        ResetNavigationPath();
     }
 
     private void Awake()

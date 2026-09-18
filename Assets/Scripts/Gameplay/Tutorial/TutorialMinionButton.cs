@@ -12,7 +12,7 @@ public sealed class TutorialMinionButton : MonoBehaviour
     [SerializeField] private Color buttonColor = new Color(0.12f, 0.65f, 0.9f, 1f);
     [SerializeField] private KeyCode keyboardKey = KeyCode.E;
     [SerializeField] private KeyCode controllerKey = KeyCode.JoystickButton0;
-    [SerializeField, Min(0.05f)] private float rearmDelay = 0.25f;
+    [SerializeField, Min(0.05f)] private float rearmDelay = 0.2f;
 
     private bool playerInRange;
     private float nextUseTime;

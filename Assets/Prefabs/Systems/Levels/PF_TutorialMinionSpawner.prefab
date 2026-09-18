@@ -289,7 +289,7 @@ MonoBehaviour:
   buttonColor: {r: 0.75, g: 0.15, b: 0.8, a: 1}
   keyboardKey: 101
   controllerKey: 330
-  rearmDelay: 0.25
+  rearmDelay: 0.2
 --- !u!1 &2622060398260377919
 GameObject:
   m_ObjectHideFlags: 0
@@ -548,7 +548,7 @@ MonoBehaviour:
   buttonColor: {r: 0.019607844, g: 1, b: 0.047058824, a: 1}
   keyboardKey: 101
   controllerKey: 330
-  rearmDelay: 0.25
+  rearmDelay: 0.2
 --- !u!1 &2651541330892148299
 GameObject:
   m_ObjectHideFlags: 0
@@ -1127,7 +1127,7 @@ MonoBehaviour:
   buttonColor: {r: 1, g: 0.050980393, b: 0.019607844, a: 1}
   keyboardKey: 101
   controllerKey: 330
-  rearmDelay: 0.25
+  rearmDelay: 0.2
 --- !u!1 &4159431901839955079
 GameObject:
   m_ObjectHideFlags: 0
@@ -1284,7 +1284,7 @@ MonoBehaviour:
   supportPrefab: {fileID: 980464467663854597, guid: 06a5cbf5c41792c4f858ab1266919769, type: 3}
   spawnPoint: {fileID: 4177299267874925606}
   maxTutorialMinions: 10
-  spawnSpacing: 1.25
+  spawnCooldown: 0.2
   navMeshSampleRadius: 2
 --- !u!1 &7975125965253015911
 GameObject:
@@ -1648,7 +1648,7 @@ MonoBehaviour:
   buttonColor: {r: 0.03529412, g: 0, b: 1, a: 1}
   keyboardKey: 101
   controllerKey: 330
-  rearmDelay: 0.25
+  rearmDelay: 0.2
 --- !u!1 &8836511257773397724
 GameObject:
   m_ObjectHideFlags: 0

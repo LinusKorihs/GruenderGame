@@ -11,10 +11,13 @@ public sealed class TutorialMinionCountDisplay : MonoBehaviour
     private int lastRanged = -1;
     private int lastSupport = -1;
     private int lastLimit = -1;
+    private Renderer[] displayRenderers;
+    private Camera activeCamera;
 
     private void Awake()
     {
         ResolveReferences();
+        displayRenderers = GetComponentsInChildren<Renderer>(true);
         Refresh(force: true);
     }
 
@@ -23,6 +26,39 @@ public sealed class TutorialMinionCountDisplay : MonoBehaviour
         if (spawner == null)
             ResolveReferences();
         Refresh(force: false);
+        UpdateVisibility();
+    }
+
+    private void UpdateVisibility()
+    {
+        if (activeCamera == null)
+            activeCamera = Camera.main;
+        if (activeCamera == null || displayRenderers == null) return;
+
+        Vector3 origin = activeCamera.transform.position;
+        Vector3 target = transform.position;
+        Vector3 direction = target - origin;
+        float distance = direction.magnitude;
+        bool occluded = false;
+
+        if (distance > 0.01f)
+        {
+            RaycastHit[] hits = Physics.RaycastAll(origin, direction / distance, distance, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Transform hit = hits[i].transform;
+                if (hit == null || hit == transform || hit.IsChildOf(transform)) continue;
+                if (EnemyTargetUtility.FindTaggedActor(hit, "Player") != null) continue;
+                occluded = true;
+                break;
+            }
+        }
+
+        for (int i = 0; i < displayRenderers.Length; i++)
+        {
+            if (displayRenderers[i] != null)
+                displayRenderers[i].forceRenderingOff = occluded;
+        }
     }
 
     private void ResolveReferences()

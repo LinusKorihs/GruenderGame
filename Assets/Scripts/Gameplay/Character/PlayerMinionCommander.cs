@@ -152,6 +152,7 @@ public class PlayerMinionCommander : MonoBehaviour
     public InputActionReference SelectPreviousMinionTypeAction => selectPreviousMinionTypeAction;
     public InputActionReference SelectNextMinionTypeAction => selectNextMinionTypeAction;
     public MinionRoleType SelectedRole => selectedRole;
+    public Transform PlayerTransform => player != null ? player : transform;
 
     public void SetKnownMinionCounts(int melee, int ranged, int support)
     {
@@ -1495,6 +1496,7 @@ public class PlayerMinionCommander : MonoBehaviour
         resolvedPosition = requestedPosition;
 
         if (minion == null) return false;
+        if (!minion.UsesNavMeshNavigation) return true;
         if (settings == null || !settings.validatePositionCommandsWithNavMesh) return true;
 
         float sampleRadius = Mathf.Max(0.05f, settings.positionCommandNavSampleRadius);

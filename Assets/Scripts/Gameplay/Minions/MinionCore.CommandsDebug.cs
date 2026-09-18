@@ -117,8 +117,7 @@ public partial class MinionCore
 
         // Only auto-assign when the minion has no active combat command.
         bool isIdleOrFollowing = currentCommand.Type == CommandType.None
-            || currentCommand.Type == CommandType.FollowPlayer
-            || currentCommand.Type == CommandType.Recall;
+            || currentCommand.Type == CommandType.FollowPlayer;
 
         if (!isIdleOrFollowing) return;
 

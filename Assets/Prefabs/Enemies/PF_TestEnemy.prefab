@@ -192,6 +192,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TutorialTrainingDummy
   bonusHealth: 100000
   feedbackVisibleDuration: 3
-  feedbackLocalPosition: {x: 1.4, y: 1.5, z: 0}
-  feedbackSize: {x: 2.8, y: 0.8}
+  feedbackLocalPosition: {x: 1.8, y: 1.75, z: 0}
+  feedbackSize: {x: 4, y: 1.8}
   feedbackScale: 0.01
