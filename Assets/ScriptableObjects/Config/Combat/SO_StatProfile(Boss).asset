@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CombatStatsProfile
   BaseStats:
   - Type: 0
-    Value: 600
+    Value: 500
   - Type: 1
     Value: 20
   - Type: 2
