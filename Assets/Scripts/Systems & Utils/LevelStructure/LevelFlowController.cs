@@ -67,6 +67,15 @@ public sealed class LevelFlowController : MonoBehaviour
     public LevelFlowConfig FlowConfig => flowConfig;
     public bool InfiniteLevelFlow => infiniteLevelFlow;
     public GameObject RuntimeRoot => GetRuntimeRootGameObject();
+    public LevelFlowStep NextStep
+    {
+        get
+        {
+            IReadOnlyList<LevelFlowStep> steps = Steps;
+            int index = NextStepIndex(steps, currentStepIndex);
+            return index >= 0 && index < steps.Count ? steps[index] : null;
+        }
+    }
 
     private IReadOnlyList<LevelFlowStep> Steps
     {

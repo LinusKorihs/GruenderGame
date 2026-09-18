@@ -163,7 +163,7 @@ public class MinionTypeSelectorHUD : MonoBehaviour
         rect.localScale = Vector3.one;
     }
 
-    private Sprite GetSprite(MinionRoleType role)
+    public Sprite GetRoleSprite(MinionRoleType role)
     {
         return role switch
         {
@@ -173,6 +173,8 @@ public class MinionTypeSelectorHUD : MonoBehaviour
             _ => meleeSprite
         };
     }
+
+    private Sprite GetSprite(MinionRoleType role) => GetRoleSprite(role);
 
     private void OnEmptySelectionRequested(MinionRoleType role)
     {

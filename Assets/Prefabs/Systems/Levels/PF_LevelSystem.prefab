@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5878695739281186272}
   - component: {fileID: 4177409580242676504}
   - component: {fileID: 4177409580242676505}
+  - component: {fileID: 4177409580242676506}
   m_Layer: 0
   m_Name: PF_LevelSystem
   m_TagString: Untagged
@@ -114,6 +115,27 @@ MonoBehaviour:
   - id: Player.Walk
     clip: {fileID: 8300000, guid: 9ca26e415dbd03e468f2e98327685806, type: 3}
   playThemeOnStart: 1
+--- !u!114 &4177409580242676506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3360377372533215709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84f7a2c3bd2e42a1afcb4d757f5efb91, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::RunLifecycleController
+  fadeDuration: 0.45
+  minimumBlackDuration: 0.35
+  meleeSprite: {fileID: 21300000, guid: cd049cf231a582541b073a8070643553, type: 3}
+  rangedSprite: {fileID: 21300000, guid: f5437e78e800c0940a9ebcafe5679a2e, type: 3}
+  supportSprite: {fileID: 21300000, guid: cb0efcd6bbd1e0d4c86b3563b16d1ccd, type: 3}
+  deathAnimationFallbackDelay: 2.75
+  gameOverSoundId: UI.GameOver
+  restartSceneName: 0. Runtime
+  enableLogs: 1
 --- !u!1001 &88456248308628729
 PrefabInstance:
   m_ObjectHideFlags: 0

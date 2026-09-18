@@ -224,4 +224,11 @@ public static class PlayerControlLock
         CameraOwners.Remove(owner);
         GameplayOwners.Remove(owner);
     }
+
+    public static void ClearAll()
+    {
+        MovementOwners.Clear();
+        CameraOwners.Clear();
+        GameplayOwners.Clear();
+    }
 }

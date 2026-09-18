@@ -14,6 +14,7 @@ public class PlayerHealthHUD : MonoBehaviour
     [SerializeField] private Color criticalColor = new Color(1f, 0.25f, 0.2f, 1f);
     [SerializeField, Range(0f, 1f)] private float woundedThreshold = 0.5f;
     [SerializeField, Range(0f, 1f)] private float criticalThreshold = 0.25f;
+    [SerializeField, Range(0f, 0.1f)] private float minimumVisibleAliveFill = 0.025f;
 
     private void Awake()
     {
@@ -81,7 +82,7 @@ public class PlayerHealthHUD : MonoBehaviour
         if (healthFill == null) return;
 
         float ratio = max > 0f ? Mathf.Clamp01(current / max) : 0f;
-        healthFill.fillAmount = ratio;
+        healthFill.fillAmount = current > 0f ? Mathf.Max(ratio, minimumVisibleAliveFill) : 0f;
 
         if (!tintByHealth)
         {

@@ -146,13 +146,10 @@ public class CombatantStats : MonoBehaviour
             if (GetComponentInParent<MinionCore>() != null)
                 SoundManager.TryPlayId("Minion.Death", transform);
             Died?.Invoke(); // Notify listeners that the combatant has died
-            if (despawnOnDeath)
+            bool isPlayer = transform.root.CompareTag("Player");
+            if (despawnOnDeath && !isPlayer)
             {
-                // If the root is the player, destroy the whole hierarchy, not just this child.
-                GameObject toDestroy = transform.root.CompareTag("Player")
-                    ? transform.root.gameObject
-                    : gameObject;
-                Destroy(toDestroy, Mathf.Max(0f, despawnDelay));
+                Destroy(gameObject, Mathf.Max(0f, despawnDelay));
             }
         }
     }

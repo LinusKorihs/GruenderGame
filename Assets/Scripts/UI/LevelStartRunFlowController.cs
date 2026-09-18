@@ -239,14 +239,28 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             startButtonObject = null;
         }
 
+        StartCoroutine(BeginInitialRunTransition());
+    }
+
+    private IEnumerator BeginInitialRunTransition()
+    {
+        SetTransitioningLevel(true);
+        RunSetupData data = RunSetupData.EnsureInstance();
+        RunLifecycleController lifecycle = RunLifecycleController.Instance;
+        if (lifecycle != null)
+        {
+            string title = LevelFlowController.Instance?.CurrentStep?.DisplayName ?? "Layer 1";
+            yield return lifecycle.ShowLevelTransition(title, data.typeA, data.typeB, data.typeC);
+        }
+
         if (loadDedicatedRunSceneBeforeGeneration && ShouldDeferAutoGeneration(SceneManager.GetActiveScene()))
         {
             LoadRunSceneThenGenerate();
+            yield break;
         }
-        else
-        {
-            GenerateCurrentLevel();
-        }
+
+        GenerateCurrentLevel();
+        yield return FinishVisibleTransition();
     }
 
     private void StartRunFromSelectionUI()
@@ -288,15 +302,40 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         UpdateRunSetupMinionCountsFromLiveParty("level exit");
 
+        RunSetupData survivorData = RunSetupData.EnsureInstance();
+        RunLifecycleController lifecycle = RunLifecycleController.Instance;
+        LevelFlowStep nextStep = LevelFlowController.Instance?.NextStep;
+
+        if (lifecycle != null)
+        {
+            string title = nextStep?.DisplayName ?? $"Layer {Mathf.Max(1, survivorData.levelIndex + 1)}";
+            yield return lifecycle.ShowLevelTransition(title, survivorData.typeA, survivorData.typeB, survivorData.typeC);
+        }
+
+        if (nextStep != null && nextStep.stepType == LevelFlowStepType.Boss)
+            PreparePlayerForRuntimeSceneTransition();
+
         LevelFlowAdvanceAction flowAction = LevelFlowController.Instance != null
             ? LevelFlowController.Instance.AdvanceAfterCurrentLevelExit()
             : LevelFlowAdvanceAction.NotHandled;
 
-        if (flowAction == LevelFlowAdvanceAction.LoadingScene ||
-            flowAction == LevelFlowAdvanceAction.Complete ||
-            flowAction == LevelFlowAdvanceAction.Blocked)
+        if (flowAction == LevelFlowAdvanceAction.LoadingScene)
         {
-            SetTransitioningLevel(false);
+            if (nextStep != null && nextStep.sceneMode == LevelFlowSceneMode.RuntimeScene)
+            {
+                if (nextStep.stepType == LevelFlowStepType.Boss)
+                    SoundManager.ApplyMusicForLayer(nextStep.stepId);
+                yield return FinishTransitionAfterSceneReady();
+            }
+            yield break;
+        }
+
+        if (flowAction == LevelFlowAdvanceAction.Complete)
+            yield break;
+
+        if (flowAction == LevelFlowAdvanceAction.Blocked)
+        {
+            yield return FinishVisibleTransition();
             yield break;
         }
 
@@ -321,7 +360,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         }
 
         GenerateCurrentLevel();
-        SetTransitioningLevel(false);
+        yield return FinishVisibleTransition();
     }
 
     private void ResolveSceneReferences()
@@ -334,6 +373,24 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         commander = FindFirstObjectByType<PlayerMinionCommander>();
         player = commander != null ? PlayerRootResolver.FromCommander(commander) : FindTaggedPlayerRoot();
         EnsurePlayerKelpVisual();
+    }
+
+    private void PreparePlayerForRuntimeSceneTransition()
+    {
+        ResolveSceneReferences();
+        if (player == null)
+        {
+            Debug.LogWarning("[RunFlow] No player found before runtime-scene transition.", this);
+            return;
+        }
+
+        player = PlayerRootResolver.FromGameObject(player);
+        if (player == null)
+            return;
+
+        player.transform.SetParent(null, true);
+        DontDestroyOnLoad(player);
+        Debug.Log($"[RunFlow] Preserved player before runtime-scene transition from '{SceneManager.GetActiveScene().name}'.", player);
     }
 
     private void LoadRunSceneThenGenerate()
@@ -376,7 +433,12 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             StartCoroutine(PrepareLobbyWhenSceneIsReady(scene));
         }
 
-        if (!pendingGenerationAfterRunSceneLoad) return;
+        if (!pendingGenerationAfterRunSceneLoad)
+        {
+            if (transitioningLevel && RunLifecycleController.Instance != null && RunLifecycleController.Instance.IsTransitionVisible)
+                StartCoroutine(FinishTransitionAfterSceneReady());
+            return;
+        }
         if (!string.Equals(scene.name, pendingRunSceneName, StringComparison.OrdinalIgnoreCase)) return;
 
         pendingGenerationAfterRunSceneLoad = false;
@@ -395,6 +457,21 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         }
 
         GenerateCurrentLevel();
+        yield return FinishVisibleTransition();
+    }
+
+    private IEnumerator FinishTransitionAfterSceneReady()
+    {
+        yield return null;
+        yield return FinishVisibleTransition();
+    }
+
+    private IEnumerator FinishVisibleTransition()
+    {
+        RunLifecycleController lifecycle = RunLifecycleController.Instance;
+        if (lifecycle != null)
+            yield return lifecycle.HideLevelTransitionWhenReady();
+
         SetTransitioningLevel(false);
     }
 

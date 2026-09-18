@@ -1,7 +1,10 @@
+using System;
 using UnityEngine;
 
 public class KelpAnimationEvents : MonoBehaviour
 {
+    public static event Action<GameObject> PlayerDeathAnimationFinished;
+
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
 
@@ -61,6 +64,7 @@ public class KelpAnimationEvents : MonoBehaviour
     public void OnDeathFinished()
     {
         LogEvent("Death animation finished");
+        PlayerDeathAnimationFinished?.Invoke(PlayerRootResolver.FromGameObject(gameObject));
     }
 
     // Alias-Methoden, falls Animation Events kürzer benannt wurden

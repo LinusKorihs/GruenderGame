@@ -278,6 +278,16 @@ MonoBehaviour:
     maxDistance: 25
     rolloffMode: 0
     outputGroup: {fileID: 0}
+  - id: UI.GameOver
+    clip: {fileID: 0}
+    bus: 0
+    volume: 1
+    pitch: 1
+    spatialBlend: 0
+    minDistance: 1
+    maxDistance: 25
+    rolloffMode: 0
+    outputGroup: {fileID: 0}
   layerMusic:
   - layerId: Start
     keepPreviousMusic: 1

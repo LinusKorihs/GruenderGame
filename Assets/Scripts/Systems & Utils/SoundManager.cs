@@ -19,6 +19,7 @@ public sealed class SoundManager : MonoBehaviour
 
     private AudioSource musicSource;
     private Coroutine bossMusicRoutine;
+    private string activeMusicLayerId;
     private readonly HashSet<string> warnedMissingSounds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, AudioSource> loopSources = new Dictionary<string, AudioSource>();
     private static bool warnedMissingManager;
@@ -117,7 +118,7 @@ public sealed class SoundManager : MonoBehaviour
     private void Start()
     {
         if (playThemeOnStart)
-            PlayMusic(audioProfile != null ? audioProfile.startupMusicId : "Music.Theme", true);
+            PlayStartupMusic();
     }
 
     public AudioSource Play(SoundCue cue, Transform origin = null)
@@ -171,6 +172,49 @@ public sealed class SoundManager : MonoBehaviour
         return TryPlay(new SoundCue(soundId, spatialBlend), origin);
     }
 
+    public static bool TryPlayConfiguredId(string soundId, Transform origin = null, float spatialBlend = 1f)
+    {
+        if (Instance == null || string.IsNullOrWhiteSpace(soundId) ||
+            !Instance.TryResolveDefinition(soundId, out AudioDefinition definition) || definition.clip == null)
+            return false;
+
+        return Instance.Play(new SoundCue(soundId, spatialBlend), origin) != null;
+    }
+
+    public static void StopMusic()
+    {
+        if (Instance == null)
+            return;
+
+        if (Instance.bossMusicRoutine != null)
+        {
+            Instance.StopCoroutine(Instance.bossMusicRoutine);
+            Instance.bossMusicRoutine = null;
+        }
+
+        if (Instance.musicSource != null)
+            Instance.musicSource.Stop();
+
+        Instance.activeMusicLayerId = null;
+    }
+
+    public static void EnsureStartupMusicPlaying()
+    {
+        if (Instance == null)
+            return;
+
+        if (Instance.musicSource != null && Instance.musicSource.isPlaying)
+            return;
+
+        StopMusic();
+        Instance.PlayStartupMusic();
+    }
+
+    private void PlayStartupMusic()
+    {
+        PlayMusic(audioProfile != null ? audioProfile.startupMusicId : "Music.Theme", true);
+    }
+
     public void PlayMusic(string soundId, bool loop)
     {
         if (!TryResolveDefinition(soundId, out AudioDefinition definition))
@@ -204,6 +248,10 @@ public sealed class SoundManager : MonoBehaviour
 
     public void PlayMusicForLayer(string layerId)
     {
+        if (!string.IsNullOrWhiteSpace(activeMusicLayerId) &&
+            string.Equals(activeMusicLayerId, layerId, StringComparison.OrdinalIgnoreCase))
+            return;
+
         if (audioProfile == null || !audioProfile.TryGetLayerMusic(layerId, out LayerMusicRule rule))
         {
             WarnMissingOnce($"Music rule for layer '{layerId}'", this);
@@ -213,6 +261,7 @@ public sealed class SoundManager : MonoBehaviour
         if (rule.keepPreviousMusic)
             return;
 
+        activeMusicLayerId = layerId;
         if (bossMusicRoutine != null)
             StopCoroutine(bossMusicRoutine);
         bossMusicRoutine = StartCoroutine(PlayMusicRuleRoutine(rule));

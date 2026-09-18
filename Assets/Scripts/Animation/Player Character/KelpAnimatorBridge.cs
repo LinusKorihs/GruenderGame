@@ -19,6 +19,7 @@ public class KelpAnimatorBridge : MonoBehaviour
 
     [Header("State Names")]
     [SerializeField] private string idleStateName = "Kelp_Idle";
+    [SerializeField] private string deathStateName = "Kelp_Death";
 
     private int speedHash;
     private int punchHash;
@@ -169,6 +170,16 @@ public class KelpAnimatorBridge : MonoBehaviour
         }
 
         animator.SetBool(isDeadHash, isDead);
+    }
+
+    public bool IsDeathAnimationComplete(float normalizedThreshold = 0.96f)
+    {
+        if (animator == null || string.IsNullOrWhiteSpace(deathStateName))
+            return false;
+
+        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(0);
+        return state.IsName(deathStateName) && !animator.IsInTransition(0) &&
+               state.normalizedTime >= Mathf.Clamp01(normalizedThreshold);
     }
 
     public void ResetToIdle()
