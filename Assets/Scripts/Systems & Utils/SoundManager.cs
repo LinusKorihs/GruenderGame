@@ -277,28 +277,13 @@ public sealed class SoundManager : MonoBehaviour
                 yield return new WaitForSecondsRealtime(introDuration);
         }
 
-        while (true)
-        {
-            float mainDuration = ResolveDuration(rule.mainSoundId);
-            PlayMusic(rule.mainSoundId, !rule.loopMainWithOutro);
-            if (!rule.loopMainWithOutro)
-                break;
-            if (mainDuration > 0f)
-                yield return new WaitForSecondsRealtime(mainDuration);
-
-            float endDuration = ResolveDuration(rule.outroSoundId);
-            PlayMusic(rule.outroSoundId, false);
-            if (endDuration > 0f)
-                yield return new WaitForSecondsRealtime(endDuration);
-
-            if (mainDuration <= 0f && endDuration <= 0f)
-                break;
-        }
+        if (!string.IsNullOrWhiteSpace(rule.mainSoundId))
+            PlayMusic(rule.mainSoundId, rule.loopMain);
 
         bossMusicRoutine = null;
     }
 
-    public void PlayBossWin()
+    public void PlayBossEnd()
     {
         if (bossMusicRoutine != null)
         {
@@ -307,8 +292,16 @@ public sealed class SoundManager : MonoBehaviour
         }
         if (musicSource != null)
             musicSource.Stop();
-        string winId = audioProfile != null ? audioProfile.bossWinSoundId : "Music.Boss.Win";
-        PlayMusic(winId, false);
+
+        if (audioProfile != null &&
+            audioProfile.TryGetLayerMusic("boss", out LayerMusicRule bossRule) &&
+            !string.IsNullOrWhiteSpace(bossRule.outroSoundId))
+        {
+            PlayMusic(bossRule.outroSoundId, false);
+            return;
+        }
+
+        WarnMissingOnce("Music.Boss.End", this);
     }
 
     public static void SetLoop(string soundId, Transform owner, bool shouldPlay, float spatialBlend = 1f)

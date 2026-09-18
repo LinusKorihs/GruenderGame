@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.Serialization;
 
 public enum AudioBus
 {
@@ -35,8 +36,9 @@ public sealed class LayerMusicRule
     public string introSoundId;
     public string mainSoundId;
     public string outroSoundId;
-    [Tooltip("Repeats Main -> Outro -> Main. If disabled, Main loops by itself after the optional intro.")]
-    public bool loopMainWithOutro;
+    [FormerlySerializedAs("loopMainWithOutro")]
+    [Tooltip("When enabled, Main loops until the layer is completed. Outro is played once when the boss is defeated.")]
+    public bool loopMain = true;
 }
 
 [CreateAssetMenu(menuName = "SO/Audio/Audio Settings", fileName = "SO_AudioSettings")]
@@ -49,7 +51,6 @@ public sealed class AudioSettingsProfile : ScriptableObject
 
     [Header("Startup / special music")]
     public string startupMusicId = "Music.Theme";
-    public string bossWinSoundId = "Music.Boss.Win";
 
     [Header("All music and sound effects")]
     public List<AudioDefinition> sounds = new List<AudioDefinition>();

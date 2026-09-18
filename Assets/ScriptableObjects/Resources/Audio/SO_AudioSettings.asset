@@ -16,7 +16,6 @@ MonoBehaviour:
   sfxVolume: 1
   musicVolume: 1
   startupMusicId: Music.Theme
-  bossWinSoundId: Music.Boss.Win
   sounds:
   - id: Music.Theme
     clip: {fileID: 8300000, guid: 106ddf3d0acd4654e863465ad3c3197c, type: 3}
@@ -50,16 +49,6 @@ MonoBehaviour:
     outputGroup: {fileID: 0}
   - id: Music.Boss.End
     clip: {fileID: 8300000, guid: 6938f0233fb8fd5429e77cce47eb46bc, type: 3}
-    bus: 1
-    volume: 1
-    pitch: 1
-    spatialBlend: 0
-    minDistance: 1
-    maxDistance: 25
-    rolloffMode: 0
-    outputGroup: {fileID: 0}
-  - id: Music.Boss.Win
-    clip: {fileID: 0}
     bus: 1
     volume: 1
     pitch: 1
@@ -294,22 +283,22 @@ MonoBehaviour:
     introSoundId:
     mainSoundId:
     outroSoundId:
-    loopMainWithOutro: 0
+    loopMain: 0
   - layerId: level_01
     keepPreviousMusic: 1
     introSoundId:
     mainSoundId:
     outroSoundId:
-    loopMainWithOutro: 0
+    loopMain: 0
   - layerId: level_02
     keepPreviousMusic: 1
     introSoundId:
     mainSoundId:
     outroSoundId:
-    loopMainWithOutro: 0
+    loopMain: 0
   - layerId: boss
     keepPreviousMusic: 0
     introSoundId: Music.Boss.Start
     mainSoundId: Music.Boss.Main
     outroSoundId: Music.Boss.End
-    loopMainWithOutro: 1
+    loopMain: 1

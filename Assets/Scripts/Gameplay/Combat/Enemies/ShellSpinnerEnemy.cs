@@ -1423,9 +1423,13 @@ public sealed class BossEncounterController : MonoBehaviour
 
     private GameplayHUDController hud;
     private bool completed;
+    private GameObject victoryScreenRoot;
+    private Font victoryFont;
 
     private void OnEnable()
     {
+        if (showVictoryScreenOnDeath)
+            PrepareVictoryScreen();
         StartCoroutine(StartBossMusicWhenVisible());
         ResolveBossStats();
         Subscribe();
@@ -1497,7 +1501,7 @@ public sealed class BossEncounterController : MonoBehaviour
 
         completed = true;
         if (SoundManager.Instance != null)
-            SoundManager.Instance.PlayBossWin();
+            SoundManager.Instance.PlayBossEnd();
         TryBindHud();
 
         LevelFlowController flow = LevelFlowController.Instance;
@@ -1510,11 +1514,18 @@ public sealed class BossEncounterController : MonoBehaviour
 
     private void ShowVictoryScreen()
     {
-        const string overlayName = "VictoryScreen_Runtime";
-        if (GameObject.Find(overlayName) != null)
+        PrepareVictoryScreen();
+        if (victoryScreenRoot != null)
+            victoryScreenRoot.SetActive(true);
+    }
+
+    private void PrepareVictoryScreen()
+    {
+        if (victoryScreenRoot != null)
             return;
 
-        GameObject root = new GameObject(overlayName);
+        GameObject root = new GameObject("VictoryScreen_Runtime");
+        victoryScreenRoot = root;
         Canvas canvas = root.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 500;
@@ -1539,9 +1550,10 @@ public sealed class BossEncounterController : MonoBehaviour
 
         CreateLabel(panel.transform, victoryTitle, 72, new Vector2(0f, 48f), FontStyle.Bold);
         CreateLabel(panel.transform, victorySubtitle, 32, new Vector2(0f, -40f), FontStyle.Normal);
+        root.SetActive(false);
     }
 
-    private static void CreateLabel(Transform parent, string text, int fontSize, Vector2 anchoredPosition, FontStyle style)
+    private void CreateLabel(Transform parent, string text, int fontSize, Vector2 anchoredPosition, FontStyle style)
     {
         GameObject label = new GameObject(string.IsNullOrWhiteSpace(text) ? "Label" : text);
         label.transform.SetParent(parent, false);
@@ -1560,7 +1572,11 @@ public sealed class BossEncounterController : MonoBehaviour
         uiText.fontStyle = style;
         uiText.color = Color.white;
         uiText.raycastTarget = false;
-        uiText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
-                      ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        if (victoryFont == null)
+        {
+            victoryFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                          ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        }
+        uiText.font = victoryFont;
     }
 }
