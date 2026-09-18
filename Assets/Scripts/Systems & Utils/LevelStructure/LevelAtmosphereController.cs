@@ -13,6 +13,7 @@ public sealed class LevelAtmosphereController : MonoBehaviour
     private const string GroundColorProperty = "_GroundColor";
     private const string ExposureProperty = "_Exposure";
     private const string AtmosphereThicknessProperty = "_AtmosphereThickness";
+    private const string SunDiskProperty = "_SunDisk";
 
     [Header("Default")]
     [SerializeField] private LevelAtmosphereProfile defaultProfile;
@@ -497,6 +498,7 @@ public sealed class LevelAtmosphereController : MonoBehaviour
         SetColorIfPresent(runtimeProceduralSkybox, GroundColorProperty, profile.proceduralGroundColor);
         SetFloatIfPresent(runtimeProceduralSkybox, ExposureProperty, profile.proceduralExposure);
         SetFloatIfPresent(runtimeProceduralSkybox, AtmosphereThicknessProperty, profile.proceduralAtmosphereThickness);
+        SetFloatIfPresent(runtimeProceduralSkybox, SunDiskProperty, profile.proceduralSunDisk ? 2f : 0f);
         return runtimeProceduralSkybox;
     }
 

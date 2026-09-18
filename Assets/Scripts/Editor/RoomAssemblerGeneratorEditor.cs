@@ -101,6 +101,59 @@ public class RoomAssemblerGeneratorEditor : Editor
     }
 }
 
+[CustomEditor(typeof(LevelSystemController))]
+public sealed class LevelSystemControllerEditor : Editor
+{
+    public override void OnInspectorGUI()
+    {
+        DrawDefaultInspector();
+
+        if (GUILayout.Button("Enable Environment Prop Read/Write"))
+        {
+            EnableEnvironmentPropReadWrite((LevelSystemController)target);
+        }
+    }
+
+    private static void EnableEnvironmentPropReadWrite(LevelSystemController levelSystem)
+    {
+        string[] modelGuids = AssetDatabase.FindAssets("t:Model", new[] { "Assets/Art/Models/Environment" });
+        List<string> disabledPaths = new List<string>();
+
+        for (int i = 0; i < modelGuids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(modelGuids[i]);
+            if (AssetImporter.GetAtPath(path) is ModelImporter importer && !importer.isReadable)
+                disabledPaths.Add(path);
+        }
+
+        if (disabledPaths.Count == 0)
+        {
+            Debug.Log("[Level System NavMesh] All environment prop meshes already allow Read/Write.", levelSystem);
+            return;
+        }
+
+        bool confirmed = EditorUtility.DisplayDialog(
+            "Enable Environment Prop Read/Write",
+            $"Enable Read/Write and reimport {disabledPaths.Count} environment model asset(s)?\n\n" +
+            "This makes runtime NavMesh baking build-safe for MeshCollider props.",
+            "Enable and Reimport",
+            "Cancel");
+        if (!confirmed)
+            return;
+
+        for (int i = 0; i < disabledPaths.Count; i++)
+        {
+            if (AssetImporter.GetAtPath(disabledPaths[i]) is not ModelImporter importer)
+                continue;
+            importer.isReadable = true;
+            importer.SaveAndReimport();
+        }
+
+        AssetDatabase.Refresh();
+        Debug.Log($"[Level System NavMesh] Enabled Read/Write on {disabledPaths.Count} environment model asset(s).", levelSystem);
+    }
+}
+
 [CustomEditor(typeof(LevelProfileLoader))]
 public class LevelProfileLoaderEditor : Editor
 {

@@ -18,8 +18,18 @@ public class MinionProjectile : MonoBehaviour
     private float lifetime;
     private float spawnTime;
 
+    [Header("Visibility")]
+    [SerializeField] private bool addVisibilityTrail = true;
+    [SerializeField] private Color visibilityColor = new Color(0.15f, 0.85f, 1f, 1f);
+    [SerializeField, Min(0.01f)] private float minionTrailWidth = 0.08f;
+    [SerializeField, Min(0.01f)] private float enemyTrailWidth = 0.22f;
+
+    private TrailRenderer visibilityTrail;
+
     private void Awake()
     {
+        EnsureVisibility();
+
         Collider col = GetComponent<Collider>();
         if (col != null)
             col.isTrigger = true;
@@ -28,6 +38,28 @@ public class MinionProjectile : MonoBehaviour
         rb.isKinematic = true;
         rb.useGravity = false;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+    }
+
+    private void EnsureVisibility()
+    {
+        if (!addVisibilityTrail || GetComponent<TrailRenderer>() != null)
+            return;
+
+        visibilityTrail = gameObject.AddComponent<TrailRenderer>();
+        visibilityTrail.time = 0.28f;
+        visibilityTrail.startWidth = enemyTrailWidth;
+        visibilityTrail.endWidth = 0f;
+        visibilityTrail.startColor = visibilityColor;
+        visibilityTrail.endColor = new Color(visibilityColor.r, visibilityColor.g, visibilityColor.b, 0f);
+        visibilityTrail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        visibilityTrail.receiveShadows = false;
+
+        Shader shader = Shader.Find("Sprites/Default");
+        if (shader != null)
+        {
+            Material trailMaterial = new Material(shader) { color = visibilityColor };
+            visibilityTrail.material = trailMaterial;
+        }
     }
 
     // Called immediately after Instantiate to configure the projectile. Owner tag is optional but prevents the projectile from hitting the shooter team.
@@ -49,6 +81,11 @@ public class MinionProjectile : MonoBehaviour
         this.playerTag = playerTag;
         this.lifetime  = Mathf.Max(0.1f, lifetime);
         spawnTime      = Time.time;
+
+        if (visibilityTrail != null)
+            visibilityTrail.startWidth = string.Equals(ownerTag, "Ally", System.StringComparison.OrdinalIgnoreCase)
+                ? minionTrailWidth
+                : enemyTrailWidth;
 
         // Face the target immediately on spawn.
         if (target != null)

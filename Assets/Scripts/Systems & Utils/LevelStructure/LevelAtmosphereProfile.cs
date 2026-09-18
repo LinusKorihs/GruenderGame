@@ -32,6 +32,9 @@ public sealed class LevelAtmosphereProfile : ScriptableObject
     [Range(0f, 5f)]
     public float proceduralAtmosphereThickness = 1f;
 
+    [Tooltip("Show the procedural skybox sun disk. Disable this for evenly colored skies without a yellow sun glow.")]
+    public bool proceduralSunDisk = true;
+
     [Header("Directional Light")]
     [Tooltip("Creates or updates a directional light in the active runtime level root.")]
     public bool manageDirectionalLight = true;

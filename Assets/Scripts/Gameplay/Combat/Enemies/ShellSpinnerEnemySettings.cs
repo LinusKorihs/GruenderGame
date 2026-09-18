@@ -34,6 +34,9 @@ public class ShellSpinnerEnemySettings : ScriptableObject
     public float WindupDuration = 0.6f;
     [Tooltip("LayerMask used to snap the targeting line to the ground surface. " + "Assign the same layer(s) as your floor geometry. If empty the spinner's own Y is used as a fallback.")]
     public LayerMask GroundMask;
+    [Range(2, 24)] public int TargetingLineSegments = 10;
+    [Min(0f)] public float TargetingLineGroundOffset = 0.04f;
+    [Min(0.5f)] public float TargetingLineRayHeight = 8f;
 
     [Header("Attack Choice")]
     [Range(0f, 1f)]
@@ -53,6 +56,10 @@ public class ShellSpinnerEnemySettings : ScriptableObject
     public bool SpinUntilWall = false;
     [Tooltip("Maximum travel distance before the spin automatically ends. 0 = unlimited.")]
     public float MaxSpinRange = 20f;
+    [Tooltip("Layers that stop the spin before the shell can tunnel into walls or props.")]
+    public LayerMask SpinBlockMask = ~0;
+    [Min(0f), Tooltip("Small safety gap kept in front of blocking geometry.")]
+    public float SpinCollisionSkin = 0.05f;
 
     [Header("Hit Pause")]
     [Tooltip("Duration of the brief impact-stop when the spinner hits anything. Still in shell / invincible.")]
@@ -75,6 +82,8 @@ public class ShellSpinnerEnemySettings : ScriptableObject
     public float ProjectileLifetime = 6f;
     [Tooltip("Visual/gameplay scale multiplier applied to spawned projectile instances.")]
     public float ProjectileScaleMultiplier = 1f;
+    [Range(0.05f, 1f), Tooltip("Collider radius multiplier after projectile scaling. Use a lower value when the visible mesh is much smaller than its root scale.")]
+    public float ProjectileHitboxRadiusMultiplier = 1f;
     [Tooltip("When true, spawned projectiles keep steering toward the current target.")]
     public bool UseHomingProjectiles = true;
 

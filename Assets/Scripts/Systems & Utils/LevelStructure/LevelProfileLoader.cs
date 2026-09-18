@@ -36,6 +36,7 @@ public class LevelProfileLoader : MonoBehaviour
     public LevelContentSpawnConfig RuntimeSpawnConfig { get; private set; }
 
     private Transform runtimeLevelRootOverride;
+    private RuntimeNavMeshBuilder runtimeNavMeshBuilder;
 
     private void Awake()
     {
@@ -206,6 +207,20 @@ public class LevelProfileLoader : MonoBehaviour
         {
             levelAtmosphereController = controller;
         }
+    }
+
+    public void ConfigureRuntimeNavMesh(RuntimeNavMeshBuilder builder)
+    {
+        if (builder == null)
+            return;
+
+        runtimeNavMeshBuilder = builder;
+        ResolveMissingTargets();
+        if (roomAssemblerGenerator != null)
+            roomAssemblerGenerator.navMeshBuilder = builder;
+
+        if (staticLayoutBuilder != null)
+            staticLayoutBuilder.ConfigureRuntimeNavMesh(builder);
     }
 
     public void SetRuntimeLevelRoot(Transform levelRoot)
@@ -469,6 +484,11 @@ public class LevelProfileLoader : MonoBehaviour
         if (runtimeLevelRootOverride != null)
         {
             staticLayoutBuilder.SetRuntimeLevelRoot(runtimeLevelRootOverride);
+        }
+
+        if (runtimeNavMeshBuilder != null)
+        {
+            staticLayoutBuilder.ConfigureRuntimeNavMesh(runtimeNavMeshBuilder);
         }
 
         return staticLayoutBuilder;

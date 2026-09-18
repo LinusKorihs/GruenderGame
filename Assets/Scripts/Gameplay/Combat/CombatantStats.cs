@@ -33,6 +33,11 @@ public class CombatantStats : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        EnemyWorldHealthBar.AttachIfNormalEnemy(this);
+    }
+
     private void Update()
     {
         float dt = Time.deltaTime;

@@ -15,6 +15,7 @@ public sealed class LevelSystemController : MonoBehaviour
     [SerializeField] private LevelProfileLoader levelLoader;
     [SerializeField] private LevelAtmosphereController levelAtmosphere;
     [SerializeField] private LevelFogOfWarController fogOfWar;
+    [SerializeField] private RuntimeNavMeshBuilder runtimeNavMeshBuilder;
     [SerializeField] private bool instantiateMissingChildren = true;
     [SerializeField] private bool dontDestroyOnLoad = true;
 
@@ -22,6 +23,7 @@ public sealed class LevelSystemController : MonoBehaviour
     public LevelProfileLoader LevelLoader => levelLoader;
     public LevelAtmosphereController LevelAtmosphere => levelAtmosphere;
     public LevelFogOfWarController FogOfWar => fogOfWar;
+    public RuntimeNavMeshBuilder RuntimeNavMeshBuilder => runtimeNavMeshBuilder;
 
     private void Awake()
     {
@@ -71,6 +73,9 @@ public sealed class LevelSystemController : MonoBehaviour
         if (fogOfWar == null)
             fogOfWar = GetComponentInChildren<LevelFogOfWarController>(true);
 
+        if (runtimeNavMeshBuilder == null)
+            runtimeNavMeshBuilder = GetComponentInChildren<RuntimeNavMeshBuilder>(true);
+
         if (!instantiateMissingChildren)
             return;
 
@@ -115,6 +120,11 @@ public sealed class LevelSystemController : MonoBehaviour
         if (levelLoader != null && levelAtmosphere != null)
         {
             levelLoader.ConfigureAtmosphere(levelAtmosphere);
+        }
+
+        if (levelLoader != null && runtimeNavMeshBuilder != null)
+        {
+            levelLoader.ConfigureRuntimeNavMesh(runtimeNavMeshBuilder);
         }
 
         if (levelAtmosphere != null && fogOfWar != null)

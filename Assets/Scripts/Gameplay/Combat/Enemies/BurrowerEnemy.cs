@@ -303,12 +303,12 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                 SetAnimationSpeed(0f);
 
                 // Hover in place and search for the closest target.
-                diveTarget = FindClosestTarget();
+                diveTarget = FindClosestTarget(out bool foundMinionTarget);
 
                 if (diveTarget != null)
                 {
                     noTargetHoverTimer = 0f;
-                    divingAtMinion = diveTarget.CompareTag(settings != null ? settings.MinionTag : "Ally");
+                    divingAtMinion = foundMinionTarget;
                     // Bypass physical contact so the burrower can reach DiveHitDistance.
                     if (myCollider != null)
                     {
@@ -490,7 +490,15 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
 
     private void OnDiveContact()
     {
-        if (divingAtMinion && diveTarget != null && !IsDead(diveTarget))
+        if (divingAtMinion && !IsValidMinionGrabTarget(diveTarget))
+        {
+            Log("Rejected invalid grab target - returning to hover.");
+            RestoreDiveCollision();
+            SetState(BurrowerState.FlyingUp);
+            return;
+        }
+
+        if (divingAtMinion && IsValidMinionGrabTarget(diveTarget))
         {
             RestoreDiveCollision(); // safe to restore now — minion is being grabbed, not physics-pushed
 
@@ -580,8 +588,9 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
         return grabbedMinionStats == null || grabbedMinionStats.IsDead;
     }
 
-    private Transform FindClosestTarget()
+    private Transform FindClosestTarget(out bool isMinionTarget)
     {
+        isMinionTarget = false;
         if (settings == null) return null;
 
         int count = Physics.OverlapSphereNonAlloc(transform.position, settings.DetectRadius, overlapBuffer, settings.DetectMask, QueryTriggerInteraction.Ignore);
@@ -622,7 +631,22 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
         }
 
         // Prefer minions for grabbing; attack player if no minion is available.
-        return bestMinion != null ? bestMinion : bestOther;
+        isMinionTarget = bestMinion != null;
+        return isMinionTarget ? bestMinion : bestOther;
+    }
+
+    private bool IsValidMinionGrabTarget(Transform target)
+    {
+        if (target == null || settings == null || IsDead(target))
+            return false;
+
+        Transform taggedMinion = EnemyTargetUtility.FindTaggedActor(target, settings.MinionTag);
+        if (taggedMinion == null || EnemyTargetUtility.FindTaggedActor(target, settings.PlayerTag) != null)
+            return false;
+
+        MinionCore minion = target.GetComponentInParent<MinionCore>() ?? target.GetComponentInChildren<MinionCore>();
+        CombatantStats targetStats = EnemyTargetUtility.GetStats(target);
+        return minion != null && targetStats != null && !targetStats.IsDead;
     }
 
     private void PinToGround()

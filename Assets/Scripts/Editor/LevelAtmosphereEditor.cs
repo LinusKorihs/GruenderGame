@@ -104,6 +104,7 @@ public sealed class LevelAtmosphereProfileEditor : Editor
             DrawProperty("proceduralGroundColor");
             DrawProperty("proceduralExposure");
             DrawProperty("proceduralAtmosphereThickness");
+            DrawProperty("proceduralSunDisk");
         }
     }
 

@@ -96,6 +96,8 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
     [Header("Debug")]
     [SerializeField] private bool enableLogs;
+    [SerializeField, Min(0.1f)] private float debugSnapshotInterval = 1f;
+    private float nextDebugSnapshotTime;
 
     private CombatantStats stats;
     private Rigidbody rb;
@@ -185,7 +187,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
         {
             targetingLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             targetingLine.receiveShadows = false;
-            targetingLine.positionCount = 2;
+            targetingLine.positionCount = Mathf.Max(2, settings != null ? settings.TargetingLineSegments : 10);
             targetingLine.enabled = false;
         }
     }
@@ -237,6 +239,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
         RefreshTarget();
         UpdateState();
         ExecuteState();
+        LogDebugSnapshot();
     }
 
     // Updates the targeting line after transform and physics motion settles.
@@ -244,19 +247,42 @@ public class ShellSpinnerEnemy : MonoBehaviour
     {
         if (currentState != SpinnerState.Windup || targetingLine == null || !targetingLine.enabled) return;
         if (currentTarget == null) return;
-        targetingLine.SetPosition(0, SnapToGround(transform.position));
-        targetingLine.SetPosition(1, SnapToGround(currentTarget.position));
+        int segmentCount = Mathf.Max(2, settings != null ? settings.TargetingLineSegments : 10);
+        if (targetingLine.positionCount != segmentCount)
+            targetingLine.positionCount = segmentCount;
+
+        Vector3 start = transform.position;
+        Vector3 end = currentTarget.position;
+        for (int i = 0; i < segmentCount; i++)
+        {
+            float t = i / (float)(segmentCount - 1);
+            targetingLine.SetPosition(i, SnapToGround(Vector3.Lerp(start, end, t)));
+        }
     }
 
     // Projects a world-space point down onto the ground surface.
     private Vector3 SnapToGround(Vector3 worldPos)
     {
-        const float offset = 0.05f; // hover just above the surface to avoid z-fighting
-        const float rayHeight = 6f;
+        float offset = settings != null ? settings.TargetingLineGroundOffset : 0.04f;
+        float rayHeight = settings != null ? settings.TargetingLineRayHeight : 8f;
         if (settings != null && settings.GroundMask != 0)
         {
             Vector3 origin = worldPos + Vector3.up * rayHeight;
-            if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, rayHeight + 2f, settings.GroundMask, QueryTriggerInteraction.Ignore)) return hit.point + Vector3.up * offset;
+            RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, rayHeight + 2f, settings.GroundMask, QueryTriggerInteraction.Ignore);
+            bool foundGround = false;
+            RaycastHit groundHit = default;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                if (hits[i].transform.IsChildOf(transform) || hits[i].normal.y < 0.65f)
+                    continue;
+                if (!foundGround || hits[i].point.y < groundHit.point.y)
+                {
+                    foundGround = true;
+                    groundHit = hits[i];
+                }
+            }
+            if (foundGround)
+                return groundHit.point + Vector3.up * offset;
         }
         return new Vector3(worldPos.x, transform.position.y + offset, worldPos.z);
     }
@@ -264,7 +290,44 @@ public class ShellSpinnerEnemy : MonoBehaviour
     private void FixedUpdate()
     {
         if (rb == null || stats == null || stats.IsDead) return;
+
+        if (currentState == SpinnerState.Spinning && WouldSpinHitBlocker(frameVelocity))
+        {
+            frameVelocity = Vector3.zero;
+            spinHitSomething = true;
+        }
+
         rb.linearVelocity = new Vector3(frameVelocity.x, rb.linearVelocity.y, frameVelocity.z);
+    }
+
+    private bool WouldSpinHitBlocker(Vector3 velocity)
+    {
+        Vector3 horizontalVelocity = new Vector3(velocity.x, 0f, velocity.z);
+        float speed = horizontalVelocity.magnitude;
+        if (speed <= 0.001f || settings == null || settings.SpinBlockMask == 0)
+            return false;
+
+        float distance = speed * Time.fixedDeltaTime + settings.SpinCollisionSkin;
+        RaycastHit[] hits = rb.SweepTestAll(horizontalVelocity / speed, distance, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider hitCollider = hits[i].collider;
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
+                continue;
+
+            Transform player = EnemyTargetUtility.FindTaggedActor(hitCollider.transform, settings.PlayerTag);
+            Transform minion = EnemyTargetUtility.FindTaggedActor(hitCollider.transform, settings.MinionTag);
+            if (player != null || minion != null)
+                continue;
+
+            if ((settings.SpinBlockMask.value & (1 << hitCollider.gameObject.layer)) != 0)
+            {
+                Log($"Predictive spin block: collider={hitCollider.name}, layer={LayerMask.LayerToName(hitCollider.gameObject.layer)}, distance={hits[i].distance:F2}");
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -326,8 +389,29 @@ public class ShellSpinnerEnemy : MonoBehaviour
         }
         else
         {
+            Log($"Spin collision: blocker={collision.collider.name}, contacts={collision.contactCount}, position={transform.position}");
+            ResolveBlockingOverlap(collision.collider);
             spinHitSomething = true;
         }
+    }
+
+    private void ResolveBlockingOverlap(Collider blocker)
+    {
+        if (shellCollider == null || blocker == null)
+            return;
+
+        if (!Physics.ComputePenetration(
+                shellCollider, shellCollider.transform.position, shellCollider.transform.rotation,
+                blocker, blocker.transform.position, blocker.transform.rotation,
+                out Vector3 separationDirection, out float separationDistance))
+            return;
+
+        Vector3 correction = separationDirection * (separationDistance + (settings != null ? settings.SpinCollisionSkin : 0.05f));
+        Log($"Resolved blocker penetration: blocker={blocker.name}, distance={separationDistance:F3}, correction={correction}");
+        if (rb != null)
+            rb.position += correction;
+        else
+            transform.position += correction;
     }
 
     private static CombatantStats GetStats(Transform t)
@@ -657,7 +741,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
                 stateTimer = settings != null ? settings.WindupDuration : 0.6f;
                 if (targetingLine != null)
                 {
-                    targetingLine.positionCount = 2;
+                    targetingLine.positionCount = Mathf.Max(2, settings != null ? settings.TargetingLineSegments : 10);
                     targetingLine.enabled = true;
                 }
                 break;
@@ -806,6 +890,13 @@ public class ShellSpinnerEnemy : MonoBehaviour
         GameObject projectileObject = Instantiate(prefab, spawnPos, spawnRot);
         float scaleMultiplier = settings != null ? Mathf.Max(0.01f, settings.ProjectileScaleMultiplier) : 1f;
         projectileObject.transform.localScale *= scaleMultiplier;
+
+        SphereCollider projectileCollider = projectileObject.GetComponent<SphereCollider>();
+        if (projectileCollider != null && settings != null)
+            projectileCollider.radius *= Mathf.Clamp(settings.ProjectileHitboxRadiusMultiplier, 0.05f, 1f);
+
+        Log($"Projectile spawned: variant={currentProjectileVariant}, target={(currentTarget != null ? currentTarget.name : "none")}, " +
+            $"position={spawnPos}, scale={projectileObject.transform.lossyScale}, colliderRadius={(projectileCollider != null ? projectileCollider.bounds.extents.x : 0f):F2}");
 
         MinionProjectile projectile = projectileObject.GetComponent<MinionProjectile>();
         if (projectile != null)
@@ -1015,6 +1106,17 @@ public class ShellSpinnerEnemy : MonoBehaviour
             animationBridge.SetDead(true);
 
         Destroy(gameObject, deathDestroyDelay);
+    }
+
+    private void LogDebugSnapshot()
+    {
+        if (!enableLogs || Time.time < nextDebugSnapshotTime)
+            return;
+
+        nextDebugSnapshotTime = Time.time + Mathf.Max(0.1f, debugSnapshotInterval);
+        Vector3 velocity = rb != null ? rb.linearVelocity : frameVelocity;
+        Log($"Snapshot state={currentState}, timer={stateTimer:F2}, target={(currentTarget != null ? currentTarget.name : "none")}, " +
+            $"position={transform.position}, velocity={velocity}, spinHit={spinHitSomething}, projectiles={projectilesRemaining}");
     }
 }
 

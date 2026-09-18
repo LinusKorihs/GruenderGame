@@ -19,6 +19,7 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
     public GameObject LastBoss { get; private set; }
 
     private Transform runtimeLevelRootOverride;
+    private RuntimeNavMeshBuilder runtimeNavMeshBuilder;
 
     public void SetRuntimeLevelRoot(Transform levelRoot)
     {
@@ -94,7 +95,9 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
 
         if (profile.buildNavMesh)
         {
-            RuntimeNavMeshBuilder navMeshBuilder = GetComponentInChildren<RuntimeNavMeshBuilder>(true);
+            RuntimeNavMeshBuilder navMeshBuilder = runtimeNavMeshBuilder != null
+                ? runtimeNavMeshBuilder
+                : GetComponentInChildren<RuntimeNavMeshBuilder>(true);
             if (navMeshBuilder != null)
             {
                 navMeshBuilder.Build(roomsRoot);
@@ -107,6 +110,11 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
 
         Debug.Log($"[Static Layout] Built '{profile.name}' with {placedRooms.Count} room(s).", this);
         return true;
+    }
+
+    public void ConfigureRuntimeNavMesh(RuntimeNavMeshBuilder builder)
+    {
+        runtimeNavMeshBuilder = builder;
     }
 
     private static void ConfigureBossEncounter(GameObject boss)

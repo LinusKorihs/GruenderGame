@@ -155,6 +155,17 @@ Material:
     - _SkyTint: {r: 0.5, g: 0.57, b: 0.72, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
+--- !u!114 &1450992146 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2439897696784560670, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
+  m_PrefabInstance: {fileID: 1755441527}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6fc67ba0b284f52be9d42b478b6262b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RuntimeNavMeshBuilder
 --- !u!1001 &1755441527
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -167,6 +178,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: PF_LevelSystem
       objectReference: {fileID: 0}
+    - target: {fileID: 4177409580242676504, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
+      propertyPath: runtimeNavMeshBuilder
+      value: 
+      objectReference: {fileID: 1450992146}
     - target: {fileID: 5878695739281186272, guid: 534f538970125324ba9b5b769526ce6e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

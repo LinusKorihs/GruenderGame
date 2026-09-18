@@ -16,7 +16,19 @@ public sealed class LayerHUDView : MonoBehaviour
 
     private void OnEnable()
     {
+        LevelStartRunFlowController.LevelTransitionStateChanged += HandleTransitionStateChanged;
         Refresh();
+    }
+
+    private void OnDisable()
+    {
+        LevelStartRunFlowController.LevelTransitionStateChanged -= HandleTransitionStateChanged;
+    }
+
+    private void HandleTransitionStateChanged(bool transitioning)
+    {
+        if (!transitioning)
+            Refresh();
     }
 
     public void Refresh()
@@ -40,7 +52,10 @@ public sealed class LayerHUDView : MonoBehaviour
             }
         }
 
-        int levelIndex = RunSetupData.Instance != null ? Mathf.Max(1, RunSetupData.Instance.levelIndex) : 1;
+        int profileIndex = step != null && step.levelProfile != null
+            ? step.levelProfile.levelIndex
+            : RunSetupData.Instance != null ? RunSetupData.Instance.levelIndex : 2;
+        int levelIndex = Mathf.Max(1, profileIndex - 1);
         label.text = $"{levelPrefix} {levelIndex}";
     }
 

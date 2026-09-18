@@ -675,7 +675,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
                 targetRotation = Quaternion.LookRotation(lookDirection.normalized, Vector3.up);
         }
 
-        MoveActor(player, targetPosition, targetRotation);
+        MovePlayerBodyTo(player, targetPosition, targetRotation);
         MoveActiveMinionsNearPlayer(player, registerWithCommander: true);
         Debug.Log("[RunFlow] Moved player and minions near generated exit for flow testing.", this);
     }
@@ -1316,6 +1316,24 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         {
             if (controllers[i] != null) controllers[i].enabled = controllerStates[i];
         }
+    }
+
+    private static void MovePlayerBodyTo(GameObject playerRoot, Vector3 bodyPosition, Quaternion rotation)
+    {
+        if (playerRoot == null)
+            return;
+
+        Transform body = PlayerRootResolver.BodyTransform(playerRoot);
+        if (body == null || body == playerRoot.transform)
+        {
+            MoveActor(playerRoot, bodyPosition, rotation);
+            return;
+        }
+
+        Vector3 rootPosition = playerRoot.transform.position + (bodyPosition - body.position);
+        MoveActor(playerRoot, rootPosition, playerRoot.transform.rotation);
+        body.rotation = rotation;
+        Physics.SyncTransforms();
     }
 
     private static GameObject ResolveGeneratedMinionRoot(MinionCore minion)

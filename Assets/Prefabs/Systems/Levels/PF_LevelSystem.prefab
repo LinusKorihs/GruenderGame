@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5878695739281186272}
   - component: {fileID: 4177409580242676504}
+  - component: {fileID: 4177409580242676505}
   m_Layer: 0
   m_Name: PF_LevelSystem
   m_TagString: Untagged
@@ -59,6 +60,58 @@ MonoBehaviour:
   fogOfWar: {fileID: 553238529260979936}
   instantiateMissingChildren: 1
   dontDestroyOnLoad: 1
+--- !u!114 &4177409580242676505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3360377372533215709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57e57b2c6cdd4e08b7a22df772166bc1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::SoundManager
+  defaultSfxGroup: {fileID: 0}
+  sounds:
+  - id: Music.Theme
+    clip: {fileID: 8300000, guid: 106ddf3d0acd4654e863465ad3c3197c, type: 3}
+  - id: Music.Boss.Start
+    clip: {fileID: 8300000, guid: 1961604d5ec399445b04a4353d5bec1d, type: 3}
+  - id: Music.Boss.Main
+    clip: {fileID: 8300000, guid: 092e5067bc990fa4fbb42924239431fc, type: 3}
+  - id: Music.Boss.End
+    clip: {fileID: 8300000, guid: 6938f0233fb8fd5429e77cce47eb46bc, type: 3}
+  - id: Enemy.Burrower.Attack
+    clip: {fileID: 8300000, guid: 5696a27198d22214994eb3cacb460601, type: 3}
+  - id: Enemy.Lunger.Attack
+    clip: {fileID: 8300000, guid: 8f10d166e96d2a14d8fe7fb4aa2094cb, type: 3}
+  - id: Enemy.Spinner.Shoot
+    clip: {fileID: 8300000, guid: ee5fe693955a0a94eaa6726e9603039a, type: 3}
+  - id: Minion.Melee.Attack
+    clip: {fileID: 8300000, guid: 6a949e608e902ed429058251a40e2947, type: 3}
+  - id: Minion.Ranged.Attack
+    clip: {fileID: 8300000, guid: 13030aba455885b4884d22feca5b6116, type: 3}
+  - id: Minion.Move
+    clip: {fileID: 8300000, guid: 56e6e65cf490fcf4b81f25795e8a7c82, type: 3}
+  - id: Minion.Death
+    clip: {fileID: 8300000, guid: 6e90194877c5edb498b76352ff78b35e, type: 3}
+  - id: Player.Hit.1
+    clip: {fileID: 8300000, guid: a2561abb8a7bfb74aa21b7f5b6c3b2c4, type: 3}
+  - id: Player.Hit.2
+    clip: {fileID: 8300000, guid: 5d7b9eadc1153634eaea41f99062e67f, type: 3}
+  - id: Player.Hit.3
+    clip: {fileID: 8300000, guid: 598148896a48bb74d912ceec2769c4d9, type: 3}
+  - id: Player.CallMinions
+    clip: {fileID: 8300000, guid: 9d9f51134d22f05479eff3d9ca63c51b, type: 3}
+  - id: Player.Dismiss
+    clip: {fileID: 8300000, guid: f87303a2a00b00344b2c1421cf522695, type: 3}
+  - id: Player.Dodge
+    clip: {fileID: 8300000, guid: bcba1e746760f5e4b92440fb494b625a, type: 3}
+  - id: Player.Punch
+    clip: {fileID: 8300000, guid: a9b10c687e79f1e4dac49db64f69e47c, type: 3}
+  - id: Player.Walk
+    clip: {fileID: 8300000, guid: 9ca26e415dbd03e468f2e98327685806, type: 3}
 --- !u!1001 &88456248308628729
 PrefabInstance:
   m_ObjectHideFlags: 0

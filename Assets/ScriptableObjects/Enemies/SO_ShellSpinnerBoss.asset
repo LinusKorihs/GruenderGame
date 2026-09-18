@@ -29,6 +29,9 @@ MonoBehaviour:
   GroundMask:
     serializedVersion: 2
     m_Bits: 192
+  TargetingLineSegments: 12
+  TargetingLineGroundOffset: 0.04
+  TargetingLineRayHeight: 10
   RangedAttackChance: 0.5
   MaxSameAttackRepeats: 2
   SpinSpeed: 10
@@ -36,6 +39,10 @@ MonoBehaviour:
   OneShotMinionsOnSpin: 1
   SpinUntilWall: 1
   MaxSpinRange: 30
+  SpinBlockMask:
+    serializedVersion: 2
+    m_Bits: 192
+  SpinCollisionSkin: 0.08
   HitPauseDuration: 0.15
   SpinCollisionGrace: 0.11
   KnockbackForce: 15
@@ -44,6 +51,7 @@ MonoBehaviour:
   RangedRecoveryDuration: 0.35
   ProjectileLifetime: 6
   ProjectileScaleMultiplier: 3
+  ProjectileHitboxRadiusMultiplier: 0.2
   UseHomingProjectiles: 0
   FastProjectilePrefab: {fileID: 4717478648976455647, guid: 1dd73af9804f6e443a9a6bcba00329b9, type: 3}
   FastProjectileCount: 6
@@ -56,7 +64,7 @@ MonoBehaviour:
   HeavyProjectileDamage: 20
   HeavyProjectileSpeed: 7
   HeavyShotRecoilForce: 2
-  ExitShellDuration: 3
-  DizzyDuration: 2.5
+  ExitShellDuration: 0.8
+  DizzyDuration: 1.25
   DizzyProjDuration: 1
-  WakeUpDuration: 2
+  WakeUpDuration: 0.5
