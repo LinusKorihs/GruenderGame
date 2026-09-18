@@ -479,6 +479,7 @@ public class LungerEnemy : MonoBehaviour
                     pendingBiteTarget = currentTarget;
                     biteDamagePending = true;
                     PlayMainAttackAnimation();
+                    SoundManager.TryPlayId("Enemy.Lunger.Attack", transform);
 
                     if (damageDrivenByAnimationEvents)
                         break;
@@ -541,6 +542,7 @@ public class LungerEnemy : MonoBehaviour
         lungeDamageActive = false;
         lungeHitIds.Clear();
         PlayLungeAttackAnimation();
+        SoundManager.TryPlayId("Enemy.Lunger.Attack", transform);
         SetState(LungerState.PreLunge);
     }
 

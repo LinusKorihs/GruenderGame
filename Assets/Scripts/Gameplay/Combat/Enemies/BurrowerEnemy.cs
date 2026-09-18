@@ -794,6 +794,7 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                 break;
 
             case BurrowerState.Diving:
+                SoundManager.TryPlayId("Enemy.Burrower.Attack", transform);
                 if (divingAtMinion)
                     animationBridge.PlayGrabAttack();
                 else

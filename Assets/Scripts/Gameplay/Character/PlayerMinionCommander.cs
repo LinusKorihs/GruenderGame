@@ -35,6 +35,13 @@ public class PlayerMinionCommander : MonoBehaviour
     [SerializeField] private InputActionReference selectPreviousMinionTypeAction;
     [SerializeField] private InputActionReference selectNextMinionTypeAction;
 
+    [Header("Sound (optional)")]
+    [SerializeField] private SoundCue commandSound = new SoundCue();
+    [SerializeField] private SoundCue callSound = new SoundCue("Player.CallMinions");
+    [SerializeField] private SoundCue dismissSound = new SoundCue("Player.Dismiss");
+    [SerializeField] private SoundCue selectPreviousSound = new SoundCue();
+    [SerializeField] private SoundCue selectNextSound = new SoundCue();
+
 
     [Header("Minion Selection")]
     [SerializeField] private MinionCore[] controlledMinions;
@@ -275,26 +282,31 @@ public class PlayerMinionCommander : MonoBehaviour
 
         if (WasSelectPreviousPressedThisFrame())
         {
+            selectPreviousSound.Play(transform);
             SelectPreviousMinionType();
         }
 
         if (WasSelectNextPressedThisFrame())
         {
+            selectNextSound.Play(transform);
             SelectNextMinionType();
         }
 
         if (WasCommandPressedThisFrame())
         {
+            commandSound.Play(transform);
             OrderNextMinion();
         }
 
         if (WasCallPressedThisFrame())
         {
+            callSound.Play(transform);
             CallMinions();
         }
 
         if (WasDismissPressedThisFrame())
         {
+            dismissSound.Play(transform);
             DismissMinions();
         }
 

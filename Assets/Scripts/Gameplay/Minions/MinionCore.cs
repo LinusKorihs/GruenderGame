@@ -17,6 +17,9 @@ public partial class MinionCore : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private MinionAnimatorBridge animationBridge;
 
+    [Header("Sound (optional)")]
+    [SerializeField] private string moveSoundId = "Minion.Move";
+
     // Runtime copies loaded from MinionSettings and the role's MinionBehaviourSettings at Initialize().
     private bool autoAssignCombatCommands;
     private float autoTargetRadius;
@@ -309,6 +312,7 @@ public partial class MinionCore : MonoBehaviour
         wasMovingThisFrame = false;
         ExecuteCurrentState(currentTime);
         UpdateAnimationState();
+        SoundManager.SetLoop(moveSoundId, transform, wasMovingThisFrame);
 
         // Keep nearby minions from stacking into the same spot.
         ApplyLocalSeparation(Time.deltaTime);

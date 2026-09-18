@@ -17,6 +17,11 @@ public class DialogueTrigger : MonoBehaviour
     [SerializeField] private KeyCode keyboardKey = KeyCode.E;
     [SerializeField] private KeyCode controllerKey = KeyCode.JoystickButton0;
 
+    [Header("Sound (optional)")]
+    [SerializeField] private SoundCue interactSound = new SoundCue();
+    [SerializeField] private SoundCue elderKoiTalkSound = new SoundCue("NPC.ElderKoi.Talk");
+    [SerializeField] private SoundCue pinchTalkSound = new SoundCue("NPC.Pinch.Talk");
+
     [Header("NPC Animation")]
     [SerializeField] private bool playDialogueAnimation = true;
     [SerializeField] private bool playAnimationOnEachLine = true;
@@ -55,6 +60,8 @@ public class DialogueTrigger : MonoBehaviour
 
         if (activeDialogue != null && activeDialogue != this)
             return;
+
+        interactSound.Play(transform);
 
         if (!isDialogueActive)
         {
@@ -148,6 +155,11 @@ public class DialogueTrigger : MonoBehaviour
     private void ShowCurrentLine()
     {
         EnsureDialogueUI();
+
+        if (elderKoiAnimator != null)
+            elderKoiTalkSound.Play(transform);
+        else if (pinchAnimator != null)
+            pinchTalkSound.Play(transform);
 
         if (dialogueText != null && dialogueLines != null && currentLineIndex >= 0 && currentLineIndex < dialogueLines.Length)
         {

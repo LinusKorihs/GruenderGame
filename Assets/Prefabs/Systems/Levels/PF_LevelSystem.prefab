@@ -72,6 +72,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57e57b2c6cdd4e08b7a22df772166bc1, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::SoundManager
+  audioProfile: {fileID: 11400000, guid: d13d598ac8d44935b91f4f97615d180c, type: 2}
   defaultSfxGroup: {fileID: 0}
   sounds:
   - id: Music.Theme
@@ -112,6 +113,7 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: a9b10c687e79f1e4dac49db64f69e47c, type: 3}
   - id: Player.Walk
     clip: {fileID: 8300000, guid: 9ca26e415dbd03e468f2e98327685806, type: 3}
+  playThemeOnStart: 1
 --- !u!1001 &88456248308628729
 PrefabInstance:
   m_ObjectHideFlags: 0

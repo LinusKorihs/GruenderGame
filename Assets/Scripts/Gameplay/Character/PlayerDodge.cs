@@ -10,6 +10,9 @@ public class PlayerDodge : MonoBehaviour
     private float DodgeDuration => config.dodgeDuration;
     private float DodgeCooldown => config.dodgeCooldown;
 
+    [Header("Sound (optional)")]
+    [SerializeField] private SoundCue dodgeSound = new SoundCue("Player.Dodge");
+
     public bool IsDodging => dodgeTimer > 0f;
     private float cooldownTimer;
     private float dodgeTimer;
@@ -42,6 +45,7 @@ public class PlayerDodge : MonoBehaviour
         dodgeTimer = DodgeDuration;
         cooldownTimer = DodgeCooldown;
         ResolveKelpAnimator()?.PlayDodge();
+        dodgeSound.Play(transform);
         return true;
     }
 

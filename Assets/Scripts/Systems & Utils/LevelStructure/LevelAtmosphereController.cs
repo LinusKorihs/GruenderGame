@@ -571,6 +571,10 @@ public sealed class LevelAtmosphereController : MonoBehaviour
         if (this == null || !Application.isPlaying || !liveApplyProfileChanges)
             return;
 
+        if (EditorUtility.IsPersistent(this) ||
+            (currentRuntimeSceneRoot != null && EditorUtility.IsPersistent(currentRuntimeSceneRoot)))
+            return;
+
         ApplyCurrentAtmosphere();
     }
 #endif
