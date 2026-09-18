@@ -12,6 +12,7 @@ public sealed class GameplayHUDController : MonoBehaviour
     [SerializeField] private MinionTypeSelectorHUD minionSelectorHUD;
     [SerializeField] private LayerHUDView layerHUD;
     [SerializeField] private BossHealthHUD bossHealthHUD;
+    [SerializeField] private ControllerInputHintsHUD inputHintsHUD;
 
     [Header("Visibility")]
     [SerializeField] private int gameplaySortingOrder = 100;
@@ -162,6 +163,8 @@ public sealed class GameplayHUDController : MonoBehaviour
         if (minionSelectorHUD == null) minionSelectorHUD = GetComponentInChildren<MinionTypeSelectorHUD>(true);
         if (layerHUD == null) layerHUD = GetComponentInChildren<LayerHUDView>(true);
         if (bossHealthHUD == null) bossHealthHUD = GetComponentInChildren<BossHealthHUD>(true);
+        if (inputHintsHUD == null) inputHintsHUD = GetComponent<ControllerInputHintsHUD>();
+        if (inputHintsHUD == null) inputHintsHUD = gameObject.AddComponent<ControllerInputHintsHUD>();
     }
 
     private void ConfigureCanvas()

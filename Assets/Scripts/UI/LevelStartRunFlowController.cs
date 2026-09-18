@@ -5,6 +5,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -14,6 +15,32 @@ using UnityEditor;
 
 public sealed class LevelStartRunFlowController : MonoBehaviour
 {
+    private void Update()
+    {
+        if (!selectionControlLockActive || selectionUI == null || !selectionUI.gameObject.activeInHierarchy)
+            return;
+
+        bool cancelPressed = (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) ||
+                             (Gamepad.current != null && Gamepad.current.buttonEast.wasPressedThisFrame);
+        if (cancelPressed)
+            CloseSelectionUI();
+    }
+
+    public void CloseSelectionUI()
+    {
+        if (selectionUI != null)
+            selectionUI.SetVisible(false);
+
+        SetSelectionControlsLocked(false);
+        Time.timeScale = 1f;
+        EventSystem.current?.SetSelectedGameObject(null);
+
+        RunStartTrigger trigger = startButtonObject != null
+            ? startButtonObject.GetComponent<RunStartTrigger>()
+            : FindSceneStartTrigger();
+        trigger?.ResetInteraction();
+    }
+
     public const int MaxSelectableMinions = RunSetupData.DefaultMaxTotal;
     public const int MaxSelectableSupportMinions = RunSetupData.MaxSupportTotal;
     private const string DefaultRunSceneName = "2. Linus Run";
@@ -215,6 +242,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         selectionUI.SetVisible(true);
         SetSelectionControlsLocked(true);
         Time.timeScale = 0f;
+        StartCoroutine(ControllerMenuNavigation.FocusNextFrame(selectionUI.transform));
     }
 
     public void StartSelectedRun(int melee, int ranged, int support)
@@ -1741,6 +1769,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             {
                 row.SetValue(row.Value - 1);
                 UpdateSelectionUI();
+                if (row.Value <= 0)
+                    ControllerMenuNavigation.Focus(selectionUI.transform, row.PlusButton);
             },
             () =>
             {
@@ -1748,6 +1778,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
                 if (isSupportRow && row.Value >= MaxSelectableSupportMinions) return;
                 row.SetValue(row.Value + 1);
                 UpdateSelectionUI();
+                if (!row.PlusButton.interactable)
+                    ControllerMenuNavigation.Focus(selectionUI.transform, row.MinusButton);
             });
     }
 
@@ -1763,14 +1795,46 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     private void UpdateSelectionUI()
     {
+        GameObject selectedBeforeRefresh = EventSystem.current != null
+            ? EventSystem.current.currentSelectedGameObject
+            : null;
+
         int total = GetSelectedTotal();
         totalText.text = $"{total}/{MaxSelectableMinions}  Support {supportRow.Value}/{MaxSelectableSupportMinions}";
         startRunButton.interactable = total >= 0 && total <= MaxSelectableMinions;
 
         bool canAdd = total < MaxSelectableMinions;
+        meleeRow.SetCanSubtract(meleeRow.Value > 0);
+        rangedRow.SetCanSubtract(rangedRow.Value > 0);
+        supportRow.SetCanSubtract(supportRow.Value > 0);
         meleeRow.SetCanAdd(canAdd);
         rangedRow.SetCanAdd(canAdd);
         supportRow.SetCanAdd(canAdd && supportRow.Value < MaxSelectableSupportMinions);
+
+        selectionUI.RefreshControllerNavigation();
+        RestoreSelectionAfterButtonWasDisabled(selectedBeforeRefresh);
+    }
+
+    private void RestoreSelectionAfterButtonWasDisabled(GameObject selectedBeforeRefresh)
+    {
+        Button selectedButton = selectedBeforeRefresh != null
+            ? selectedBeforeRefresh.GetComponent<Button>()
+            : null;
+        if (selectedButton == null || selectedButton.interactable)
+            return;
+
+        Button fallback = null;
+        if (selectedButton == meleeRow.PlusButton) fallback = meleeRow.MinusButton;
+        else if (selectedButton == rangedRow.PlusButton) fallback = rangedRow.MinusButton;
+        else if (selectedButton == supportRow.PlusButton) fallback = supportRow.MinusButton;
+        else if (selectedButton == meleeRow.MinusButton) fallback = meleeRow.PlusButton;
+        else if (selectedButton == rangedRow.MinusButton) fallback = rangedRow.PlusButton;
+        else if (selectedButton == supportRow.MinusButton) fallback = supportRow.PlusButton;
+
+        if (fallback == null || !fallback.interactable)
+            fallback = startRunButton;
+
+        ControllerMenuNavigation.Focus(selectionUI.transform, fallback);
     }
 
     private int GetSelectedTotal()
@@ -1812,6 +1876,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         private readonly Button plusButton;
 
         public int Value { get; private set; }
+        public Button MinusButton => minusButton;
+        public Button PlusButton => plusButton;
 
         public SelectionRow(TMP_Text valueText, Button minusButton, Button plusButton)
         {
@@ -1836,6 +1902,11 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         public void SetCanAdd(bool canAdd)
         {
             plusButton.interactable = canAdd;
+        }
+
+        public void SetCanSubtract(bool canSubtract)
+        {
+            minusButton.interactable = canSubtract;
         }
     }
 }

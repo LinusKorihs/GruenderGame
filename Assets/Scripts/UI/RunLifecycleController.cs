@@ -272,8 +272,8 @@ public sealed class RunLifecycleController : MonoBehaviour
         gameOverGroup.blocksRaycasts = true;
         SoundManager.StopMusic();
         SoundManager.TryPlayConfiguredId(gameOverSoundId, null, 0f);
-        EnsureEventSystem();
-        EventSystem.current?.SetSelectedGameObject(restartButton.gameObject);
+        ControllerMenuNavigation.Focus(gameOverGroup.transform, restartButton);
+        StartCoroutine(ControllerMenuNavigation.FocusNextFrame(gameOverGroup.transform, restartButton));
         Log("Game-over screen opened.");
     }
 

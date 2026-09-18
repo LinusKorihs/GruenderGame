@@ -49,6 +49,11 @@ public class RunStartTrigger : MonoBehaviour
         }
     }
 
+    public void ResetInteraction()
+    {
+        triggered = false;
+    }
+
     private static bool IsPlayer(Collider other)
     {
         if (other == null) return false;

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ItemSelectionUI : MonoBehaviour
 {
@@ -32,6 +33,15 @@ public class ItemSelectionUI : MonoBehaviour
                 cards[i].gameObject.SetActive(false);
             }
         }
+
+        Button preferred = null;
+        if (cards != null && cards.Length > 0)
+        {
+            int center = cards.Length / 2;
+            if (cards[center] != null && cards[center].gameObject.activeInHierarchy)
+                preferred = cards[center].button;
+        }
+        StartCoroutine(ControllerMenuNavigation.FocusNextFrame(transform, preferred));
     }
 
     public void SelectItem(ItemData item)

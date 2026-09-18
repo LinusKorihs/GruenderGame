@@ -47,6 +47,7 @@ public class RunStartUI : MonoBehaviour
         rowC.Setup(this, data.typeC, RunSetupData.MaxSupportTotal);
 
         UpdateTotal();
+        StartCoroutine(ControllerMenuNavigation.FocusNextFrame(transform));
     }
 
     public bool CanAdd()

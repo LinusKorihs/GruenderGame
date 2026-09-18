@@ -86,10 +86,16 @@ public class PlayerMinionCommander : MonoBehaviour
     private int nextMeleeCommandIndex;
     private int nextRangedCommandIndex;
     private int nextSupportCommandIndex;
+    private static int callSuppressedFrame = -1;
     private void Log(string msg) { if (enableLogs) Debug.Log(msg); }
 
     public event Action MinionSelectionChanged;
     public event Action<MinionRoleType> EmptyMinionSelectionRequested;
+
+    public static void SuppressCallForCurrentFrame()
+    {
+        callSuppressedFrame = Time.frameCount;
+    }
 
     private void Awake()
     {
@@ -1622,6 +1628,7 @@ public class PlayerMinionCommander : MonoBehaviour
 
     private bool WasCallPressedThisFrame()
     {
+        if (callSuppressedFrame == Time.frameCount) return false;
         if (callAction != null) return callAction.action.WasPressedThisFrame();
         return Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame;
     }

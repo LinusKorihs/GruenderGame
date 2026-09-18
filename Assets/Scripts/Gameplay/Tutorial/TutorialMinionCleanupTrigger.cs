@@ -15,6 +15,9 @@ public sealed class TutorialMinionCleanupTrigger : MonoBehaviour
     {
         Transform actor = EnemyTargetUtility.FindTaggedActor(other.transform, "Player");
         if (actor != null)
+        {
             TutorialMinionSpawner.ClearAllTutorialMinions();
+            ControllerInputHintsHUD.HideInputHints();
+        }
     }
 }

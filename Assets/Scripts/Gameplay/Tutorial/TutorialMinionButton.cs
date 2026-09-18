@@ -2,9 +2,10 @@ using UnityEngine;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Collider))]
+[DefaultExecutionOrder(-100)]
 public sealed class TutorialMinionButton : MonoBehaviour
 {
-    public enum ButtonAction { SpawnMelee, SpawnRanged, SpawnSupport, Clear }
+    public enum ButtonAction { SpawnMelee, SpawnRanged, SpawnSupport, Clear, ToggleControls }
 
     [SerializeField] private TutorialMinionSpawner spawner;
     [SerializeField] private ButtonAction action;
@@ -42,6 +43,7 @@ public sealed class TutorialMinionButton : MonoBehaviour
         if (!playerInRange || Time.time < nextUseTime) return;
         if (!Input.GetKeyDown(keyboardKey) && !Input.GetKeyDown(controllerKey)) return;
         nextUseTime = Time.time + rearmDelay;
+        PlayerMinionCommander.SuppressCallForCurrentFrame();
         Activate();
     }
 
@@ -57,6 +59,12 @@ public sealed class TutorialMinionButton : MonoBehaviour
 
     public void Activate()
     {
+        if (action == ButtonAction.ToggleControls)
+        {
+            ControllerInputHintsHUD.ToggleCurrent();
+            return;
+        }
+
         if (spawner == null) return;
         switch (action)
         {

@@ -68,6 +68,9 @@ public sealed class RunMinionSelectionUI : MonoBehaviour
             else
                 gameObject.SetActive(true);
 
+            // Navigation must be built after the hierarchy is active. Otherwise
+            // Selectable.IsActive() rejects every button and all links become null.
+            RefreshControllerNavigation();
             return;
         }
 
@@ -90,6 +93,72 @@ public sealed class RunMinionSelectionUI : MonoBehaviour
         meleeRow.Resolve(transform, "Melee");
         rangedRow.Resolve(transform, "Ranged");
         supportRow.Resolve(transform, "Support");
+        RefreshControllerNavigation();
+    }
+
+    public void RefreshControllerNavigation()
+    {
+        if (!IsValid) return;
+
+        ConfigureRow(meleeRow, null, rangedRow);
+        ConfigureRow(rangedRow, meleeRow, supportRow);
+        ConfigureRow(supportRow, rangedRow, null);
+
+        Navigation startNavigation = startButton.navigation;
+        startNavigation.mode = Navigation.Mode.Explicit;
+        startNavigation.selectOnUp = FirstInteractable(supportRow.PlusButton, supportRow.MinusButton);
+        startNavigation.selectOnLeft = FirstInteractable(supportRow.MinusButton, supportRow.PlusButton);
+        startNavigation.selectOnRight = FirstInteractable(supportRow.PlusButton, supportRow.MinusButton);
+        startButton.navigation = startNavigation;
+
+        SetDown(supportRow.MinusButton, startButton);
+        SetDown(supportRow.PlusButton, startButton);
+    }
+
+    private static void ConfigureRow(RowBinding row, RowBinding upper, RowBinding lower)
+    {
+        SetNavigation(
+            row.MinusButton,
+            FirstInteractable(upper?.MinusButton, upper?.PlusButton),
+            FirstInteractable(lower?.MinusButton, lower?.PlusButton),
+            null,
+            FirstInteractable(row.PlusButton));
+        SetNavigation(
+            row.PlusButton,
+            FirstInteractable(upper?.PlusButton, upper?.MinusButton),
+            FirstInteractable(lower?.PlusButton, lower?.MinusButton),
+            FirstInteractable(row.MinusButton),
+            null);
+    }
+
+    private static Selectable FirstInteractable(params Selectable[] candidates)
+    {
+        if (candidates == null) return null;
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            Selectable candidate = candidates[i];
+            if (candidate != null && candidate.IsActive() && candidate.IsInteractable())
+                return candidate;
+        }
+        return null;
+    }
+
+    private static void SetNavigation(Selectable selectable, Selectable up, Selectable down, Selectable left, Selectable right)
+    {
+        Navigation navigation = selectable.navigation;
+        navigation.mode = Navigation.Mode.Explicit;
+        navigation.selectOnUp = up;
+        navigation.selectOnDown = down;
+        navigation.selectOnLeft = left;
+        navigation.selectOnRight = right;
+        selectable.navigation = navigation;
+    }
+
+    private static void SetDown(Selectable selectable, Selectable down)
+    {
+        Navigation navigation = selectable.navigation;
+        navigation.selectOnDown = down;
+        selectable.navigation = navigation;
     }
 
     private void OnValidate()
