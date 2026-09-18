@@ -4,6 +4,7 @@ public class RunStartTrigger : MonoBehaviour
 {
     [SerializeField] private KeyCode keyboardKey = KeyCode.E;
     [SerializeField] private KeyCode controllerKey = KeyCode.JoystickButton0;
+    [SerializeField] private SoundCue interactSound = new SoundCue();
 
     private bool playerInRange;
     private bool triggered;
@@ -36,6 +37,7 @@ public class RunStartTrigger : MonoBehaviour
     private void StartRunSelection()
     {
         triggered = true;
+        interactSound.Play(transform);
 
         if (LevelStartRunFlowController.Instance != null)
         {

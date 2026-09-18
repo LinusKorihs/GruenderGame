@@ -97,6 +97,10 @@ public class ShellSpinnerEnemy : MonoBehaviour
     [SerializeField, Min(0.05f)] private float projectileAnimationEventFallbackDelay = 0.75f;
     [SerializeField, Min(0f)] private float deathDestroyDelay = 1.5f;
 
+    [Header("Sound (optional)")]
+    [SerializeField] private SoundCue spinStartSound = new SoundCue("Enemy.Spinner.SpinStart");
+    [SerializeField] private SoundCue spinHitSound = new SoundCue("Enemy.Spinner.SpinHit");
+
     [Header("Debug")]
     [SerializeField] private bool enableLogs;
     [SerializeField, Min(0.1f)] private float debugSnapshotInterval = 1f;
@@ -495,6 +499,8 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
         float requestedDamage = GetSpinDamage(targetStats, isMinion);
         float dealtDamage = targetStats.ApplyDamage(requestedDamage);
+        if (dealtDamage > 0f)
+            spinHitSound.Play(transform);
         Transform knockbackTarget = isPlayer && playerTransform != null ? playerTransform : targetStats.transform;
         ApplyKnockback(knockbackTarget);
         Log($"Spin damage applied ({source}): target={targetStats.name}, requested={requestedDamage:F1}, dealt={dealtDamage:F1}, collider={hitCollider.name}");
@@ -1002,6 +1008,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
                 break;
 
             case SpinnerState.Spinning:
+                spinStartSound.Play(transform);
                 SetHitboxState(inShell: true);
                 SetContinueSpinningAnimation(true);
                 spinStartTime = Time.time;
@@ -1143,6 +1150,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
             : transform.rotation;
 
         GameObject projectileObject = Instantiate(prefab, spawnPos, spawnRot);
+        SoundManager.TryPlayId("Enemy.Spinner.Shoot", transform);
         float scaleMultiplier = settings != null ? Mathf.Max(0.01f, settings.ProjectileScaleMultiplier) : 1f;
         projectileObject.transform.localScale *= scaleMultiplier;
 
@@ -1418,9 +1426,17 @@ public sealed class BossEncounterController : MonoBehaviour
 
     private void OnEnable()
     {
+        StartCoroutine(StartBossMusicWhenVisible());
         ResolveBossStats();
         Subscribe();
         TryBindHud();
+    }
+
+    private System.Collections.IEnumerator StartBossMusicWhenVisible()
+    {
+        yield return new WaitForEndOfFrame();
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.PlayBossStart();
     }
 
     private void OnDisable()
@@ -1480,6 +1496,8 @@ public sealed class BossEncounterController : MonoBehaviour
             return;
 
         completed = true;
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.PlayBossWin();
         TryBindHud();
 
         LevelFlowController flow = LevelFlowController.Instance;

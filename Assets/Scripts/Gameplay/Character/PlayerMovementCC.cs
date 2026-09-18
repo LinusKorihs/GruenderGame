@@ -28,6 +28,8 @@ public class PlayerMovementCC : MonoBehaviour
     private Vector3 externalVelocity;
     private float externalTimer;
     private KelpAnimatorBridge kelpAnimator;
+    [Header("Sound (optional)")]
+    [SerializeField] private string walkSoundId = "Player.Walk";
 
     private void Awake()
     {
@@ -68,6 +70,8 @@ public class PlayerMovementCC : MonoBehaviour
 
         Vector3 velocity = move * WalkSpeed * SpeedMultiplier;
         UpdateKelpMovementAnimation(move.magnitude * SpeedMultiplier);
+        bool isWalking = cc.isGrounded && move.sqrMagnitude >= DirUpdateDeadzone * DirUpdateDeadzone;
+        SoundManager.SetLoop(walkSoundId, transform, isWalking);
         if (externalTimer > 0f) velocity += externalVelocity;
 
         velocity.y = verticalVelocity;

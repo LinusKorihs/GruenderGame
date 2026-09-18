@@ -18,6 +18,10 @@ public class PlayerPunch : MonoBehaviour
     private float KnockbackForce => config.knockbackForce;
     private float UpwardKnock => config.upwardKnock;
 
+    [Header("Sound (optional)")]
+    [SerializeField] private SoundCue punchSound = new SoundCue("Player.Punch");
+    [SerializeField] private SoundCue hitSound = new SoundCue();
+
     [Header("Debug")]
     [SerializeField] private bool drawGizmos = true;
     [SerializeField] private bool enableLogs;
@@ -72,6 +76,7 @@ public class PlayerPunch : MonoBehaviour
         pendingHitTimer = animationEventFallbackDelay;
         hitPending = true;
         ResolveKelpAnimator()?.PlayPunch();
+        punchSound.Play(transform);
         return true;
     }
 
@@ -125,6 +130,9 @@ public class PlayerPunch : MonoBehaviour
 
         if (enableLogs)
             Debug.Log($"[PlayerPunch] Resolved hit: colliders={hits.Length}, damagedTargets={damagedTargets}, center={center}.", this);
+
+        if (damagedTargets > 0)
+            hitSound.Play(transform);
     }
 
     private Vector3 GetPunchDirection()

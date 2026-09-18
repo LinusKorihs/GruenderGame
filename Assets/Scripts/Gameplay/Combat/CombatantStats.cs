@@ -16,6 +16,7 @@ public class CombatantStats : MonoBehaviour
 
     private readonly List<SourcedModifier> persistentModifiers = new List<SourcedModifier>(); // Modifiers that persist independently of status effects (e.g., from equipment, buffs, etc.)
     private readonly List<ActiveStatusEffect> activeEffects = new List<ActiveStatusEffect>(); // Currently active status effects on this combatant
+    private int lastPlayerHitSoundIndex;
 
     public float CurrentHealth => currentHealth;
     public bool IsDead => currentHealth <= 0f; // When true, ApplyDamage is silently ignored. Set by enemies that are invincible in certain states (e.g. ShellSpinner inside the shell).
@@ -142,6 +143,8 @@ public class CombatantStats : MonoBehaviour
 
         if (oldValue > 0f && currentHealth <= 0f)
         {
+            if (GetComponentInParent<MinionCore>() != null)
+                SoundManager.TryPlayId("Minion.Death", transform);
             Died?.Invoke(); // Notify listeners that the combatant has died
             if (despawnOnDeath)
             {
@@ -162,6 +165,14 @@ public class CombatantStats : MonoBehaviour
         float finalDamage = amount / defense; // Defense acts as a divisor (e.g., 10 damage with 2 defense results in 5 final damage)
         SetHealth(currentHealth - finalDamage);
         DamageTaken?.Invoke(finalDamage);
+        if (transform.root.CompareTag("Player"))
+        {
+            int nextHitSoundIndex = UnityEngine.Random.Range(1, 4);
+            if (nextHitSoundIndex == lastPlayerHitSoundIndex)
+                nextHitSoundIndex = nextHitSoundIndex % 3 + 1;
+            lastPlayerHitSoundIndex = nextHitSoundIndex;
+            SoundManager.TryPlayId($"Player.Hit.{nextHitSoundIndex}", transform);
+        }
         return finalDamage;
     }
 

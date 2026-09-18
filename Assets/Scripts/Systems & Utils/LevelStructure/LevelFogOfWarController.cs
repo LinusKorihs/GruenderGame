@@ -885,6 +885,10 @@ public sealed class LevelFogOfWarController : MonoBehaviour
         if (this == null || !Application.isPlaying || !liveApplyProfileChanges)
             return;
 
+        if (EditorUtility.IsPersistent(this) ||
+            (currentRuntimeSceneRoot != null && EditorUtility.IsPersistent(currentRuntimeSceneRoot)))
+            return;
+
         Apply(currentProfile != null ? currentProfile : defaultProfile, currentRuntimeSceneRoot);
     }
 #endif

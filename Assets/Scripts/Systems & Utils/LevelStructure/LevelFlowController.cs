@@ -753,6 +753,9 @@ public sealed class LevelFlowController : MonoBehaviour
 
     private void DisableDuplicateAudioListeners(Scene preferredScene)
     {
+        if (SoundManager.Instance != null)
+            return;
+
         AudioListener[] listeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         if (listeners.Length <= 1)
             return;
@@ -870,6 +873,9 @@ public sealed class LevelFlowController : MonoBehaviour
 
     private void ApplyAtmosphere(LevelFlowStep step, Transform sceneRoot)
     {
+        if (step != null && step.stepType != LevelFlowStepType.Boss)
+            SoundManager.ApplyMusicForLayer(step.stepId);
+
         ResolveAtmosphereController();
         if (atmosphereController == null)
             return;

@@ -23,6 +23,10 @@ public class CameraCM : MonoBehaviour
     [SerializeField] public InputActionReference lookAction;
     [SerializeField] public InputActionReference lockOnAction;
 
+    [Header("Sound (optional)")]
+    [SerializeField] private SoundCue toggleSound = new SoundCue();
+    [SerializeField] private SoundCue lockOnSound = new SoundCue();
+
     [Header("Debug")]
     [SerializeField] private bool enableLogs;
 
@@ -214,6 +218,7 @@ public class CameraCM : MonoBehaviour
         if (PlayerControlLock.CameraLocked) return;
 
         ApplyStage(GetNextStage(currentStage), instant: false);
+        toggleSound.Play(transform);
         Log($"Camera stage toggled. Now in {settings.GetStage(currentStage).displayName}.");
     }
 
@@ -304,6 +309,7 @@ public class CameraCM : MonoBehaviour
         // toggle off
         if (isLockedOn)
         {
+            lockOnSound.Play(transform);
             ClearLockOn();
             return;
         }
@@ -323,6 +329,8 @@ public class CameraCM : MonoBehaviour
         cmCamera.LookAt = lockFramingTarget;
 
         if (cursor) cursor.LockTo(lockTarget);
+
+        lockOnSound.Play(transform);
 
         if (settings.debugEnabled) Debug.Log($"[CameraCM] LockOn -> {lockTarget.name}");
         

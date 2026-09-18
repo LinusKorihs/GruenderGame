@@ -67,6 +67,7 @@ public class MeleeAttackAbility : AbilityBase
 
     protected override void Execute(Transform caster, Transform target, CombatantStats casterStats)
     {
+        SoundManager.TryPlayId("Minion.Melee.Attack", caster);
         float damage = casterStats != null ? casterStats.GetStat(CombatStatType.Damage) : 0f;
         CombatantStats targetStats = target != null ? target.GetComponentInParent<CombatantStats>() : null;
         if (targetStats != null)
@@ -106,6 +107,7 @@ public class RangedAttackAbility : AbilityBase
 
     protected override void Execute(Transform caster, Transform target, CombatantStats casterStats)
     {
+        SoundManager.TryPlayId("Minion.Ranged.Attack", caster);
         float damage = casterStats != null ? casterStats.GetStat(CombatStatType.Damage) : 0f;
 
         if (projectilePrefab != null)
@@ -155,6 +157,7 @@ public class SupportAbility : AbilityBase
 
     protected override void Execute(Transform caster, Transform target, CombatantStats casterStats)
     {
+        SoundManager.TryPlayId("Minion.Support.Attack", caster);
         switch (supportMode)
         {
             case SupportMode.Heal:
