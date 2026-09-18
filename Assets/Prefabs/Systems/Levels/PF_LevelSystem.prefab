@@ -135,7 +135,7 @@ MonoBehaviour:
   deathAnimationFallbackDelay: 2.75
   gameOverSoundId: UI.GameOver
   restartSceneName: 0. Runtime
-  enableLogs: 1
+  enableLogs: 0
 --- !u!1001 &88456248308628729
 PrefabInstance:
   m_ObjectHideFlags: 0

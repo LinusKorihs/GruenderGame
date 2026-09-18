@@ -50,6 +50,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBrain
   config: {fileID: 11400000, guid: 98cfaab0de046b14c992d077d7712964, type: 2}
+  decorativeOnly: 0
   moveAction: {fileID: 0}
   dodgeAction: {fileID: 0}
   punchAction: {fileID: 0}
@@ -104,7 +105,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1f2f9971b68c4c4e9d01f4a4f45008c1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerKelpVisualInstaller
   visualRoot: {fileID: 2151853351454571588}
   kelpPrefab: {fileID: 3941533600511582443, guid: 7ae36a385fa118042a2790abb21408d8, type: 3}
@@ -124,7 +125,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b37c362301ef44cebc2cc9b3ded1f831, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHUDInstaller
   gameplayHUDPrefab: {fileID: 5298074317667129055, guid: 922f380af5f4fed48b5b3a9641e1b969, type: 3}
   existingHUD: {fileID: 0}
@@ -323,8 +324,21 @@ MonoBehaviour:
   commandAction: {fileID: 0}
   callAction: {fileID: 0}
   dismissAction: {fileID: 0}
+  selectPreviousMinionTypeAction: {fileID: 0}
+  selectNextMinionTypeAction: {fileID: 0}
+  commandSound:
+    soundId: 
+  callSound:
+    soundId: Player.CallMinions
+  dismissSound:
+    soundId: Player.Dismiss
+  selectPreviousSound:
+    soundId: 
+  selectNextSound:
+    soundId: 
   controlledMinions: []
   autoFindMinionsIfEmpty: 1
+  selectedRole: 0
   previewRenderers: []
   enableLogs: 0
 --- !u!114 &4558954818387464348
@@ -343,6 +357,7 @@ MonoBehaviour:
   cc: {fileID: 7575410052766950279}
   cameraTransform: {fileID: 4450673186202674228}
   moveInput: {x: 0, y: 0}
+  walkSoundId: Player.Walk
 --- !u!114 &6139243475645455793
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -370,6 +385,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerDodge
   config: {fileID: 11400000, guid: 98cfaab0de046b14c992d077d7712964, type: 2}
+  dodgeSound:
+    soundId: Player.Dodge
 --- !u!114 &3479454713764566221
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -386,7 +403,13 @@ MonoBehaviour:
   hitMask:
     serializedVersion: 2
     m_Bits: 256
+  punchSound:
+    soundId: Player.Punch
+  hitSound:
+    soundId: 
   drawGizmos: 1
+  enableLogs: 0
+  animationEventFallbackDelay: 0.35
 --- !u!114 &3391111788512607623
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -565,7 +588,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9c0a968e169a2054bbd52398182abfa0, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DamageFlash
   renderers:
   - {fileID: 2488087701667082845}
@@ -721,7 +744,7 @@ PrefabInstance:
       objectReference: {fileID: 6642064218002673456}
     - target: {fileID: 2682409738197367509, guid: a7fa97e3ab07b504b854c1ea8497efd2, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 2.5035286
+      value: 2.503529
       objectReference: {fileID: 0}
     - target: {fileID: 2682409738197367509, guid: a7fa97e3ab07b504b854c1ea8497efd2, type: 3}
       propertyPath: m_LocalPosition.z
@@ -733,15 +756,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2682409738197367509, guid: a7fa97e3ab07b504b854c1ea8497efd2, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.15212336
+      value: 0.15212339
       objectReference: {fileID: 0}
     - target: {fileID: 2682409738197367509, guid: a7fa97e3ab07b504b854c1ea8497efd2, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -8.800681e-10
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2682409738197367509, guid: a7fa97e3ab07b504b854c1ea8497efd2, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 1.3545541e-10
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3838550894430130788, guid: a7fa97e3ab07b504b854c1ea8497efd2, type: 3}
       propertyPath: field of view

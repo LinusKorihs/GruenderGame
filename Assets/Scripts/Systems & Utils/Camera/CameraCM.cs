@@ -2,6 +2,7 @@ using Unity.Cinemachine;
 using Unity.Cinemachine.TargetTracking;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public class CameraCM : MonoBehaviour
 {
@@ -29,6 +30,8 @@ public class CameraCM : MonoBehaviour
 
     [Header("Debug")]
     [SerializeField] private bool enableLogs;
+    [SerializeField] private bool enableCameraDiagnostics;
+    [SerializeField, Min(0.1f)] private float cameraDiagnosticInterval = 0.5f;
 
     private bool isLockedOn;
     private GroundCursor cursor;
@@ -46,6 +49,7 @@ public class CameraCM : MonoBehaviour
     private float lastStageVertical;
     private float lastStageFieldOfView;
     private Vector3 lastStageTargetOffset;
+    private float nextCameraDiagnosticTime;
 
     private float TransitionSpeed => settings.transitionSpeed;
     private float MinRadius => settings.minRadius;
@@ -143,7 +147,15 @@ public class CameraCM : MonoBehaviour
         }
 
         if (LiveStageTuning && !isLockedOn) RefreshCurrentStageTargetsFromSettings();
-        if (isLockedOn && lockTarget != null) UpdateLockOnFraming();
+        if (isLockedOn && lockTarget != null)
+        {
+            UpdateLockOnFraming();
+            if (enableCameraDiagnostics && Time.unscaledTime >= nextCameraDiagnosticTime)
+            {
+                nextCameraDiagnosticTime = Time.unscaledTime + cameraDiagnosticInterval;
+                LogCameraDiagnostic("LOCK_SAMPLE");
+            }
+        }
 
         ApplyCameraTargets();
     }
@@ -227,6 +239,44 @@ public class CameraCM : MonoBehaviour
         EnsureReferences();
         EnsureWorldSpaceOrbit();
         ApplyStage(startingStage, instant: true);
+    }
+
+    public void RebindPlayerTarget(Transform target, bool resetStartingStage)
+    {
+        EnsureReferences();
+        if (cmCamera == null || target == null)
+            return;
+
+        Transform previousTarget = cmCamera.Follow;
+        cmCamera.Follow = target;
+        if (!isLockedOn)
+        {
+            cmCamera.LookAt = target;
+            defaultLookAt = target;
+        }
+
+        if (previousTarget != target)
+        {
+            Debug.Log(
+                $"[CameraCM] Rebound gameplay camera target from " +
+                $"'{(previousTarget != null ? previousTarget.name : "none")}' to '{target.name}'.",
+                this);
+        }
+
+        if (resetStartingStage)
+            ApplyStartingStageNow();
+    }
+
+    public string GetRuntimeConfigurationSummary()
+    {
+        EnsureReferences();
+        string followName = cmCamera != null && cmCamera.Follow != null ? cmCamera.Follow.name : "none";
+        string lookAtName = cmCamera != null && cmCamera.LookAt != null ? cmCamera.LookAt.name : "none";
+        float radius = orbital != null ? orbital.Radius : -1f;
+        Vector3 offset = orbital != null ? orbital.TargetOffset : Vector3.zero;
+        float fov = cmCamera != null ? cmCamera.Lens.FieldOfView : -1f;
+        return $"follow='{followName}', lookAt='{lookAtName}', stage={currentStage}, radius={radius:F2}, " +
+               $"targetRadius={targetRadius:F2}, targetOffset={offset}, fov={fov:F1}";
     }
 
     public void ApplyWideStageNow()
@@ -332,7 +382,8 @@ public class CameraCM : MonoBehaviour
 
         lockOnSound.Play(transform);
 
-        if (settings.debugEnabled) Debug.Log($"[CameraCM] LockOn -> {lockTarget.name}");
+        nextCameraDiagnosticTime = Time.unscaledTime + cameraDiagnosticInterval;
+        LogCameraDiagnostic("LOCK_START");
         
     }
 
@@ -404,15 +455,60 @@ public class CameraCM : MonoBehaviour
     private bool ShouldBreakLockOn()
     {
         if (!isLockedOn) return false;
-        if (lockTarget == null || !lockTarget.gameObject.activeInHierarchy) return true;
+        if (lockTarget == null || !lockTarget.gameObject.activeInHierarchy)
+        {
+            LogCameraDiagnostic("UNLOCK target-missing-or-inactive");
+            return true;
+        }
 
         // If cursor-based lock was lost, camera lock should also break
-        if (cursor != null && !cursor.IsLocked) return true;
+        if (cursor != null && !cursor.IsLocked)
+        {
+            LogCameraDiagnostic("UNLOCK cursor-lost-lock");
+            return true;
+        }
 
-        if (cursor != null && cursor.IsLocked && cursor.LockedTarget != lockTarget) return true;
+        if (cursor != null && cursor.IsLocked && cursor.LockedTarget != lockTarget)
+        {
+            LogCameraDiagnostic("UNLOCK cursor-target-mismatch");
+            return true;
+        }
 
         float distSq = (lockTarget.position - GetPlayerPosition()).sqrMagnitude;
-        return distSq > LockOnMaxDistance * LockOnMaxDistance;
+        if (distSq > LockOnMaxDistance * LockOnMaxDistance)
+        {
+            LogCameraDiagnostic("UNLOCK outside-max-distance");
+            return true;
+        }
+
+        return false;
+    }
+
+    public void LogCameraDiagnostic(string phase)
+    {
+        if (!enableCameraDiagnostics)
+            return;
+
+        Vector3 playerPos = GetPlayerPosition();
+        Vector3 targetRootPos = lockTarget != null ? lockTarget.position : Vector3.zero;
+        Vector3 aimPos = lockTarget != null ? CombatTargetUtility.GetAimPosition(lockTarget) : Vector3.zero;
+        Collider targetCollider = lockTarget != null ? lockTarget.GetComponentInChildren<Collider>() : null;
+        Vector3 boundsCenter = targetCollider != null ? targetCollider.bounds.center : targetRootPos;
+        Vector3 framingPos = lockFramingTarget != null ? lockFramingTarget.position : Vector3.zero;
+        Camera outputCamera = Camera.main;
+        float cameraToPlayer = outputCamera != null ? Vector3.Distance(outputCamera.transform.position, playerPos) : -1f;
+        float rootDistance = lockTarget != null ? Vector3.Distance(playerPos, targetRootPos) : -1f;
+        float horizontalDistance = lockTarget != null
+            ? Vector2.Distance(new Vector2(playerPos.x, playerPos.z), new Vector2(targetRootPos.x, targetRootPos.z))
+            : -1f;
+
+        Debug.Log(
+            $"[CameraCompare] {phase} scene='{SceneManager.GetActiveScene().name}' " +
+            $"target='{(lockTarget != null ? lockTarget.name : "none")}' follow='{(cmCamera != null && cmCamera.Follow != null ? cmCamera.Follow.name : "none")}' " +
+            $"player={playerPos} root={targetRootPos} aim={aimPos} boundsCenter={boundsCenter} framing={framingPos} " +
+            $"distance3D={rootDistance:F2} distanceXZ={horizontalDistance:F2} orbitRadius={(orbital != null ? orbital.Radius : -1f):F2} " +
+            $"targetRadius={targetRadius:F2} cameraToPlayer={cameraToPlayer:F2} fov={(cmCamera != null ? cmCamera.Lens.FieldOfView : -1f):F1}",
+            this);
     }
 
     private void CreateLockFramingTarget()
@@ -422,6 +518,7 @@ public class CameraCM : MonoBehaviour
         GameObject go = new GameObject("LockOnFramingTarget");
         go.hideFlags = HideFlags.HideInHierarchy;
         lockFramingTarget = go.transform;
+        lockFramingTarget.SetParent(transform, true);
 
         Vector3 startPos = GetPlayerPosition() + Vector3.up * Mathf.Max(LockOnHeightOffset, LockOnFramingOffset.y);
         lockFramingTarget.position = startPos;
@@ -429,10 +526,13 @@ public class CameraCM : MonoBehaviour
 
     private void UpdateLockOnFraming()
     {
-        if (!cmCamera || !lockTarget || !lockFramingTarget) return;
+        if (!cmCamera || !lockTarget) return;
+        if (lockFramingTarget == null)
+            CreateLockFramingTarget();
+        if (lockFramingTarget == null) return;
 
         Vector3 playerPos = GetPlayerPosition();
-        Vector3 enemyPos = lockTarget.position;
+        Vector3 enemyPos = GetLockTargetPosition();
 
         Vector3 flatToEnemy = enemyPos - playerPos;
         flatToEnemy.y = 0f;
@@ -460,11 +560,26 @@ public class CameraCM : MonoBehaviour
 
         targetVertical = Mathf.Lerp(targetVertical, LockOnVertical, Time.deltaTime * LockOnVerticalSmooth);
 
-        float distance = Vector3.Distance(playerPos, enemyPos);
+        float distance = Vector2.Distance(
+            new Vector2(playerPos.x, playerPos.z),
+            new Vector2(enemyPos.x, enemyPos.z));
         float extraRadius = Mathf.Min(distance * LockOnRadiusPerMeter, LockOnMaxExtraRadius);
 
         float desiredRadius = Mathf.Max(LockOnMinDistance, baseStageRadius + extraRadius);
         targetRadius = Mathf.Clamp(desiredRadius, MinRadius, MaxRadius);
+    }
+
+    private Vector3 GetLockTargetPosition()
+    {
+        if (lockTarget == null)
+            return Vector3.zero;
+
+        Transform aimTransform = CombatTargetUtility.GetAimTransform(lockTarget);
+        if (aimTransform != null && aimTransform != lockTarget)
+            return aimTransform.position;
+
+        Collider targetCollider = lockTarget.GetComponent<Collider>() ?? lockTarget.GetComponentInChildren<Collider>();
+        return targetCollider != null ? targetCollider.bounds.center : lockTarget.position;
     }
 
     private Vector3 GetPlayerPosition()

@@ -90,4 +90,4 @@ MonoBehaviour:
   loadFirstStepOnStart: 1
   infiniteLevelFlow: 0
   useEditorFallbackFlow: 1
-  logFlow: 1
+  logFlow: 0

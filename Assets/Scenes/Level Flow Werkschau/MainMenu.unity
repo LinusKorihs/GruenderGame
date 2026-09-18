@@ -3547,6 +3547,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBrain
   config: {fileID: 11400000, guid: 98cfaab0de046b14c992d077d7712964, type: 2}
+  decorativeOnly: 1
   moveAction: {fileID: 0}
   dodgeAction: {fileID: 0}
   punchAction: {fileID: 0}

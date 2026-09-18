@@ -96,4 +96,4 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   scaledEnemyStats: 0000000001000000
-  log: 1
+  log: 0

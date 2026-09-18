@@ -71,23 +71,27 @@ public class SpawnTuningProfile : ScriptableObject
         target.scaledEnemyStats = PCGProfileCopyUtility.CloneCombatStats(scaledEnemyStats);
         target.log = log;
 
-        ApplyPoolTuning(target.minionPool, minionPool, "Minion", context);
-        ApplyPoolTuning(target.enemyPool, enemyPool, "Enemy", context);
-        ApplyPoolTuning(target.itemPool, itemPool, "Item", context);
+        ApplyPoolTuning(target.minionPool, minionPool, "Minion", context, log);
+        ApplyPoolTuning(target.enemyPool, enemyPool, "Enemy", context, log);
+        ApplyPoolTuning(target.itemPool, itemPool, "Item", context, log);
 
-        Debug.Log(
-            $"[Level Profile] Applied SpawnTuning '{name}' to '{target.name}'. " +
-            $"Spawn(Player={target.spawnPlayer}, Minions={target.spawnMinions}, Enemies={target.spawnEnemies}, Items={target.spawnItems}), " +
-            $"EnemyBudget={FormatBudget(target.enemyBudget)}, ItemBudget={FormatBudget(target.itemBudget)}, Scaling={target.scalingMode}, " +
-            $"PoolTuning(Minions={CountEntries(minionPool)}, Enemies={CountEntries(enemyPool)}, Items={CountEntries(itemPool)}).",
-            context);
+        if (log)
+        {
+            Debug.Log(
+                $"[Level Profile] Applied SpawnTuning '{name}' to '{target.name}'. " +
+                $"Spawn(Player={target.spawnPlayer}, Minions={target.spawnMinions}, Enemies={target.spawnEnemies}, Items={target.spawnItems}), " +
+                $"EnemyBudget={FormatBudget(target.enemyBudget)}, ItemBudget={FormatBudget(target.itemBudget)}, Scaling={target.scalingMode}, " +
+                $"PoolTuning(Minions={CountEntries(minionPool)}, Enemies={CountEntries(enemyPool)}, Items={CountEntries(itemPool)}).",
+                context);
+        }
     }
 
     private static void ApplyPoolTuning(
         List<WeightedSpawnEntry> targetPool,
         List<WeightedSpawnEntryTuning> tuningPool,
         string poolLabel,
-        UnityEngine.Object context)
+        UnityEngine.Object context,
+        bool logDetails)
     {
         if (tuningPool == null || tuningPool.Count == 0)
             return;
@@ -138,9 +142,12 @@ public class SpawnTuningProfile : ScriptableObject
         targetPool.Clear();
         targetPool.AddRange(tunedRuntimePool);
 
-        Debug.Log(
-            $"[Level Profile] {poolLabel} runtime pool restricted to {tunedRuntimePool.Count}/{originalCount} tuned entries.",
-            context);
+        if (logDetails)
+        {
+            Debug.Log(
+                $"[Level Profile] {poolLabel} runtime pool restricted to {tunedRuntimePool.Count}/{originalCount} tuned entries.",
+                context);
+        }
     }
 
     private static void ApplyEntryTuning(WeightedSpawnEntry target, WeightedSpawnEntryTuning tuning)

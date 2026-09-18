@@ -17,7 +17,7 @@ public class LevelProfileLoader : MonoBehaviour
 
     [Header("Generation")]
     [SerializeField] private bool generateAfterApply;
-    [SerializeField] private bool logProfileApplication = true;
+    [SerializeField] private bool logProfileApplication;
 
     [Header("Runtime Hierarchy")]
     [SerializeField] private bool useGeneratedLevelHierarchy = true;
@@ -79,7 +79,9 @@ public class LevelProfileLoader : MonoBehaviour
         Log(
             $"Applying '{levelProfile.DisplayName}' (Id='{levelProfile.levelId}', Index={levelProfile.levelIndex}, Type={levelProfile.levelType}).");
 
-        PCGProfileValidationResult validation = PCGProfileValidator.ValidateAndLog(levelProfile, this);
+        PCGProfileValidationResult validation = logProfileApplication
+            ? PCGProfileValidator.ValidateAndLog(levelProfile, this)
+            : PCGProfileValidator.Validate(levelProfile);
         if (validation.HasErrors)
         {
             Debug.LogWarning(

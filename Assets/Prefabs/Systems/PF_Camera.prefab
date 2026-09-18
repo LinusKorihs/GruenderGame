@@ -187,6 +187,16 @@ MonoBehaviour:
   orbital: {fileID: 8159341117810746658}
   toggleAction: {fileID: 0}
   zoomAction: {fileID: 0}
+  cmCamera: {fileID: 0}
+  lookAction: {fileID: 0}
+  lockOnAction: {fileID: 0}
+  toggleSound:
+    soundId: 
+  lockOnSound:
+    soundId: 
+  enableLogs: 0
+  enableCameraDiagnostics: 0
+  cameraDiagnosticInterval: 0.5
 --- !u!1 &6751298204861061096
 GameObject:
   m_ObjectHideFlags: 0

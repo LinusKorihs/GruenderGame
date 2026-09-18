@@ -77,11 +77,14 @@ MonoBehaviour:
   roleType: 0
   followTarget: {fileID: 0}
   animationBridge: {fileID: 760100100100100101}
+  moveSoundId: Minion.Move
   drawRoleRangeGizmos: 0
-  enableLogs: 1
+  enableLogs: 0
   currentState: 0
   currentCombatPhase: 0
   currentCommandType: 0
+  currentCommandTargetPosition: {x: 0, y: 0, z: 0}
+  currentCommandTargetDistance: 0
   currentDistanceToTarget: 0
 --- !u!114 &760100100100100101
 MonoBehaviour:

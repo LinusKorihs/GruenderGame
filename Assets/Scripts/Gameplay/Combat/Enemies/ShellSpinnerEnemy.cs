@@ -130,6 +130,9 @@ public class ShellSpinnerEnemy : MonoBehaviour
     private bool spinHitSomething; // set by OnCollisionEnter, consumed in ExecuteState
 
     private readonly System.Collections.Generic.HashSet<int> spinHitIds = new System.Collections.Generic.HashSet<int>();
+    private int spinSweepColliderCandidates;
+    private int spinSweepActorCandidates;
+    private int spinSweepAppliedHits;
 
     private float spinStartTime = -999f; // used for the collision grace period
 
@@ -444,12 +447,12 @@ public class ShellSpinnerEnemy : MonoBehaviour
         if (speed <= 0.001f)
             return;
 
-        Bounds bounds = shellCollider.bounds;
-        float radius = Mathf.Max(0.1f, Mathf.Min(bounds.extents.x, bounds.extents.z) * 0.9f);
+        GetSpinCapsuleWorldGeometry(out Vector3 pointA, out Vector3 pointB, out float radius);
         float distance = speed * Time.fixedDeltaTime + settings.SpinCollisionSkin;
         Vector3 direction = horizontalVelocity / speed;
 
-        Collider[] overlaps = Physics.OverlapSphere(bounds.center, radius, settings.DetectMask, QueryTriggerInteraction.Ignore);
+        Collider[] overlaps = Physics.OverlapCapsule(pointA, pointB, radius, settings.DetectMask, QueryTriggerInteraction.Ignore);
+        spinSweepColliderCandidates += overlaps.Length;
         for (int i = 0; i < overlaps.Length; i++)
         {
             if (TryApplySpinHit(overlaps[i], "overlap") && !settings.SpinUntilWall)
@@ -459,7 +462,8 @@ public class ShellSpinnerEnemy : MonoBehaviour
             }
         }
 
-        RaycastHit[] hits = Physics.SphereCastAll(bounds.center, radius, direction, distance, settings.DetectMask, QueryTriggerInteraction.Ignore);
+        RaycastHit[] hits = Physics.CapsuleCastAll(pointA, pointB, radius, direction, distance, settings.DetectMask, QueryTriggerInteraction.Ignore);
+        spinSweepColliderCandidates += hits.Length;
         for (int i = 0; i < hits.Length; i++)
         {
             if (TryApplySpinHit(hits[i].collider, "sweep") && !settings.SpinUntilWall)
@@ -481,6 +485,8 @@ public class ShellSpinnerEnemy : MonoBehaviour
         bool isMinion = minion != null;
         if (!isPlayer && !isMinion)
             return false;
+
+        spinSweepActorCandidates++;
 
         Transform statsRoot = isPlayer && playerTransform != null ? playerTransform : hitCollider.transform;
         CombatantStats targetStats = GetStats(statsRoot);
@@ -505,12 +511,43 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
         float requestedDamage = GetSpinDamage(targetStats, isMinion);
         float dealtDamage = targetStats.ApplyDamage(requestedDamage);
+        spinSweepAppliedHits++;
         if (dealtDamage > 0f)
             spinHitSound.Play(transform);
         Transform knockbackTarget = isPlayer && playerTransform != null ? playerTransform : targetStats.transform;
         ApplyKnockback(knockbackTarget);
         Log($"Spin damage applied ({source}): target={targetStats.name}, requested={requestedDamage:F1}, dealt={dealtDamage:F1}, collider={hitCollider.name}");
         return true;
+    }
+
+    private void GetSpinCapsuleWorldGeometry(out Vector3 pointA, out Vector3 pointB, out float radius)
+    {
+        if (shellCollider is CapsuleCollider capsule)
+        {
+            Transform capsuleTransform = capsule.transform;
+            Vector3 lossyScale = capsuleTransform.lossyScale;
+            Vector3 axisLocal = capsule.direction == 0 ? Vector3.right : capsule.direction == 2 ? Vector3.forward : Vector3.up;
+            float axisScale = capsule.direction == 0 ? Mathf.Abs(lossyScale.x) : capsule.direction == 2 ? Mathf.Abs(lossyScale.z) : Mathf.Abs(lossyScale.y);
+            float radialScale = capsule.direction == 0
+                ? Mathf.Max(Mathf.Abs(lossyScale.y), Mathf.Abs(lossyScale.z))
+                : capsule.direction == 2
+                    ? Mathf.Max(Mathf.Abs(lossyScale.x), Mathf.Abs(lossyScale.y))
+                    : Mathf.Max(Mathf.Abs(lossyScale.x), Mathf.Abs(lossyScale.z));
+
+            radius = Mathf.Max(0.05f, capsule.radius * radialScale);
+            float halfSegment = Mathf.Max(0f, capsule.height * axisScale * 0.5f - radius);
+            Vector3 center = capsuleTransform.TransformPoint(capsule.center);
+            Vector3 axisWorld = capsuleTransform.TransformDirection(axisLocal).normalized;
+            pointA = center + axisWorld * halfSegment;
+            pointB = center - axisWorld * halfSegment;
+            return;
+        }
+
+        Bounds bounds = shellCollider.bounds;
+        radius = Mathf.Max(0.1f, Mathf.Min(bounds.extents.x, bounds.extents.z));
+        float halfSegmentFallback = Mathf.Max(0f, bounds.extents.y - radius);
+        pointA = bounds.center + Vector3.up * halfSegmentFallback;
+        pointB = bounds.center - Vector3.up * halfSegmentFallback;
     }
 
     private bool WouldSpinHitBlocker(Vector3 velocity, out RaycastHit blockerHit)
@@ -1020,9 +1057,16 @@ public class ShellSpinnerEnemy : MonoBehaviour
                 spinStartTime = Time.time;
                 spinStartPosition = transform.position;
                 ignoredColliders.Clear();
+                spinSweepColliderCandidates = 0;
+                spinSweepActorCandidates = 0;
+                spinSweepAppliedHits = 0;
                 break;
 
             case SpinnerState.Hit:
+                Log(
+                    $"Spin sweep summary: colliderCandidates={spinSweepColliderCandidates}, " +
+                    $"actorCandidates={spinSweepActorCandidates}, appliedHits={spinSweepAppliedHits}, " +
+                    $"uniqueTargets={spinHitIds.Count}.");
                 SetHitboxState(inShell: true);
                 SetAnimationSpeed(0f);
                 StopSpinningAnimation();

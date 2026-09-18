@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using PCG.RoomAssembler.Data;
 using UnityEngine;
@@ -134,6 +135,9 @@ public class LevelContentSpawner : MonoBehaviour
 
         GameObject player = config.spawnPlayer ? SpawnPlayer(placedRooms, playerRng) : FindExistingPlayer();
         CurrentPlayer = player;
+        ConfigurePcgPlayerCamera(player);
+        if (player != null && isActiveAndEnabled)
+            StartCoroutine(ConfigurePcgPlayerCameraAfterFrame(player));
 
         if (config.spawnMinions)
         {
@@ -752,6 +756,83 @@ public class LevelContentSpawner : MonoBehaviour
         {
             if (controllers[i] != null) controllers[i].enabled = controllerStates[i];
         }
+    }
+
+    private void ConfigurePcgPlayerCamera(GameObject player)
+    {
+        if (player == null)
+            return;
+
+        GameObject playerRootObject = PlayerRootResolver.FromGameObject(player);
+        if (playerRootObject == null)
+            return;
+
+        Transform cameraTarget = null;
+        Transform playerBody = PlayerRootResolver.BodyTransform(playerRootObject);
+        if (playerBody != null)
+            cameraTarget = playerBody.Find("C_CameraTarget");
+
+        if (cameraTarget == null)
+        {
+            Transform[] playerTransforms = playerRootObject.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < playerTransforms.Length; i++)
+            {
+                if (playerTransforms[i] != null && playerTransforms[i].name == "C_CameraTarget")
+                {
+                    cameraTarget = playerTransforms[i];
+                    break;
+                }
+            }
+        }
+
+        CameraCM[] playerCameras = playerRootObject.GetComponentsInChildren<CameraCM>(true);
+        CameraCM[] allCameras = FindObjectsByType<CameraCM>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        if (cameraTarget == null || playerCameras.Length == 0)
+        {
+            Debug.LogWarning(
+                $"[PCG Camera] Camera setup incomplete for '{playerRootObject.name}': " +
+                $"target={(cameraTarget != null ? cameraTarget.name : "missing")}, playerCameras={playerCameras.Length}, " +
+                $"activeSceneCameras={allCameras.Length}.",
+                playerRootObject);
+            return;
+        }
+
+        for (int i = 0; i < playerCameras.Length; i++)
+            playerCameras[i].RebindPlayerTarget(cameraTarget, resetStartingStage: false);
+
+        if (allCameras.Length != playerCameras.Length)
+        {
+            Debug.LogWarning(
+                $"[PCG Camera] Found {allCameras.Length} active gameplay cameras, but only " +
+                $"{playerCameras.Length} belong to '{playerRootObject.name}'. A stale camera may override the player camera.",
+                playerRootObject);
+        }
+        else if (LogsEnabled)
+        {
+            Log(
+                $"[PCG Camera] Verified target='{cameraTarget.name}', playerRoot='{playerRootObject.name}', " +
+                $"playerCameras={playerCameras.Length}, activeSceneCameras={allCameras.Length}. Reset to starting stage.",
+                playerRootObject);
+        }
+    }
+
+    private IEnumerator ConfigurePcgPlayerCameraAfterFrame(GameObject player)
+    {
+        yield return new WaitForEndOfFrame();
+
+        if (player == null || player != CurrentPlayer)
+            yield break;
+
+        ConfigurePcgPlayerCamera(player);
+
+        GameObject playerRootObject = PlayerRootResolver.FromGameObject(player);
+        CameraCM[] playerCameras = playerRootObject != null
+            ? playerRootObject.GetComponentsInChildren<CameraCM>(true)
+            : Array.Empty<CameraCM>();
+
+        for (int i = 0; i < playerCameras.Length; i++)
+            playerCameras[i].LogCameraDiagnostic($"PCG_FINAL #{i + 1} {playerCameras[i].GetRuntimeConfigurationSummary()}");
     }
 
     private Transform GetOrCreateGeneratedContentRoot()

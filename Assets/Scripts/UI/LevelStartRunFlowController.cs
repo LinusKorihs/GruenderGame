@@ -15,6 +15,15 @@ using UnityEditor;
 
 public sealed class LevelStartRunFlowController : MonoBehaviour
 {
+    [Header("Debug")]
+    [SerializeField] private bool enableLogs;
+
+    private void Log(string message, UnityEngine.Object context = null)
+    {
+        if (enableLogs)
+            Debug.Log(message, context != null ? context : this);
+    }
+
     private void Update()
     {
         if (!selectionControlLockActive || selectionUI == null || !selectionUI.gameObject.activeInHierarchy)
@@ -162,7 +171,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             return;
 
         instance.name = "PF_LevelSystem";
-        Debug.Log($"[RunFlow] Created PF_LevelSystem fallback for Start scene '{scene.name}'.", instance);
+        // Intentionally quiet: this expected fallback is only relevant during flow debugging.
 #endif
     }
 
@@ -420,7 +429,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         player.transform.SetParent(null, true);
         DontDestroyOnLoad(player);
-        Debug.Log($"[RunFlow] Preserved player before runtime-scene transition from '{SceneManager.GetActiveScene().name}'.", player);
+        Log($"[RunFlow] Preserved player before runtime-scene transition from '{SceneManager.GetActiveScene().name}'.", player);
     }
 
     private void LoadRunSceneThenGenerate()
@@ -784,7 +793,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         MovePlayerBodyTo(player, targetPosition, targetRotation);
         MoveActiveMinionsNearPlayer(player, registerWithCommander: true);
-        Debug.Log("[RunFlow] Moved player and minions near generated exit for flow testing.", this);
+        Log("[RunFlow] Moved player and minions near generated exit for flow testing.");
     }
 
     public void EnsureSelectedMinionsForCurrentScene()
@@ -904,7 +913,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
                 Environment.TickCount,
                 clearExistingGeneratedContent: false);
 
-            Debug.Log(
+            Log(
                 $"[RunFlow] Added missing minions for level {Mathf.Max(1, data.levelIndex)} " +
                 $"({missingMelee}/{missingRanged}/{missingSupport}).",
                 this);
@@ -940,7 +949,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         int oldSupport = data.typeC;
         data.SetMinionCounts(liveMelee, liveRanged, liveSupport, data.maxTotal);
 
-        Debug.Log(
+        Log(
             $"[RunFlow] Updated run minion survivors before {reason}: " +
             $"{oldMelee}/{oldRanged}/{oldSupport} -> {data.typeA}/{data.typeB}/{data.typeC}.",
             this);

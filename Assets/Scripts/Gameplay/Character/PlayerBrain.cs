@@ -6,6 +6,10 @@ public class PlayerBrain : MonoBehaviour
 {
     [SerializeField] private PlayerConfig config;
 
+    [Header("Scene Usage")]
+    [SerializeField, Tooltip("Use for menu-only display models that keep the PlayerBrain component but intentionally have no gameplay modules.")]
+    private bool decorativeOnly;
+
     [Header("Input Actions")] // References for Editor display and runtime access
     [SerializeField] private InputActionReference moveAction;
     [SerializeField] private InputActionReference dodgeAction;
@@ -36,6 +40,9 @@ public class PlayerBrain : MonoBehaviour
 
     private void Awake()
     {
+        if (decorativeOnly)
+            return;
+
         ResolveInputActions();
 
         if (movement == null) movement = GetComponentInChildren<PlayerMovementCC>();

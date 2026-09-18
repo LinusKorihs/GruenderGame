@@ -67,19 +67,21 @@ public class PCGConfigProfile : ScriptableObject
         if (roomAssemblerTuningProfile != null)
         {
             roomAssemblerTuningProfile.ApplyTo(runtimeConfig, context);
-            Debug.Log(
-                $"[Level Profile] {name}: created runtime RoomAssemblerConfig from base '{roomAssemblerBaseConfig.name}' " +
-                $"with tuning '{roomAssemblerTuningProfile.name}'. Rooms={runtimeConfig.minRooms}-{runtimeConfig.maxRooms}, " +
-                $"EndDistance={runtimeConfig.minEndDistanceRooms}-{runtimeConfig.maxEndDistanceRooms}, " +
-                $"Retries={runtimeConfig.maxGenerationRetries}+{(runtimeConfig.useEmergencyFallback ? runtimeConfig.emergencyFallbackRetries : 0)}, " +
-                $"Seed={(runtimeConfig.randomSeed ? "random" : runtimeConfig.seed.ToString())}.",
-                context);
+            if (runtimeConfig.log)
+            {
+                Debug.Log(
+                    $"[Level Profile] {name}: created runtime RoomAssemblerConfig from base '{roomAssemblerBaseConfig.name}' " +
+                    $"with tuning '{roomAssemblerTuningProfile.name}'. Rooms={runtimeConfig.minRooms}-{runtimeConfig.maxRooms}, " +
+                    $"EndDistance={runtimeConfig.minEndDistanceRooms}-{runtimeConfig.maxEndDistanceRooms}, " +
+                    $"Retries={runtimeConfig.maxGenerationRetries}+{(runtimeConfig.useEmergencyFallback ? runtimeConfig.emergencyFallbackRetries : 0)}, " +
+                    $"Seed={(runtimeConfig.randomSeed ? "random" : runtimeConfig.seed.ToString())}.",
+                    context);
+            }
         }
         else
         {
-            Debug.Log(
-                $"[Level Profile] {name}: created runtime RoomAssemblerConfig from base '{roomAssemblerBaseConfig.name}' without tuning. Base fallback values are active.",
-                context);
+            if (runtimeConfig.log)
+                Debug.Log($"[Level Profile] {name}: created runtime RoomAssemblerConfig from base '{roomAssemblerBaseConfig.name}' without tuning. Base fallback values are active.", context);
         }
 
         return runtimeConfig;
@@ -101,19 +103,21 @@ public class PCGConfigProfile : ScriptableObject
         if (spawnTuningProfile != null)
         {
             spawnTuningProfile.ApplyTo(runtimeConfig, context);
-            Debug.Log(
-                $"[Level Profile] {name}: created runtime LevelContentSpawnConfig from base '{spawnBaseConfig.name}' " +
-                $"with tuning '{spawnTuningProfile.name}'. Spawn(Player={runtimeConfig.spawnPlayer}, Minions={runtimeConfig.spawnMinions}, " +
-                $"Enemies={runtimeConfig.spawnEnemies}, Items={runtimeConfig.spawnItems}), " +
-                $"EnemyBudget={FormatBudget(runtimeConfig.enemyBudget)}, ItemBudget={FormatBudget(runtimeConfig.itemBudget)}, " +
-                $"Scaling={runtimeConfig.scalingMode}.",
-                context);
+            if (runtimeConfig.log)
+            {
+                Debug.Log(
+                    $"[Level Profile] {name}: created runtime LevelContentSpawnConfig from base '{spawnBaseConfig.name}' " +
+                    $"with tuning '{spawnTuningProfile.name}'. Spawn(Player={runtimeConfig.spawnPlayer}, Minions={runtimeConfig.spawnMinions}, " +
+                    $"Enemies={runtimeConfig.spawnEnemies}, Items={runtimeConfig.spawnItems}), " +
+                    $"EnemyBudget={FormatBudget(runtimeConfig.enemyBudget)}, ItemBudget={FormatBudget(runtimeConfig.itemBudget)}, " +
+                    $"Scaling={runtimeConfig.scalingMode}.",
+                    context);
+            }
         }
         else
         {
-            Debug.Log(
-                $"[Level Profile] {name}: created runtime LevelContentSpawnConfig from base '{spawnBaseConfig.name}' without tuning. Base fallback values are active.",
-                context);
+            if (runtimeConfig.log)
+                Debug.Log($"[Level Profile] {name}: created runtime LevelContentSpawnConfig from base '{spawnBaseConfig.name}' without tuning. Base fallback values are active.", context);
         }
 
         return runtimeConfig;

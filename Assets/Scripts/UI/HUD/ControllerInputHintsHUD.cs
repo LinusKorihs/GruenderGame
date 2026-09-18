@@ -123,7 +123,7 @@ public sealed class ControllerInputHintsHUD : MonoBehaviour
             titleText.text = "CONTROLS";
             titleText.color = keyboardAccentColor;
             hintsText.text =
-                Key("WASD", keyboardAccentColor) + " Move       " + Key("Mouse", keyboardAccentColor) + " Cursor\n" +
+                Key("WASD", keyboardAccentColor) + " Move / Cursor\n" +
                 Key("LMB", keyboardAccentColor) + " Command    " + Key("R", keyboardAccentColor) + " Call\n" +
                 Key("T", keyboardAccentColor) + " Dismiss    " + Key("Q / E", keyboardAccentColor) + " Minion type\n" +
                 Key("Shift", keyboardAccentColor) + " Dodge     " + Key("Space", keyboardAccentColor) + " Punch\n" +
