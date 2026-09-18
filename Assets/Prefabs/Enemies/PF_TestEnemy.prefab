@@ -13,11 +13,9 @@ GameObject:
   - component: {fileID: 6083767334897502394}
   - component: {fileID: 1788228482591737464}
   - component: {fileID: 2403246207255573048}
-  - component: {fileID: 6558957069479459754}
   - component: {fileID: 6785440792654272444}
   - component: {fileID: 6167974990188645855}
-  - component: {fileID: 4992015245920299561}
-  - component: {fileID: 5407022031266298792}
+  - component: {fileID: 7817493016643289941}
   m_Layer: 8
   m_Name: PF_TestEnemy
   m_TagString: Enemy
@@ -142,24 +140,11 @@ Rigidbody:
     m_Bits: 0
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
+  m_UseGravity: 0
+  m_IsKinematic: 1
   m_Interpolate: 1
   m_Constraints: 112
   m_CollisionDetection: 1
---- !u!114 &6558957069479459754
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7789994379486185424}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 59e605fc6beb58e40aa3dbfa39b0dee8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Reset
-  startPos: {x: 0, y: 0, z: 0}
 --- !u!114 &6785440792654272444
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -191,9 +176,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CombatantStats
   baseProfile: {fileID: 11400000, guid: 6384b8f9b043f3e4a8ec5a3af88cc5de, type: 2}
   currentHealth: 0
-  despawnOnDeath: 1
+  despawnOnDeath: 0
   despawnDelay: 0
---- !u!114 &4992015245920299561
+--- !u!114 &7817493016643289941
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -202,29 +187,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 7789994379486185424}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 37f7fe34b4bf3674e845dd190f421541, type: 3}
+  m_Script: {fileID: 11500000, guid: 1cba2ea2b5364a62813fa59f9e52a520, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyAI
-  settings: {fileID: 11400000, guid: b377ddbbc68e3c44e90bcff351997c63, type: 2}
---- !u!195 &5407022031266298792
-NavMeshAgent:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7789994379486185424}
-  m_Enabled: 1
-  m_AgentTypeID: 0
-  m_Radius: 0.5
-  m_Speed: 3.5
-  m_Acceleration: 8
-  avoidancePriority: 50
-  m_AngularSpeed: 120
-  m_StoppingDistance: 0
-  m_AutoTraverseOffMeshLink: 1
-  m_AutoBraking: 1
-  m_AutoRepath: 1
-  m_Height: 2
-  m_BaseOffset: 1
-  m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_EditorClassIdentifier: Assembly-CSharp::TutorialTrainingDummy
+  bonusHealth: 100000
+  feedbackVisibleDuration: 3
+  feedbackLocalPosition: {x: 1.4, y: 1.5, z: 0}
+  feedbackSize: {x: 2.8, y: 0.8}
+  feedbackScale: 0.01

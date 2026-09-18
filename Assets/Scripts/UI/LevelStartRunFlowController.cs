@@ -219,6 +219,8 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     public void StartSelectedRun(int melee, int ranged, int support)
     {
+        TutorialMinionSpawner.ClearAllTutorialMinions();
+
         RunSetupData data = RunSetupData.EnsureInstance();
         data.levelIndex = 1;
         data.SetMinionCounts(melee, ranged, support, MaxSelectableMinions);

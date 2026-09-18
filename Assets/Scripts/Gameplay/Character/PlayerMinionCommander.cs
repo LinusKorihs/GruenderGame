@@ -204,6 +204,11 @@ public class PlayerMinionCommander : MonoBehaviour
         RefreshSelectionState();
     }
 
+    public void UnregisterRuntimeMinion(MinionCore minion)
+    {
+        UnregisterMinion(minion);
+    }
+
     public void ClearRegisteredMinions()
     {
         for (int i = runtimeMinions.Count - 1; i >= 0; i--)

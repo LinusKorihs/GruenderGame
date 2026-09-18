@@ -28,6 +28,8 @@ public sealed class EnemyWorldHealthBar : MonoBehaviour
     {
         if (target == null || target.GetComponent<EnemyWorldHealthBar>() != null)
             return;
+        if (target.GetComponent<TutorialTrainingDummy>() != null)
+            return;
         if (!target.CompareTag("Enemy") || target.GetComponent<BossEncounterController>() != null)
             return;
 

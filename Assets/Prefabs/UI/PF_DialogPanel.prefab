@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 2209300648626782821}
   - component: {fileID: 8009880239433327453}
   - component: {fileID: 7655669775356572561}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: DialogueText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -67,8 +67,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 60c3c4bf18eb64d49b31603476fae308, type: 2}
+  m_sharedMaterial: {fileID: 9084249126840169794, guid: 60c3c4bf18eb64d49b31603476fae308, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -87,7 +87,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -150,7 +150,7 @@ GameObject:
   - component: {fileID: 981561541748613485}
   - component: {fileID: 5932405357602050893}
   - component: {fileID: 2863624408818563497}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: PF_DialogPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -265,7 +265,7 @@ GameObject:
   - component: {fileID: 6293774297637984466}
   - component: {fileID: 5805220035920744735}
   - component: {fileID: 7846747215517867714}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: DialoguePanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
