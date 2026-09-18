@@ -1692,11 +1692,7 @@ public class PlayerMinionCommander : MonoBehaviour
 
     private static Vector3 GetTargetAimPosition(Transform target)
     {
-        if (target == null) return Vector3.zero;
-
-        IAimTarget aimTarget = target.GetComponent<IAimTarget>() ?? target.GetComponentInParent<IAimTarget>();
-        Transform aimTransform = aimTarget?.GetAimTransform();
-        return aimTransform != null ? aimTransform.position : target.position;
+        return CombatTargetUtility.GetAimPosition(target);
     }
 
     private static float GetHorizontalDistanceSq(Vector3 a, Vector3 b)

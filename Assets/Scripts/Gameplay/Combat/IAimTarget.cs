@@ -10,3 +10,22 @@ public interface IAimTarget
     /// </summary>
     UnityEngine.Transform GetAimTransform();
 }
+
+/// <summary>Shared aim-point resolution for commands, combat checks and projectiles.</summary>
+public static class CombatTargetUtility
+{
+    public static UnityEngine.Transform GetAimTransform(UnityEngine.Transform target)
+    {
+        if (target == null) return null;
+
+        IAimTarget aimTarget = target.GetComponent<IAimTarget>() ?? target.GetComponentInParent<IAimTarget>();
+        UnityEngine.Transform aimTransform = aimTarget?.GetAimTransform();
+        return aimTransform != null ? aimTransform : target;
+    }
+
+    public static UnityEngine.Vector3 GetAimPosition(UnityEngine.Transform target)
+    {
+        UnityEngine.Transform aimTransform = GetAimTransform(target);
+        return aimTransform != null ? aimTransform.position : UnityEngine.Vector3.zero;
+    }
+}

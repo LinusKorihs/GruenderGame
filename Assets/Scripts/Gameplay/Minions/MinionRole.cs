@@ -62,10 +62,12 @@ public class MeleeRole : MinionRoleBase
 // Ranged minions try to stay in their ideal range and reposition if needed.
 public class RangedRole : MinionRoleBase
 {
+    private readonly bool enableKiting;
     public override MinionRoleType RoleType => MinionRoleType.Ranged;
 
-    public RangedRole(RangePolicy rangePolicy) : base(rangePolicy)
+    public RangedRole(RangePolicy rangePolicy, bool enableKiting) : base(rangePolicy)
     {
+        this.enableKiting = enableKiting;
     }
 
     public override CombatPhase EvaluateCombatPhase(float distanceToTarget, bool hasLineOfSight, bool isAbilityReady)
@@ -74,7 +76,7 @@ public class RangedRole : MinionRoleBase
         if (distanceToTarget > rangePolicy.MaxRange + rangePolicy.RepositionTolerance) return CombatPhase.Approach;
 
         // Too close: move back.
-        if (distanceToTarget < rangePolicy.MinRange - rangePolicy.RepositionTolerance) return CombatPhase.Reposition;
+        if (enableKiting && distanceToTarget < rangePolicy.MinRange - rangePolicy.RepositionTolerance) return CombatPhase.Reposition;
 
         // In valid range but no line of sight: reposition.
         if (!hasLineOfSight) return CombatPhase.Reposition;
@@ -144,7 +146,8 @@ public static class MinionRoleFactory
                     return new MeleeRole(CopyRangePolicy(settings.Melee.RangePolicy));
                 }
 
-                return new RangedRole(CopyRangePolicy(settings.Ranged.RangePolicy));
+                bool enableKiting = settings.Ranged.Behaviour == null || settings.Ranged.Behaviour.EnableRangedKiting;
+                return new RangedRole(CopyRangePolicy(settings.Ranged.RangePolicy), enableKiting);
 
             case MinionRoleType.Support:
                 if (settings.Support == null || settings.Support.RangePolicy == null)

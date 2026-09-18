@@ -78,7 +78,7 @@ MonoBehaviour:
   followTarget: {fileID: 0}
   animationBridge: {fileID: 760100100100100101}
   drawRoleRangeGizmos: 0
-  enableLogs: 0
+  enableLogs: 1
   currentState: 0
   currentCombatPhase: 0
   currentCommandType: 0

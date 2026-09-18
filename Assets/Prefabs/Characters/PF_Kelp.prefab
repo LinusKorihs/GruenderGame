@@ -150,7 +150,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ac3ffbba9b2a2f438bb34ca51c1f2f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KelpAnimationEvents
-  showDebugLogs: 1
+  showDebugLogs: 0
 --- !u!95 &7717163793332035627 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: b562c3bb876543948ab9e7be42500a4b, type: 3}

@@ -57,6 +57,7 @@ public partial class MinionCore : MonoBehaviour
     private float lineOfSightHeightOffset;
     private bool requireLineOfSightForAllAttacks;
     private bool returnToFollowWhenLineOfSightBlocked;
+    private bool enableRangedKiting;
     private StatusEffectDefinition supportBuffEffect;
     private StatusEffectDefinition supportDebuffEffect;
 
@@ -109,6 +110,7 @@ public partial class MinionCore : MonoBehaviour
     private MinionState      _prevLogState   = MinionState.Idle;
     private CombatPhase      _prevLogPhase   = CombatPhase.None;
     private CommandType      _prevLogCommand = CommandType.None;
+    private float nextMeleeApproachDiagnosticTime;
 
     private IMinionRole currentRole;
     private MinionCommand currentCommand;
@@ -202,6 +204,7 @@ public partial class MinionCore : MonoBehaviour
         }
 
         MinionBehaviourSettings b = rs.Behaviour ?? new MinionBehaviourSettings();
+        enableRangedKiting              = b.EnableRangedKiting;
         moveSpeed                       = b.MoveSpeed;
         rotationSpeed                   = b.RotationSpeed;
         followStopDistance              = b.FollowStopDistance;
@@ -259,7 +262,7 @@ public partial class MinionCore : MonoBehaviour
 
         abilitySystem.BuildDefaultLoadout(
             currentRole, supportBuffEffect, supportDebuffEffect, abilityCooldown,
-            rangedProjectilePrefab, useHomingProjectiles, projectileSpeed);
+            rangedProjectilePrefab, useHomingProjectiles, projectileSpeed, enableLogs);
 
         currentCommand = new MinionCommand
         {

@@ -939,7 +939,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAnimationEvents
   lungerEnemy: {fileID: 2330723755618707652}
-  logEvents: 1
+  logEvents: 0
 --- !u!114 &7746550354551460432
 MonoBehaviour:
   m_ObjectHideFlags: 0

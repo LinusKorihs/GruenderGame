@@ -17,6 +17,7 @@ public class MinionProjectile : MonoBehaviour
     private string playerTag;   // tag of the player — projectiles pass through them
     private float lifetime;
     private float spawnTime;
+    private bool diagnostics;
 
     [Header("Visibility")]
     [SerializeField] private bool addVisibilityTrail = true;
@@ -70,17 +71,21 @@ public class MinionProjectile : MonoBehaviour
         bool homing,
         string ownerTag,
         float lifetime = 5f,
-        string playerTag = "Player")
+        string playerTag = "Player",
+        bool diagnostics = false)
     {
         this.target    = target;
-        aimTargetOverride = target != null ? target.GetComponent<IAimTarget>() : null;
+        aimTargetOverride = target != null ? target.GetComponent<IAimTarget>() ?? target.GetComponentInParent<IAimTarget>() : null;
         this.damage    = damage;
         this.speed     = Mathf.Max(0.5f, speed);
         this.homing    = homing;
         this.ownerTag  = ownerTag;
         this.playerTag = playerTag;
+        this.diagnostics = diagnostics;
         this.lifetime  = Mathf.Max(0.1f, lifetime);
         spawnTime      = Time.time;
+
+        Log($"Spawn target=[{target?.name ?? "none"}] aim=[{CombatTargetUtility.GetAimTransform(target)?.name ?? "none"}] homing={homing} speed={this.speed:F1}");
 
         if (visibilityTrail != null)
             visibilityTrail.startWidth = string.Equals(ownerTag, "Ally", System.StringComparison.OrdinalIgnoreCase)
@@ -120,6 +125,7 @@ public class MinionProjectile : MonoBehaviour
     {
         if (Time.time - spawnTime >= lifetime)
         {
+            Log($"Timeout target=[{target?.name ?? "none"}] position={transform.position:F2}");
             Destroy(gameObject);
             return;
         }
@@ -145,6 +151,7 @@ public class MinionProjectile : MonoBehaviour
             bool hitTarget = target != null && (wallHit.transform == target || wallHit.transform.IsChildOf(target));
             if (!hitSelf && !hitTarget)
             {
+                Log($"Blocked by [{wallHit.collider.name}] layer=[{LayerMask.LayerToName(wallHit.collider.gameObject.layer)}]");
                 transform.position = wallHit.point;
                 Destroy(gameObject);
                 return;
@@ -174,8 +181,14 @@ public class MinionProjectile : MonoBehaviour
         if (!stats.IsDead)
         {
             stats.ApplyDamage(damage);
+            Log($"Hit [{stats.name}] for {damage:F1} damage");
         }
 
         Destroy(gameObject);
+    }
+
+    private void Log(string message)
+    {
+        if (diagnostics) Debug.Log($"[MinionProjectile:{name}] {message}", this);
     }
 }

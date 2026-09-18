@@ -151,4 +151,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2485ec5f20a5c8429160279443a8668, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemAnimationEvents
-  showDebugLogs: 1
+  showDebugLogs: 0

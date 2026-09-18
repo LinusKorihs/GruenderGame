@@ -72,6 +72,7 @@ MonoBehaviour:
       RepositionTolerance: 0.6
     Behaviour:
       AbilityCooldown: 1.5
+      EnableRangedKiting: 0
       MoveSpeed: 10
       RotationSpeed: 10
       FollowStopDistance: 2

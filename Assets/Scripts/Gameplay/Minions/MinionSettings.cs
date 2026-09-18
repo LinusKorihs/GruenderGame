@@ -44,6 +44,9 @@ public class MinionBehaviourSettings
     [Tooltip("Cooldown in seconds between ability uses for this role. Recommended: Melee 1.0 · Ranged 1.25 · Support 2.0")]
     public float AbilityCooldown = 1.0f;
 
+    [Tooltip("For ranged minions: when enabled, retreat if the target enters MinRange. When disabled, stand still and keep attacking once in MaxRange.")]
+    public bool EnableRangedKiting = true;
+
     [Header("Movement")]
     [Tooltip("Base movement speed in units per second.")]
     public float MoveSpeed = 4f;

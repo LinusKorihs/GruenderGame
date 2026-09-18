@@ -88,13 +88,15 @@ public class RangedAttackAbility : AbilityBase
     private readonly GameObject projectilePrefab;
     private readonly bool       useHoming;
     private readonly float      projectileSpeed;
+    private readonly bool       enableProjectileDiagnostics;
 
     public RangedAttackAbility(
         float      range,
         float      cooldown,
         GameObject projectilePrefab = null,
         bool       useHoming        = true,
-        float      projectileSpeed  = 10f)
+        float      projectileSpeed  = 10f,
+        bool       enableProjectileDiagnostics = false)
     {
         Id                   = "RangedAttack";
         Range                = range;
@@ -103,6 +105,7 @@ public class RangedAttackAbility : AbilityBase
         this.projectilePrefab = projectilePrefab;
         this.useHoming        = useHoming;
         this.projectileSpeed  = projectileSpeed;
+        this.enableProjectileDiagnostics = enableProjectileDiagnostics;
     }
 
     protected override void Execute(Transform caster, Transform target, CombatantStats casterStats)
@@ -121,7 +124,8 @@ public class RangedAttackAbility : AbilityBase
             if (projectile != null)
             {
                 // ownerTag = "Ally" so the projectile won't damage other ally minions.
-                projectile.Initialize(target, damage, projectileSpeed, useHoming, "Ally", 6f);
+                projectile.Initialize(target, damage, projectileSpeed, useHoming, "Ally", 6f, "Player", enableProjectileDiagnostics);
+                Logger?.Invoke($"spawned {Id} toward [{target.name}] aim=[{CombatTargetUtility.GetAimTransform(target)?.name}] for {damage} damage.");
                 return;
             }
         }
@@ -238,7 +242,8 @@ public class MinionAbilitySystem
         float      abilityCooldown                  = 1f,
         GameObject rangedProjectilePrefab          = null,
         bool       useHomingProjectiles             = true,
-        float      projectileSpeed                  = 10f)
+        float      projectileSpeed                  = 10f,
+        bool       enableProjectileDiagnostics      = false)
     {
         Clear();
 
@@ -256,7 +261,7 @@ public class MinionAbilitySystem
             case MinionRoleType.Ranged:
                 AddAbility(new RangedAttackAbility(
                     policy.MaxRange, abilityCooldown,
-                    rangedProjectilePrefab, useHomingProjectiles, projectileSpeed));
+                    rangedProjectilePrefab, useHomingProjectiles, projectileSpeed, enableProjectileDiagnostics));
                 break;
 
             case MinionRoleType.Support:

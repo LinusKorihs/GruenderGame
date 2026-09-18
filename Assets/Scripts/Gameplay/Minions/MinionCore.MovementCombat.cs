@@ -115,7 +115,9 @@ public partial class MinionCore
                 break;
 
             case CombatPhase.Approach:
+                Vector3 approachStartPosition = transform.position;
                 MoveTowardsDistance(currentTarget.position, desiredRange);
+                LogMeleeApproachDiagnostics(approachStartPosition, currentTarget.position, desiredRange);
                 break;
 
             case CombatPhase.Reposition:
@@ -138,7 +140,7 @@ public partial class MinionCore
 
             case CombatPhase.AttackWindow:
             case CombatPhase.Cast:
-                HoldRange(currentTarget.position, desiredRange);
+                HoldCombatRange(currentTarget.position, desiredRange);
 
                 // Abilities are blocked when an obstacle breaks line of sight to the target.
                 bool canAttack = !requireLineOfSightForAllAttacks || hasLineOfSight;
@@ -150,7 +152,7 @@ public partial class MinionCore
                 break;
 
             case CombatPhase.Recover:
-                HoldRange(currentTarget.position, desiredRange);
+                HoldCombatRange(currentTarget.position, desiredRange);
                 break;
         }
     }
@@ -596,6 +598,20 @@ public partial class MinionCore
         }
     }
 
+    private void HoldCombatRange(Vector3 targetPosition, float desiredRange)
+    {
+        if (roleType == MinionRoleType.Ranged && !enableRangedKiting)
+        {
+            Vector3 facingDirection = targetPosition - transform.position;
+            facingDirection.y = 0f;
+            if (facingDirection.sqrMagnitude > 0.0001f)
+                SmoothFaceDirection(facingDirection.normalized);
+            return;
+        }
+
+        HoldRange(targetPosition, desiredRange);
+    }
+
     private void SmoothFaceDirection(Vector3 direction)
     {
         if (direction.sqrMagnitude < 0.0001f) return;
@@ -662,6 +678,30 @@ public partial class MinionCore
         return toTarget.magnitude;
     }
 
+    private void LogMeleeApproachDiagnostics(Vector3 startPosition, Vector3 targetPosition, float desiredRange)
+    {
+        if (!enableLogs || roleType != MinionRoleType.Melee || Time.time < nextMeleeApproachDiagnosticTime)
+            return;
+
+        nextMeleeApproachDiagnosticTime = Time.time + 1f;
+        Vector3 horizontalDelta = targetPosition - transform.position;
+        horizontalDelta.y = 0f;
+        float movedDistance = Vector3.Distance(startPosition, transform.position);
+        bool startOnNavMesh = NavMesh.SamplePosition(transform.position, out NavMeshHit startHit, 1f, WalkableNavMeshAreaMask());
+        bool targetOnNavMesh = NavMesh.SamplePosition(targetPosition, out NavMeshHit targetHit, Mathf.Max(0.1f, navTargetSampleRadius), WalkableNavMeshAreaMask());
+        string pathStatus = navPath != null ? navPath.status.ToString() : "NoPathObject";
+        int cornerCount = navPath != null && navPath.corners != null ? navPath.corners.Length : 0;
+
+        Log(
+            $"MeleeApproach | target=[{currentTarget?.name ?? "none"}] " +
+            $"position={transform.position:F2} targetPosition={targetPosition:F2} " +
+            $"pivotDistance={horizontalDelta.magnitude:F2} desiredRange={desiredRange:F2} " +
+            $"speed={GetRuntimeMoveSpeed():F2} movedThisCall={movedDistance:F4} movedFlag={wasMovingThisFrame} " +
+            $"useNavMesh={useNavMeshNavigation} startOnNavMesh={startOnNavMesh} startSample={(startOnNavMesh ? startHit.position.ToString("F2") : "none")} " +
+            $"targetOnNavMesh={targetOnNavMesh} targetSample={(targetOnNavMesh ? targetHit.position.ToString("F2") : "none")} " +
+            $"hasPath={hasNavPath} pathStatus={pathStatus} corners={cornerCount} cornerIndex={navCornerIndex}");
+    }
+
     private bool SnapToGround()
     {
         Vector3 origin = transform.position + Vector3.up * Mathf.Max(0.01f, groundRayStartHeight);
@@ -704,7 +744,7 @@ public partial class MinionCore
 
         // Cast at combat height and inspect the nearest hit first so walls block before the target is considered visible.
         Vector3 start = transform.position + Vector3.up * Mathf.Max(0f, lineOfSightHeightOffset);
-        Vector3 end = target.position + Vector3.up * Mathf.Max(0f, lineOfSightHeightOffset);
+        Vector3 end = CombatTargetUtility.GetAimPosition(target) + Vector3.up * Mathf.Max(0f, lineOfSightHeightOffset);
         Vector3 direction = end - start;
         float distance = direction.magnitude;
         if (distance <= 0.0001f) return true;

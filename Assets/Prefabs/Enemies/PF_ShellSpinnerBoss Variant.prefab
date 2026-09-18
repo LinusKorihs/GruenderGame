@@ -34,7 +34,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 855353172221510044, guid: e2fb01c9109db6d41a3b2f6342749c3d, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 855353172221510044, guid: e2fb01c9109db6d41a3b2f6342749c3d, type: 3}
       propertyPath: m_LocalRotation.x
@@ -66,7 +66,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4865906418768922772, guid: e2fb01c9109db6d41a3b2f6342749c3d, type: 3}
       propertyPath: enableLogs
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4865906418768922772, guid: e2fb01c9109db6d41a3b2f6342749c3d, type: 3}
       propertyPath: applyVisualYawOffset
