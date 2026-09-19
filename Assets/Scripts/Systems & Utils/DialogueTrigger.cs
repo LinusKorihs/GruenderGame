@@ -54,7 +54,7 @@ public class DialogueTrigger : MonoBehaviour
 
     private void Update()
     {
-        bool interactPressed = Input.GetKeyDown(keyboardKey) || Input.GetKeyDown(controllerKey);
+        bool interactPressed = LegacyKeyBinding.WasPressedThisFrame(keyboardKey) || LegacyKeyBinding.WasPressedThisFrame(controllerKey);
         if (!playerInRange || !interactPressed)
             return;
 

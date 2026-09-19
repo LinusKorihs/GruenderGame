@@ -51,25 +51,25 @@ public class ElderKoiAnimatorAutoTester : MonoBehaviour
 
         if (bridge == null) return;
 
-        if (Input.GetKeyDown(idleKey))
+        if (LegacyKeyBinding.WasPressedThisFrame(idleKey))
             bridge.PlayIdle();
 
-        if (Input.GetKeyDown(randomDialogKey))
+        if (LegacyKeyBinding.WasPressedThisFrame(randomDialogKey))
             bridge.PlayRandomDialog();
 
-        if (Input.GetKeyDown(idleBreakKey))
+        if (LegacyKeyBinding.WasPressedThisFrame(idleBreakKey))
             bridge.PlayIdleBreak();
 
-        if (Input.GetKeyDown(dialogV1Key))
+        if (LegacyKeyBinding.WasPressedThisFrame(dialogV1Key))
             bridge.PlayV1Dialog();
 
-        if (Input.GetKeyDown(dialogV2Key))
+        if (LegacyKeyBinding.WasPressedThisFrame(dialogV2Key))
             bridge.PlayV2Dialog();
 
-        if (Input.GetKeyDown(dialogV3Key))
+        if (LegacyKeyBinding.WasPressedThisFrame(dialogV3Key))
             bridge.PlayV3Dialog();
 
-        if (Input.GetKeyDown(resetKey))
+        if (LegacyKeyBinding.WasPressedThisFrame(resetKey))
             bridge.ResetToStartAndIdle();
     }
 

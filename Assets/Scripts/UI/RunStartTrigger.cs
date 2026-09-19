@@ -14,7 +14,7 @@ public class RunStartTrigger : MonoBehaviour
         if (!playerInRange || triggered)
             return;
 
-        if (Input.GetKeyDown(keyboardKey) || Input.GetKeyDown(controllerKey))
+        if (LegacyKeyBinding.WasPressedThisFrame(keyboardKey) || LegacyKeyBinding.WasPressedThisFrame(controllerKey))
         {
             StartRunSelection();
         }

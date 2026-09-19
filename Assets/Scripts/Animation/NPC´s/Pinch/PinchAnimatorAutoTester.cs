@@ -35,16 +35,16 @@ public class PinchAnimatorAutoTester : MonoBehaviour
 
         if (bridge == null) return;
 
-        if (Input.GetKeyDown(idleKey))
+        if (LegacyKeyBinding.WasPressedThisFrame(idleKey))
             bridge.PlayIdle();
 
-        if (Input.GetKeyDown(dialogKey))
+        if (LegacyKeyBinding.WasPressedThisFrame(dialogKey))
             bridge.PlayDialog();
 
-        if (Input.GetKeyDown(idleBreakKey))
+        if (LegacyKeyBinding.WasPressedThisFrame(idleBreakKey))
             bridge.PlayIdleBreak();
 
-        if (Input.GetKeyDown(resetKey))
+        if (LegacyKeyBinding.WasPressedThisFrame(resetKey))
             bridge.ResetToStartAndIdle();
     }
 

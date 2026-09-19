@@ -41,7 +41,7 @@ public sealed class TutorialMinionButton : MonoBehaviour
     private void Update()
     {
         if (!playerInRange || Time.time < nextUseTime) return;
-        if (!Input.GetKeyDown(keyboardKey) && !Input.GetKeyDown(controllerKey)) return;
+        if (!LegacyKeyBinding.WasPressedThisFrame(keyboardKey) && !LegacyKeyBinding.WasPressedThisFrame(controllerKey)) return;
         nextUseTime = Time.time + rearmDelay;
         PlayerMinionCommander.SuppressCallForCurrentFrame();
         Activate();
