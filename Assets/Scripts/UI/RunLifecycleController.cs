@@ -276,7 +276,7 @@ public sealed class RunLifecycleController : MonoBehaviour
         SoundManager.TryPlayConfiguredId(gameOverSoundId, null, 0f);
         ControllerMenuNavigation.Focus(gameOverGroup.transform, restartButton);
         StartCoroutine(ControllerMenuNavigation.FocusNextFrame(gameOverGroup.transform, restartButton));
-        Debug.Log("[Main Menu Button] Game Over screen ready; Hauptmenü button active.", mainMenuButton);
+        Debug.Log("[Main Menu Button] Game Over screen ready; Main Menu button active.", mainMenuButton);
         Log("Game-over screen opened.");
     }
 
@@ -352,9 +352,9 @@ public sealed class RunLifecycleController : MonoBehaviour
 
         gameOverGroup = CreateFullscreenPanel(canvasObject.transform, "Game Over", new Color(0f, 0f, 0f, 0.94f));
         CreateText(gameOverGroup.transform, "Title", "Game Over", 86f, new Vector2(0f, 90f), new Vector2(900f, 130f));
-        restartButton = CreateButton(gameOverGroup.transform, "Neustart", new Vector2(0f, -55f));
+        restartButton = CreateButton(gameOverGroup.transform, "Restart", new Vector2(0f, -55f));
         restartButton.onClick.AddListener(RestartRun);
-        mainMenuButton = CreateButton(gameOverGroup.transform, "Hauptmenü", new Vector2(0f, -165f));
+        mainMenuButton = CreateButton(gameOverGroup.transform, "Main Menu", new Vector2(0f, -165f));
         mainMenuButton.gameObject.AddComponent<MainMenuButtonDiagnostics>().SetSource("Game Over");
         mainMenuButton.onClick.AddListener(ReturnToMainMenuFromGameOver);
     }
