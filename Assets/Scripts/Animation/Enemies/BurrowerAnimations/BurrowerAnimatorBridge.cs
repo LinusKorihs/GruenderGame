@@ -112,13 +112,13 @@ public class BurrowerAnimatorBridge : MonoBehaviour
     public void PlayDeathFlying()
     {
         ResetAllTriggers();
-        FireTrigger(deathFlyingHash, hasDeathFlying, deathFlyingTrigger, deathFlyingState);
+        PlayStateDirectly(deathFlyingState);
     }
 
     public void PlayDeathDigging()
     {
         ResetAllTriggers();
-        FireTrigger(deathDiggingHash, hasDeathDigging, deathDiggingTrigger, deathDiggingState);
+        PlayStateDirectly(deathDiggingState);
     }
 
     public void ResetToHidden()

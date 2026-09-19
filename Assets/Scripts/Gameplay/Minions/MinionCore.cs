@@ -138,7 +138,7 @@ public partial class MinionCore : MonoBehaviour
     public bool HasPlayerPositionCommand => CurrentCommandType == CommandType.Dismiss || CurrentCommandType == CommandType.MoveToPosition;
     public Transform FollowTarget => followTarget;
 
-    // Fired just before the GameObject is destroyed due to death.
+    // Fired when the minion dies, before its death animation finishes.
     public event Action<MinionCore> Died;
 
     public void SetFollowTarget(Transform target, bool followImmediately = true)
@@ -174,6 +174,14 @@ public partial class MinionCore : MonoBehaviour
         ClearCommand();
         stateMachine.ForceState(MinionState.Idle);
         Died?.Invoke(this);
+        StartCoroutine(DespawnAfterDeathAnimation());
+    }
+
+    private System.Collections.IEnumerator DespawnAfterDeathAnimation()
+    {
+        float duration = animationBridge != null ? animationBridge.DeathAnimationDuration : 2f;
+        yield return new WaitForSeconds(Mathf.Max(0f, duration) + 1.5f);
+        Destroy(gameObject);
     }
 
     internal void Log(string msg)
@@ -374,7 +382,7 @@ public partial class MinionCore : MonoBehaviour
         if (animationBridge == null) return;
         if (sharedCombatStats != null && sharedCombatStats.IsDead) return;
 
-        if (wasMovingThisFrame)
+        if (wasMovingThisFrame || (stateMachine.CurrentState == MinionState.Follow && !followHoldingPosition))
             animationBridge.PlayWalk();
         else
             animationBridge.PlayIdle();

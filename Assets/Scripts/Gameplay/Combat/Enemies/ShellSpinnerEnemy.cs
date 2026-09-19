@@ -1391,8 +1391,7 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
     public void OnDeathAnimationFinished()
     {
-        if (stats != null && stats.IsDead)
-            Destroy(gameObject);
+        // Imported animation events may occur before the clip finishes.
     }
 
     private void ApplyVisualOrientationOffset()
@@ -1477,7 +1476,13 @@ public class ShellSpinnerEnemy : MonoBehaviour
         if (animationBridge != null)
             animationBridge.SetDead(true);
 
-        Destroy(gameObject, deathDestroyDelay);
+        Animator animator = animationBridge != null ? animationBridge.GetComponent<Animator>() : null;
+        StartCoroutine(CombatantStats.WaitForDeathState(animator, deathDestroyDelay, () =>
+        {
+            if (stats == null || !stats.IsDead) return;
+            GetComponent<BossEncounterController>()?.CompleteAfterDeathAnimation();
+            Destroy(gameObject);
+        }, "E2_Death"));
     }
 
     private void LogDebugSnapshot()
@@ -1578,10 +1583,17 @@ public sealed class BossEncounterController : MonoBehaviour
         if (completed)
             return;
 
-        completed = true;
         if (SoundManager.Instance != null)
             SoundManager.Instance.PlayBossEnd();
         TryBindHud();
+    }
+
+    public void CompleteAfterDeathAnimation()
+    {
+        if (completed || bossStats == null || !bossStats.IsDead)
+            return;
+
+        completed = true;
 
         LevelFlowController flow = LevelFlowController.Instance;
         if (flow != null)

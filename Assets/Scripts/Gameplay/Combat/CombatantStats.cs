@@ -1,9 +1,48 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 
 public class CombatantStats : MonoBehaviour
 {
+    public static IEnumerator WaitForDeathState(Animator animator, float timeout, Action onFinished, params string[] stateNames)
+    {
+        float startedAt = Time.time;
+        float deadline = Time.time + Mathf.Max(8f, timeout);
+        while (Time.time < deadline)
+        {
+            if (animator == null || !animator.isActiveAndEnabled)
+            {
+                yield return null;
+                continue;
+            }
+
+            AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(0);
+            bool isDeathState = false;
+            foreach (string name in stateNames)
+                isDeathState |= state.IsName(name);
+
+            if (isDeathState)
+            {
+                if (!animator.IsInTransition(0) && state.normalizedTime >= 1f
+                    && Time.time - startedAt >= 1.5f)
+                    break;
+            }
+
+            yield return null;
+        }
+
+        if (Time.time >= deadline)
+        {
+            string currentState = animator != null && animator.isActiveAndEnabled
+                ? animator.GetCurrentAnimatorStateInfo(0).shortNameHash.ToString()
+                : "Animator unavailable";
+            Debug.LogWarning($"Death animation timed out after {Mathf.Max(8f, timeout):0.0}s. Current state hash: {currentState}.", animator);
+        }
+
+        onFinished?.Invoke();
+    }
+
     [Header("Base")]
     [SerializeField] private CombatStatsProfile baseProfile;
 
@@ -147,7 +186,11 @@ public class CombatantStats : MonoBehaviour
                 SoundManager.TryPlayId("Minion.Death", transform);
             Died?.Invoke(); // Notify listeners that the combatant has died
             bool isPlayer = transform.root.CompareTag("Player");
-            if (despawnOnDeath && !isPlayer)
+            bool animationOwnsDespawn = GetComponent<MinionCore>() != null
+                || GetComponent<LungerEnemy>() != null
+                || GetComponent<BurrowerEnemy>() != null
+                || GetComponent<ShellSpinnerEnemy>() != null;
+            if (despawnOnDeath && !isPlayer && !animationOwnsDespawn)
             {
                 Destroy(gameObject, Mathf.Max(0f, despawnDelay));
             }

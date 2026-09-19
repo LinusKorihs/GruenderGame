@@ -203,8 +203,6 @@ public class ShellSpinnerAnimatorBridge : MonoBehaviour
     public void SetDead(bool isDead)
     {
         EnsureInitialized();
-        if (!CanUseParameter(isDeadParameter, AnimatorControllerParameterType.Bool, hasIsDead, "set IsDead")) return;
-
         if (isDead)
         {
             ResetAllTriggers();
@@ -216,6 +214,8 @@ public class ShellSpinnerAnimatorBridge : MonoBehaviour
 
             PlayStateDirectly(deathState);
         }
+
+        if (!CanUseParameter(isDeadParameter, AnimatorControllerParameterType.Bool, hasIsDead, "set IsDead")) return;
 
         animator.SetBool(isDeadHash, isDead);
 

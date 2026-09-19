@@ -714,8 +714,7 @@ public class LungerEnemy : MonoBehaviour
 
     public void OnDeathAnimationFinished()
     {
-        if (stats != null && stats.IsDead)
-            Destroy(gameObject);
+        // Imported animation events may occur before the clip finishes.
     }
 
     private void ApplyPendingBiteDamage()
@@ -886,6 +885,8 @@ public class LungerEnemy : MonoBehaviour
         if (animationBridge != null)
             animationBridge.SetDead(true);
 
-        Destroy(gameObject, deathDestroyDelay);
+        Animator animator = animationBridge != null ? animationBridge.GetComponent<Animator>() : null;
+        StartCoroutine(CombatantStats.WaitForDeathState(animator, deathDestroyDelay,
+            () => { if (stats != null && stats.IsDead) Destroy(gameObject); }, "E1_Death"));
     }
 }

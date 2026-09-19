@@ -63,6 +63,24 @@ public class MinionAnimatorBridge : MonoBehaviour
         PlayState(deathStateName, restart: true);
     }
 
+    public float DeathAnimationDuration
+    {
+        get
+        {
+            EnsureInitialized();
+            if (animator == null || animator.runtimeAnimatorController == null)
+                return 2f;
+
+            foreach (AnimationClip clip in animator.runtimeAnimatorController.animationClips)
+            {
+                if (clip != null && clip.name == deathStateName)
+                    return clip.length / Mathf.Max(0.01f, Mathf.Abs(animator.speed)) + transitionDuration;
+            }
+
+            return 2f;
+        }
+    }
+
     private bool IsActionLocked()
     {
         return deathLocked || Time.time < actionLockedUntil;

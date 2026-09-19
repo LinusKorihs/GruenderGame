@@ -115,12 +115,12 @@ public class LungerAnimatorBridge : MonoBehaviour
     public void SetDead(bool isDead)
     {
         EnsureInitialized();
+        if (isDead)
+            PlayStateDirectly(deathState);
+
         if (!CanUseParameter(isDeadParameter, AnimatorControllerParameterType.Bool, hasIsDeadParameter, "set IsDead")) return;
 
         animator.SetBool(isDeadHash, isDead);
-
-        if (isDead)
-            PlayStateDirectly(deathState);
 
         if (logAnimatorCalls)
             Debug.Log("[LungerAnimatorBridge:" + name + "] IsDead = " + isDead, this);
