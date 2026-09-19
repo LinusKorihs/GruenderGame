@@ -19,13 +19,14 @@ MonoBehaviour:
   DetectMask:
     serializedVersion: 2
     m_Bits: 520
-  SnapRadius: 1.2
+  SnapRadius: 2
   SnapDamage: 8
   SnapPauseDuration: 0.3
   EmergeRiseSpeed: 5
   FlySpeed: 7
   HoverHeight: 5
   RotationSpeed: 8
+  NoTargetTimeout: 3
   DiveSpeed: 9
   DiveDamage: 12
   DiveHitDistance: 1.2
