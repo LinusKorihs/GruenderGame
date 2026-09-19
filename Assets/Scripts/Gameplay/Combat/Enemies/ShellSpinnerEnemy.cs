@@ -732,12 +732,14 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
         if (isAsleep)
         {
-            Transform player = FindPlayerInSight();
-            if (player != null)
+            Transform spotted = settings != null && settings.TargetMinionsBetweenAttacks
+                ? FindBestTarget(true)
+                : FindPlayerInSight();
+            if (spotted != null)
             {
                 isAsleep = false;
-                currentTarget = player;
-                Log($"Player spotted — waking: {player.name}");
+                currentTarget = spotted;
+                Log($"Target spotted — waking: {spotted.name}");
             }
             return;
         }
@@ -777,8 +779,8 @@ public class ShellSpinnerEnemy : MonoBehaviour
         return null;
     }
 
-    // Finds the closest valid target in range.
-    private Transform FindBestTarget()
+    // Finds the closest valid target, or rolls between the closest player and minion.
+    private Transform FindBestTarget(bool useMinionChance = false)
     {
         if (settings == null) return null;
 
@@ -786,6 +788,10 @@ public class ShellSpinnerEnemy : MonoBehaviour
 
         Transform best = null;
         float bestSq = float.PositiveInfinity;
+        Transform nearestPlayer = null;
+        float playerSq = float.PositiveInfinity;
+        Transform nearestMinion = null;
+        float minionSq = float.PositiveInfinity;
 
         for (int i = 0; i < count; i++)
         {
@@ -802,9 +808,20 @@ public class ShellSpinnerEnemy : MonoBehaviour
             if (cs != null && cs.IsDead) continue;
             if (settings.RequireLOSToDetect && !HasLineOfSight(col.transform)) continue;
 
-            Transform t = (isPlayer && playerTransform != null) ? playerTransform : col.transform;
+            Transform t = (isPlayer && playerTransform != null) ? playerTransform : actor;
             float sq = (transform.position - t.position).sqrMagnitude;
             if (sq < bestSq) { best = t; bestSq = sq; }
+            if (isPlayer && sq < playerSq) { nearestPlayer = t; playerSq = sq; }
+            if (isMinion && !isPlayer && sq < minionSq) { nearestMinion = t; minionSq = sq; }
+        }
+
+        if (useMinionChance)
+        {
+            if (nearestPlayer == null) return nearestMinion;
+            if (nearestMinion == null) return nearestPlayer;
+            return Random.value < Mathf.Clamp01(settings.MinionTargetChance)
+                ? nearestMinion
+                : nearestPlayer;
         }
 
         return best;
@@ -912,7 +929,19 @@ public class ShellSpinnerEnemy : MonoBehaviour
             case SpinnerState.WakingUp:
             {
                 stateTimer -= Time.deltaTime;
-                if (stateTimer <= 0f) SetState(currentTarget != null ? ChooseNextAttackState() : SpinnerState.Idle);
+                if (stateTimer <= 0f)
+                {
+                    if (settings != null && settings.TargetMinionsBetweenAttacks)
+                    {
+                        Transform nextTarget = FindBestTarget(true);
+                        if (nextTarget != null && nextTarget != currentTarget)
+                        {
+                            currentTarget = nextTarget;
+                            Log($"Target switched between attacks: {nextTarget.name}");
+                        }
+                    }
+                    SetState(currentTarget != null ? ChooseNextAttackState() : SpinnerState.Idle);
+                }
                 break;
             }
 

@@ -116,7 +116,10 @@ public partial class MinionCore
 
             case CombatPhase.Approach:
                 Vector3 approachStartPosition = transform.position;
-                MoveTowardsDistance(currentTarget.position, desiredRange);
+                float approachStopDistance = roleType == MinionRoleType.Support && !hasLineOfSight
+                    ? 0f
+                    : desiredRange;
+                MoveTowardsDistance(currentTarget.position, approachStopDistance);
                 LogMeleeApproachDiagnostics(approachStartPosition, currentTarget.position, desiredRange);
                 break;
 
@@ -140,7 +143,10 @@ public partial class MinionCore
 
             case CombatPhase.AttackWindow:
             case CombatPhase.Cast:
-                HoldCombatRange(currentTarget.position, desiredRange);
+                if (roleType == MinionRoleType.Support)
+                    HoldSupportRange(currentTarget.position, desiredRange);
+                else
+                    HoldCombatRange(currentTarget.position, desiredRange);
 
                 // Abilities are blocked when an obstacle breaks line of sight to the target.
                 bool canAttack = !requireLineOfSightForAllAttacks || hasLineOfSight;
@@ -152,7 +158,10 @@ public partial class MinionCore
                 break;
 
             case CombatPhase.Recover:
-                HoldCombatRange(currentTarget.position, desiredRange);
+                if (roleType == MinionRoleType.Support)
+                    HoldSupportRange(currentTarget.position, desiredRange);
+                else
+                    HoldCombatRange(currentTarget.position, desiredRange);
                 break;
         }
     }
@@ -596,6 +605,16 @@ public partial class MinionCore
         {
             SmoothFaceDirection(toTarget.normalized);
         }
+    }
+
+    private void HoldSupportRange(Vector3 targetPosition, float desiredRange)
+    {
+        Vector3 toTarget = targetPosition - transform.position;
+        toTarget.y = 0f;
+        if (toTarget.magnitude > desiredRange + 0.35f)
+            MoveTowardsDistance(targetPosition, desiredRange);
+        else if (toTarget.sqrMagnitude > 0.0001f)
+            SmoothFaceDirection(toTarget.normalized);
     }
 
     private void HoldCombatRange(Vector3 targetPosition, float desiredRange)

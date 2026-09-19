@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShellSpinnerEnemySettings
   PlayerTag: Player
   MinionTag: Ally
+  TargetMinionsBetweenAttacks: 1
+  MinionTargetChance: 0.33333334
   DetectRadius: 10
   ForgetRadius: 16
   EncounterForgetRadius: 45

@@ -18,6 +18,7 @@ public class CameraOcclusion : MonoBehaviour
         public bool originalEnabled;
         public Material[] originalSharedMaterials;
         public MaterialPropertyBlock[] originalPropertyBlocks;
+        public readonly HashSet<Material> temporaryMaterials = new();
         public bool appliedMakeTransparent;
         public float appliedAlpha;
     }
@@ -204,6 +205,8 @@ public class CameraOcclusion : MonoBehaviour
             activeOccluders.Remove(rend);
             if (!ReferenceEquals(rend, null))
             {
+                if (occluderStates.TryGetValue(rend, out OccluderState destroyedState))
+                    ReleaseTemporaryMaterials(destroyedState);
                 occluderStates.Remove(rend);
                 lastSeenFrame.Remove(rend);
             }
@@ -245,6 +248,12 @@ public class CameraOcclusion : MonoBehaviour
         rend.enabled = state.originalEnabled;
 
         Material[] runtimeMaterials = rend.materials;
+        for (int i = 0; i < runtimeMaterials.Length; i++)
+        {
+            Material original = i < state.originalSharedMaterials.Length ? state.originalSharedMaterials[i] : null;
+            if (runtimeMaterials[i] != null && runtimeMaterials[i] != original)
+                state.temporaryMaterials.Add(runtimeMaterials[i]);
+        }
         bool applied = false;
         bool assignedReplacementMaterial = false;
 
@@ -260,15 +269,18 @@ public class CameraOcclusion : MonoBehaviour
                 continue;
             }
 
-            if (TryCreateOcclusionReplacementMaterial(material, out Material replacementMaterial) &&
-                ApplyTransparentMaterial(rend, i, replacementMaterial, replacementMaterial, TransparentAlpha))
+            if (TryCreateOcclusionReplacementMaterial(material, out Material replacementMaterial))
             {
-                runtimeMaterials[i] = replacementMaterial;
-                assignedReplacementMaterial = true;
-                applied = true;
+                state.temporaryMaterials.Add(replacementMaterial);
+                if (ApplyTransparentMaterial(rend, i, replacementMaterial, replacementMaterial, TransparentAlpha))
+                {
+                    runtimeMaterials[i] = replacementMaterial;
+                    assignedReplacementMaterial = true;
+                    applied = true;
 
-                if (DebugEnabled)
-                    Debug.Log($"[CameraOcclusion] SWAP -> '{rend.name}' slot={i} sourceShader='{material.shader.name}' replacement='{replacementMaterial.name}' alpha={TransparentAlpha}");
+                    if (DebugEnabled)
+                        Debug.Log($"[CameraOcclusion] SWAP -> '{rend.name}' slot={i} sourceShader='{material.shader.name}' replacement='{replacementMaterial.name}' alpha={TransparentAlpha}");
+                }
             }
         }
 
@@ -427,7 +439,11 @@ public class CameraOcclusion : MonoBehaviour
         {
             activeOccluders.Remove(rend);
             if (!ReferenceEquals(rend, null))
+            {
+                if (occluderStates.TryGetValue(rend, out OccluderState destroyedState))
+                    ReleaseTemporaryMaterials(destroyedState);
                 occluderStates.Remove(rend);
+            }
             return;
         }
 
@@ -467,6 +483,17 @@ public class CameraOcclusion : MonoBehaviour
         }
 
         rend.enabled = state.originalEnabled;
+        ReleaseTemporaryMaterials(state);
+    }
+
+    private static void ReleaseTemporaryMaterials(OccluderState state)
+    {
+        foreach (Material temporaryMaterial in state.temporaryMaterials)
+        {
+            if (temporaryMaterial != null)
+                Destroy(temporaryMaterial);
+        }
+        state.temporaryMaterials.Clear();
     }
 
     private static bool IsInMask(int layer, LayerMask mask) => (mask.value & (1 << layer)) != 0;
@@ -518,6 +545,8 @@ public class CameraOcclusion : MonoBehaviour
                 activeOccluders.Remove(rend);
                 if (!ReferenceEquals(rend, null))
                 {
+                    if (occluderStates.TryGetValue(rend, out OccluderState destroyedState))
+                        ReleaseTemporaryMaterials(destroyedState);
                     occluderStates.Remove(rend);
                     lastSeenFrame.Remove(rend);
                 }
@@ -563,6 +592,9 @@ public class CameraOcclusion : MonoBehaviour
                 missingRenderers++;
                 continue;
             }
+
+            if (target != null && rend.transform.IsChildOf(target.root))
+                continue;
 
             if (!scanRenderers.Add(rend))
                 continue;

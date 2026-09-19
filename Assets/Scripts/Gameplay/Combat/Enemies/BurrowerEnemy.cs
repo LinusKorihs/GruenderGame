@@ -401,7 +401,7 @@ public class BurrowerEnemy : MonoBehaviour, IAimTarget
                 grabTimer -= Time.deltaTime;
                 if (grabbedMinionStats != null && !grabbedMinionStats.IsDead)
                 {
-                    float dps = settings != null ? settings.GrabDamagePerSecond : 20f;
+                    float dps = settings != null ? settings.GrabDamagePerSecond : 2.5f;
                     grabbedMinionStats.ApplyDamage(dps * Time.deltaTime);
                 }
 

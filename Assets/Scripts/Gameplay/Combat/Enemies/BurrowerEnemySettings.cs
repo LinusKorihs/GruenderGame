@@ -51,8 +51,8 @@ public class BurrowerEnemySettings : ScriptableObject
     [Header("Grab Attack (Minion)")]
     [Tooltip("Speed used when descending to grab a minion.")]
     public float GrabDescentSpeed = 8f;
-    [Tooltip("Damage per second applied to a grabbed minion.")]
-    public float GrabDamagePerSecond = 20f;
+    [Tooltip("Damage per second while carrying a minion. At 2.5 damage/s for 4 seconds, one full grab deals 10 damage before defense.")]
+    public float GrabDamagePerSecond = 2.5f;
     [Tooltip("How long the minion is held before being released.")]
     public float GrabDuration = 4f;
     [Tooltip("Height above spawn point the enemy ascends to while carrying a minion.")]

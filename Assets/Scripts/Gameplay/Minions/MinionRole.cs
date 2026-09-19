@@ -114,10 +114,10 @@ public class SupportRole : MinionRoleBase
     {
         // Support wants to stay in range of the ally/enemy target.
         if (distanceToTarget > rangePolicy.MaxRange + rangePolicy.RepositionTolerance) return CombatPhase.Approach;
-        if (distanceToTarget < rangePolicy.MinRange - rangePolicy.RepositionTolerance) return CombatPhase.Reposition;
+        // Support can act at close range; backing away from the supported target looks like kiting.
 
         // For support, line of sight may still matter for some abilities.
-        if (!hasLineOfSight) return CombatPhase.Reposition;
+        if (!hasLineOfSight) return CombatPhase.Approach;
         if (isAbilityReady) return CombatPhase.Cast;
 
         return CombatPhase.Recover;

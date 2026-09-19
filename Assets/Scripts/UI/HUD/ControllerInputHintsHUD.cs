@@ -14,7 +14,7 @@ public sealed class ControllerInputHintsHUD : MonoBehaviour
     }
 
     [Header("Visibility")]
-    [SerializeField] private bool showInputHints = false;
+    [SerializeField] private bool showInputHints = true;
     [SerializeField] private bool showKeyboardHints = true;
     [SerializeField] private bool showGamepadHints = true;
     [SerializeField, Min(0.1f)] private float inputSwitchCooldown = 0.2f;
@@ -49,25 +49,13 @@ public sealed class ControllerInputHintsHUD : MonoBehaviour
         if (instance == this) instance = null;
     }
 
-    public static void ToggleCurrent()
+    public static void ShowCurrent()
     {
         if (instance == null)
             instance = FindFirstObjectByType<ControllerInputHintsHUD>(FindObjectsInactive.Include);
         if (instance == null) return;
 
-        instance.showInputHints = !instance.showInputHints;
-        instance.Refresh();
-    }
-
-    public static void HideInputHints()
-    {
-        if (instance == null)
-            instance = FindFirstObjectByType<ControllerInputHintsHUD>(FindObjectsInactive.Include);
-        if (instance == null) return;
-
-        if (instance.showInputHints == false)
-            return;
-        instance.showInputHints = false;
+        instance.showInputHints = true;
         instance.Refresh();
     }
 

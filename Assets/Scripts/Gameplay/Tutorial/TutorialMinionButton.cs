@@ -61,7 +61,7 @@ public sealed class TutorialMinionButton : MonoBehaviour
     {
         if (action == ButtonAction.ToggleControls)
         {
-            ControllerInputHintsHUD.ToggleCurrent();
+            ControllerInputHintsHUD.ShowCurrent();
             return;
         }
 

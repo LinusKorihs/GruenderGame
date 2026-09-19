@@ -10,6 +10,11 @@ public class ShellSpinnerEnemySettings : ScriptableObject
     [Header("Tags")]
     public string PlayerTag = "Player";
     public string MinionTag = "Ally";
+    [Tooltip("Allow the boss to choose player or minion targets when waking and between attack cycles.")]
+    public bool TargetMinionsBetweenAttacks = false;
+    [Range(0f, 1f)]
+    [Tooltip("Chance to aim the next attack at a minion when both a player and minions are available. 0.333 means about one in three attacks.")]
+    public float MinionTargetChance = 0f;
 
     [Header("Detection")]
     [Tooltip("Radius within which the Spinner detects targets and wakes up.")]

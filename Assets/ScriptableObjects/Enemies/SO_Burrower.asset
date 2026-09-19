@@ -32,7 +32,7 @@ MonoBehaviour:
   DiveHitDistance: 1.2
   DiveLandedDuration: 0.8
   GrabDescentSpeed: 8
-  GrabDamagePerSecond: 20
+  GrabDamagePerSecond: 2.5
   GrabDuration: 4
   CarryHeight: 6
   PostGrabCooldown: 0.5
