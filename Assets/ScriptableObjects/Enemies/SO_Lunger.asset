@@ -37,6 +37,9 @@ MonoBehaviour:
   LungeHitRadius: 1.5
   LungeDamage: 20
   LungeWindupDuration: 0.75
+  LungeMaxTrackingAngle: 90
+  LungeFacingTolerance: 10
+  LungeMaxAlignmentExtension: 0.5
   LungeRecoveryDuration: 1.2
   LungeCooldown: 5
   LungeStopOnHit: 1

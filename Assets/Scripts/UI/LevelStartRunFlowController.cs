@@ -42,6 +42,11 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         {
             EventSystem eventSystem = EventSystem.current;
             string selected = eventSystem?.currentSelectedGameObject?.name ?? "none";
+            if (eventSystem != null && eventSystem.currentSelectedGameObject != lastSelectedAtCapacity)
+            {
+                lastSelectedAtCapacity = eventSystem.currentSelectedGameObject;
+                LogMinionSelection($"Focus at 15/15: {selected}.");
+            }
             bool submitPressed = (Keyboard.current != null && (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame)) ||
                                  (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
             if (submitPressed)
@@ -59,6 +64,10 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
                 }
                 LogMinionSelection($"Pointer pressed at 15/15; top UI hit={topHit}; selected={selected}; start={startRunButton != null && startRunButton.interactable}.");
             }
+        }
+        else
+        {
+            lastSelectedAtCapacity = null;
         }
 
         bool cancelPressed = (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) ||
@@ -123,6 +132,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private bool lobbyPreparationRunning;
     private string pendingRunSceneName;
     private readonly List<RaycastResult> selectionRaycastResults = new List<RaycastResult>();
+    private GameObject lastSelectedAtCapacity;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RegisterSceneLoaded()

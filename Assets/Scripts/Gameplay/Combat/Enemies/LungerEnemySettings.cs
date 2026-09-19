@@ -50,6 +50,12 @@ public class LungerEnemySettings : ScriptableObject
     public float LungeDamage = 15f;
     [Tooltip("Duration of the pre-lunge wind-up before launching.")]
     public float LungeWindupDuration = 0.4f;
+    [Tooltip("Maximum angle the Lunger may track a moving target during the wind-up.")]
+    [Range(0f, 180f)] public float LungeMaxTrackingAngle = 90f;
+    [Tooltip("Maximum facing error in degrees before the Lunger starts moving.")]
+    [Range(0f, 90f)] public float LungeFacingTolerance = 10f;
+    [Tooltip("Extra time to finish facing the locked direction after the wind-up.")]
+    [Min(0f)] public float LungeMaxAlignmentExtension = 0.5f;
     [Tooltip("Duration the Lunger is stunned on the ground after landing.")]
     public float LungeRecoveryDuration = 1.2f;
     [Tooltip("Minimum time between two consecutive lunges (new encounter).")]

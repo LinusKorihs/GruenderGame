@@ -100,33 +100,36 @@ public sealed class RunMinionSelectionUI : MonoBehaviour
     {
         if (!IsValid) return;
 
-        ConfigureRow(meleeRow, null, rangedRow);
-        ConfigureRow(rangedRow, meleeRow, supportRow);
-        ConfigureRow(supportRow, rangedRow, null);
+        ConfigureRow(meleeRow, null, rangedRow, startButton);
+        ConfigureRow(rangedRow, meleeRow, supportRow, startButton);
+        ConfigureRow(supportRow, rangedRow, null, startButton);
 
         Navigation startNavigation = startButton.navigation;
         startNavigation.mode = Navigation.Mode.Explicit;
-        startNavigation.selectOnUp = FirstInteractable(supportRow.PlusButton, supportRow.MinusButton);
-        startNavigation.selectOnLeft = FirstInteractable(supportRow.MinusButton, supportRow.PlusButton);
-        startNavigation.selectOnRight = FirstInteractable(supportRow.PlusButton, supportRow.MinusButton);
+        startNavigation.selectOnUp = FirstInteractable(supportRow.PlusButton, supportRow.MinusButton,
+            rangedRow.PlusButton, rangedRow.MinusButton, meleeRow.PlusButton, meleeRow.MinusButton);
+        startNavigation.selectOnLeft = FirstInteractable(supportRow.MinusButton, supportRow.PlusButton,
+            rangedRow.MinusButton, rangedRow.PlusButton, meleeRow.MinusButton, meleeRow.PlusButton);
+        startNavigation.selectOnRight = FirstInteractable(supportRow.PlusButton, supportRow.MinusButton,
+            rangedRow.PlusButton, rangedRow.MinusButton, meleeRow.PlusButton, meleeRow.MinusButton);
         startButton.navigation = startNavigation;
 
         SetDown(supportRow.MinusButton, startButton);
         SetDown(supportRow.PlusButton, startButton);
     }
 
-    private static void ConfigureRow(RowBinding row, RowBinding upper, RowBinding lower)
+    private static void ConfigureRow(RowBinding row, RowBinding upper, RowBinding lower, Button startButton)
     {
         SetNavigation(
             row.MinusButton,
             FirstInteractable(upper?.MinusButton, upper?.PlusButton),
-            FirstInteractable(lower?.MinusButton, lower?.PlusButton),
+            FirstInteractable(lower?.MinusButton, lower?.PlusButton, startButton),
             null,
             FirstInteractable(row.PlusButton));
         SetNavigation(
             row.PlusButton,
             FirstInteractable(upper?.PlusButton, upper?.MinusButton),
-            FirstInteractable(lower?.PlusButton, lower?.MinusButton),
+            FirstInteractable(lower?.PlusButton, lower?.MinusButton, startButton),
             FirstInteractable(row.MinusButton),
             null);
     }

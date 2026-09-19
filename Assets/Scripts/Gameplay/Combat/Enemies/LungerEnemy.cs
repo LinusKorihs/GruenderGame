@@ -66,6 +66,7 @@ public class LungerEnemy : MonoBehaviour
     private bool hasLungedThisEncounter; // blocks re-lunge until target is fully lost
 
     private Vector3 lungeDirection;
+    private Vector3 initialLungeDirection;
     private Vector3 lungeStartPos;
     private float lungeDistance; // dist-to-target + overshoot, locked at windup
     private bool hitWallDuringLunge;
@@ -400,10 +401,25 @@ public class LungerEnemy : MonoBehaviour
             case LungerState.PreLunge:
             {
                 SetAnimationSpeed(0f);
+                if (stateTimer > 0f && currentTarget != null)
+                {
+                    Vector3 targetDirection = currentTarget.position - transform.position;
+                    targetDirection.y = 0f;
+                    if (targetDirection.sqrMagnitude > 0.0001f)
+                    {
+                        float maxTrackingAngle = settings != null ? settings.LungeMaxTrackingAngle : 90f;
+                        lungeDirection = Vector3.RotateTowards(initialLungeDirection, targetDirection.normalized,
+                            Mathf.Clamp(maxTrackingAngle, 0f, 180f) * Mathf.Deg2Rad, 0f).normalized;
+                    }
+                }
                 stateTimer -= Time.deltaTime;
                 FaceTowards(lungeDirection);
-                if (stateTimer <= 0f && Vector3.Angle(transform.forward, lungeDirection) <= 10f)
+                float facingTolerance = settings != null ? settings.LungeFacingTolerance : 10f;
+                float maxExtension = settings != null ? settings.LungeMaxAlignmentExtension : 0.5f;
+                if (stateTimer <= 0f &&
+                    (Vector3.Angle(transform.forward, lungeDirection) <= facingTolerance || stateTimer <= -maxExtension))
                 {
+                    transform.rotation = Quaternion.LookRotation(lungeDirection, Vector3.up);
                     hitWallDuringLunge = false;
                     SetState(LungerState.Lunging);
                 }
@@ -534,6 +550,7 @@ public class LungerEnemy : MonoBehaviour
         if (dir.sqrMagnitude < 0.0001f) return;
 
         lungeDirection = dir.normalized;
+        initialLungeDirection = lungeDirection;
         // Lunge distance includes overshoot so the player must sidestep.
         float overshoot = settings != null ? settings.LungeOvershootDistance : 2f;
         lungeDistance = dir.magnitude + overshoot;
