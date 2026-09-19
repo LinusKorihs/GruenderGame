@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c48ac9ca9ae49dab0998bbeb251ae61, type: 3}
   m_Name: SO_AudioSettings
   m_EditorClassIdentifier: Assembly-CSharp::AudioSettingsProfile
-  masterVolume: 0.6
+  masterVolume: 1
   sfxVolume: 0.562
   musicVolume: 0.054
   startupMusicId: Music.Theme
