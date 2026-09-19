@@ -72,8 +72,8 @@ public class RangedRole : MinionRoleBase
 
     public override CombatPhase EvaluateCombatPhase(float distanceToTarget, bool hasLineOfSight, bool isAbilityReady)
     {
-        // Too far away: move closer.
-        if (distanceToTarget > rangePolicy.MaxRange + rangePolicy.RepositionTolerance) return CombatPhase.Approach;
+        // Stay in approach until the target is within the ability's actual range.
+        if (distanceToTarget > rangePolicy.MaxRange) return CombatPhase.Approach;
 
         // Too close: move back.
         if (enableKiting && distanceToTarget < rangePolicy.MinRange - rangePolicy.RepositionTolerance) return CombatPhase.Reposition;

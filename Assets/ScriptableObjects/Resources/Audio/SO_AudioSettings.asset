@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c48ac9ca9ae49dab0998bbeb251ae61, type: 3}
   m_Name: SO_AudioSettings
   m_EditorClassIdentifier: Assembly-CSharp::AudioSettingsProfile
-  masterVolume: 1
-  sfxVolume: 1
-  musicVolume: 1
+  masterVolume: 0.55
+  sfxVolume: 0.562
+  musicVolume: 0.054
   startupMusicId: Music.Theme
   sounds:
   - id: Music.Theme
@@ -280,21 +280,21 @@ MonoBehaviour:
   layerMusic:
   - layerId: Start
     keepPreviousMusic: 1
-    introSoundId:
-    mainSoundId:
-    outroSoundId:
+    introSoundId: 
+    mainSoundId: 
+    outroSoundId: 
     loopMain: 0
   - layerId: level_01
     keepPreviousMusic: 1
-    introSoundId:
-    mainSoundId:
-    outroSoundId:
+    introSoundId: 
+    mainSoundId: 
+    outroSoundId: 
     loopMain: 0
   - layerId: level_02
     keepPreviousMusic: 1
-    introSoundId:
-    mainSoundId:
-    outroSoundId:
+    introSoundId: 
+    mainSoundId: 
+    outroSoundId: 
     loopMain: 0
   - layerId: boss
     keepPreviousMusic: 0
