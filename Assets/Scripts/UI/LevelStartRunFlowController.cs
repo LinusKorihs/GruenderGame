@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using PCG.RoomAssembler.Data;
 using TMPro;
 using UnityEngine;
@@ -17,6 +18,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 {
     [Header("Debug")]
     [SerializeField] private bool enableLogs;
+    [SerializeField] private bool logMinionSelection = true;
 
     private void Log(string message, UnityEngine.Object context = null)
     {
@@ -24,10 +26,40 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
             Debug.Log(message, context != null ? context : this);
     }
 
+    private void LogMinionSelection(string message)
+    {
+        if (logMinionSelection)
+            Debug.Log($"[Minion Selection] {message}", this);
+    }
+
     private void Update()
     {
         if (!selectionControlLockActive || selectionUI == null || !selectionUI.gameObject.activeInHierarchy)
             return;
+
+        if (logMinionSelection && meleeRow != null && rangedRow != null && supportRow != null &&
+            GetSelectedTotal() >= MaxSelectableMinions)
+        {
+            EventSystem eventSystem = EventSystem.current;
+            string selected = eventSystem?.currentSelectedGameObject?.name ?? "none";
+            bool submitPressed = (Keyboard.current != null && (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame)) ||
+                                 (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
+            if (submitPressed)
+                LogMinionSelection($"Submit pressed at 15/15; selected={selected}; start={startRunButton != null && startRunButton.interactable}.");
+
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                string topHit = "none";
+                if (eventSystem != null)
+                {
+                    selectionRaycastResults.Clear();
+                    eventSystem.RaycastAll(new PointerEventData(eventSystem) { position = Mouse.current.position.ReadValue() }, selectionRaycastResults);
+                    if (selectionRaycastResults.Count > 0)
+                        topHit = selectionRaycastResults[0].gameObject.name;
+                }
+                LogMinionSelection($"Pointer pressed at 15/15; top UI hit={topHit}; selected={selected}; start={startRunButton != null && startRunButton.interactable}.");
+            }
+        }
 
         bool cancelPressed = (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) ||
                              (Gamepad.current != null && Gamepad.current.buttonEast.wasPressedThisFrame);
@@ -37,6 +69,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
     public void CloseSelectionUI()
     {
+        LogMinionSelection("Selection closed.");
         if (selectionUI != null)
             selectionUI.SetVisible(false);
 
@@ -89,6 +122,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
     private bool selectionControlLockActive;
     private bool lobbyPreparationRunning;
     private string pendingRunSceneName;
+    private readonly List<RaycastResult> selectionRaycastResults = new List<RaycastResult>();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RegisterSceneLoaded()
@@ -252,6 +286,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         SetSelectionControlsLocked(true);
         Time.timeScale = 0f;
         StartCoroutine(ControllerMenuNavigation.FocusNextFrame(selectionUI.transform));
+        LogMinionSelection($"Selection opened; total={GetSelectedTotal()}/{MaxSelectableMinions}.");
     }
 
     public void StartSelectedRun(int melee, int ranged, int support)
@@ -307,6 +342,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
         if (meleeRow == null || rangedRow == null || supportRow == null)
             return;
 
+        LogMinionSelection($"Start clicked; melee={meleeRow.Value}, ranged={rangedRow.Value}, support={supportRow.Value}, total={GetSelectedTotal()}/{MaxSelectableMinions}.");
         StartSelectedRun(meleeRow.Value, rangedRow.Value, supportRow.Value);
     }
 
@@ -1780,6 +1816,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
                 UpdateSelectionUI();
                 if (row.Value <= 0)
                     ControllerMenuNavigation.Focus(selectionUI.transform, row.PlusButton);
+                LogSelectionState("Minus clicked");
             },
             () =>
             {
@@ -1789,6 +1826,7 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
                 UpdateSelectionUI();
                 if (!row.PlusButton.interactable)
                     ControllerMenuNavigation.Focus(selectionUI.transform, row.MinusButton);
+                LogSelectionState("Plus clicked");
             });
     }
 
@@ -1822,6 +1860,14 @@ public sealed class LevelStartRunFlowController : MonoBehaviour
 
         selectionUI.RefreshControllerNavigation();
         RestoreSelectionAfterButtonWasDisabled(selectedBeforeRefresh);
+    }
+
+    private void LogSelectionState(string action)
+    {
+        if (!logMinionSelection) return;
+        string selected = EventSystem.current?.currentSelectedGameObject?.name ?? "none";
+        LogMinionSelection($"{action}; total={GetSelectedTotal()}/{MaxSelectableMinions}; " +
+            $"start={startRunButton.interactable}; plus={meleeRow.PlusButton.interactable}/{rangedRow.PlusButton.interactable}/{supportRow.PlusButton.interactable}; selected={selected}.");
     }
 
     private void RestoreSelectionAfterButtonWasDisabled(GameObject selectedBeforeRefresh)

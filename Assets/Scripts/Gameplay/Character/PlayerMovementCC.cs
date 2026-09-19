@@ -85,6 +85,14 @@ public class PlayerMovementCC : MonoBehaviour
         externalTimer = Mathf.Max(duration, 0.01f);
     }
 
+    public void StopHorizontalMovement()
+    {
+        moveInput = Vector2.zero;
+        externalVelocity = Vector3.zero;
+        externalTimer = 0f;
+        MovementLocked = true;
+    }
+
     public Vector3 GetCameraRelativeMoveDirection(Vector2 input)
     {
         Vector3 move = new Vector3(input.x, 0f, input.y);

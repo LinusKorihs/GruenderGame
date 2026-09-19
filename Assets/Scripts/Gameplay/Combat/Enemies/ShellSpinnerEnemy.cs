@@ -1611,7 +1611,6 @@ public sealed class BossEncounterController : MonoBehaviour
         {
             victoryScreenRoot.SetActive(true);
             ControllerMenuNavigation.Focus(victoryScreenRoot.transform, mainMenuButton);
-            Debug.Log("[Main Menu Button] Victory screen ready; Main Menu button active.", mainMenuButton);
         }
     }
 
@@ -1654,7 +1653,7 @@ public sealed class BossEncounterController : MonoBehaviour
         buttonRect.sizeDelta = new Vector2(360f, 90f);
         buttonObject.GetComponent<Image>().color = new Color(0.34f, 0.06f, 0.05f, 1f);
         mainMenuButton = buttonObject.GetComponent<Button>();
-        buttonObject.AddComponent<MainMenuButtonDiagnostics>().SetSource("Victory");
+        buttonObject.AddComponent<VictoryMainMenuButton>();
         CreateLabel(buttonObject.transform, "Main Menu", 36, Vector2.zero, FontStyle.Normal);
         root.SetActive(false);
     }

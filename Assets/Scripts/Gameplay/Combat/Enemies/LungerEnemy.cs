@@ -402,7 +402,7 @@ public class LungerEnemy : MonoBehaviour
                 SetAnimationSpeed(0f);
                 stateTimer -= Time.deltaTime;
                 FaceTowards(lungeDirection);
-                if (stateTimer <= 0f)
+                if (stateTimer <= 0f && Vector3.Angle(transform.forward, lungeDirection) <= 10f)
                 {
                     hitWallDuringLunge = false;
                     SetState(LungerState.Lunging);
