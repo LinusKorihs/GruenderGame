@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 
 public sealed class RunLifecycleController : MonoBehaviour
 {
@@ -275,6 +276,7 @@ public sealed class RunLifecycleController : MonoBehaviour
         SoundManager.TryPlayConfiguredId(gameOverSoundId, null, 0f);
         ControllerMenuNavigation.Focus(gameOverGroup.transform, restartButton);
         StartCoroutine(ControllerMenuNavigation.FocusNextFrame(gameOverGroup.transform, restartButton));
+        Debug.Log("[Main Menu Button] Game Over screen ready; Hauptmenü button active.", mainMenuButton);
         Log("Game-over screen opened.");
     }
 
@@ -287,11 +289,13 @@ public sealed class RunLifecycleController : MonoBehaviour
 
     public static void ReturnToMainMenu()
     {
+        Debug.Log("[Main Menu Button] Return to MainMenu requested.");
         HardRestartRunner.Begin("MainMenu");
     }
 
     private void ReturnToMainMenuFromGameOver()
     {
+        Debug.Log("[Main Menu Button] Game Over button clicked.", mainMenuButton);
         if (mainMenuButton != null) mainMenuButton.interactable = false;
         if (restartButton != null) restartButton.interactable = false;
         ReturnToMainMenu();
@@ -351,6 +355,7 @@ public sealed class RunLifecycleController : MonoBehaviour
         restartButton = CreateButton(gameOverGroup.transform, "Neustart", new Vector2(0f, -55f));
         restartButton.onClick.AddListener(RestartRun);
         mainMenuButton = CreateButton(gameOverGroup.transform, "Hauptmenü", new Vector2(0f, -165f));
+        mainMenuButton.gameObject.AddComponent<MainMenuButtonDiagnostics>().SetSource("Game Over");
         mainMenuButton.onClick.AddListener(ReturnToMainMenuFromGameOver);
     }
 
@@ -476,6 +481,7 @@ public sealed class RunLifecycleController : MonoBehaviour
 
         public static void Begin(string sceneName)
         {
+            Debug.Log($"[Main Menu Button] Scene change starting: {sceneName}.");
             SoundManager.StopMusic();
             GameObject runnerObject = new GameObject("Hard Restart Runner");
             DontDestroyOnLoad(runnerObject);
@@ -498,10 +504,15 @@ public sealed class RunLifecycleController : MonoBehaviour
             if (player != null) Destroy(player.transform.root.gameObject);
 
             yield return null;
+            Debug.Log($"[Main Menu Button] Loading scene: {targetScene}.");
             AsyncOperation load = SceneManager.LoadSceneAsync(targetScene, LoadSceneMode.Single);
+            if (load == null)
+                Debug.LogError($"[Main Menu Button] Scene load could not start: {targetScene}.");
             if (load != null)
                 while (!load.isDone) yield return null;
 
+            if (load != null)
+                Debug.Log($"[Main Menu Button] Scene loaded: {SceneManager.GetActiveScene().name}.");
             yield return null;
             SoundManager.EnsureStartupMusicPlaying();
 
@@ -516,5 +527,75 @@ public sealed class RunLifecycleController : MonoBehaviour
                     Destroy(components[i].transform.root.gameObject);
             }
         }
+    }
+}
+
+public sealed class MainMenuButtonDiagnostics : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
+{
+    private string source;
+    private RectTransform buttonRect;
+    private Button button;
+    private readonly List<RaycastResult> raycastResults = new List<RaycastResult>();
+
+    public void SetSource(string value)
+    {
+        source = value;
+        if (source == "Victory" && button != null)
+            button.onClick.AddListener(ReturnFromVictory);
+    }
+
+    private void Awake()
+    {
+        buttonRect = GetComponent<RectTransform>();
+        button = GetComponent<Button>();
+    }
+
+    private void Update()
+    {
+        EventSystem eventSystem = EventSystem.current;
+        bool submitPressed = (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame) ||
+                             (Keyboard.current != null && (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame));
+        if (submitPressed && eventSystem != null && eventSystem.currentSelectedGameObject == gameObject)
+            Debug.Log($"[Main Menu Button] {source}: submit pressed while selected; interactable={button != null && button.IsInteractable()}; input module={eventSystem.currentInputModule?.GetType().Name ?? "none"}.", this);
+
+        if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame || buttonRect == null)
+            return;
+
+        Vector2 position = Mouse.current.position.ReadValue();
+        if (!RectTransformUtility.RectangleContainsScreenPoint(buttonRect, position))
+            return;
+
+        if (eventSystem == null)
+        {
+            Debug.LogWarning($"[Main Menu Button] {source}: pointer over button, but no active EventSystem.", this);
+            return;
+        }
+
+        raycastResults.Clear();
+        eventSystem.RaycastAll(new PointerEventData(eventSystem) { position = position }, raycastResults);
+        string topHit = raycastResults.Count > 0 ? raycastResults[0].gameObject.name : "none";
+        Debug.Log($"[Main Menu Button] {source}: pointer pressed over button; top UI hit={topHit}; interactable={button != null && button.IsInteractable()}; input module={eventSystem.currentInputModule?.GetType().Name ?? "none"}.", this);
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        Debug.Log($"[Main Menu Button] {source}: Unity UI received pointer down; pointerPress={eventData.pointerPress?.name ?? "none"}.", this);
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        Debug.Log($"[Main Menu Button] {source}: Unity UI received pointer up; pointerPress={eventData.pointerPress?.name ?? "none"}.", this);
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        Debug.Log($"[Main Menu Button] {source}: Unity UI dispatched pointer click; button={eventData.button}.", this);
+    }
+
+    private void ReturnFromVictory()
+    {
+        Debug.Log("[Main Menu Button] Victory button clicked.", this);
+        if (button != null) button.interactable = false;
+        RunLifecycleController.ReturnToMainMenu();
     }
 }

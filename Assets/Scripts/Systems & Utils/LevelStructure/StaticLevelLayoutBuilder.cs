@@ -108,7 +108,6 @@ public sealed class StaticLevelLayoutBuilder : MonoBehaviour
 
         ConfigureBossEncounter(LastBoss);
 
-        Debug.Log($"[Static Layout] Built '{profile.name}' with {placedRooms.Count} room(s).", this);
         return true;
     }
 

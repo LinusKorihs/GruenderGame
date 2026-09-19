@@ -51,7 +51,7 @@ MonoBehaviour:
   levelContentSpawner: {fileID: 4025584229303623266}
   levelAtmosphereController: {fileID: 0}
   generateAfterApply: 0
-  logProfileApplication: 1
+  logProfileApplication: 0
   useGeneratedLevelHierarchy: 1
   pcgRootName: PCG_Root
   generatedLevelRootName: Generated_Level

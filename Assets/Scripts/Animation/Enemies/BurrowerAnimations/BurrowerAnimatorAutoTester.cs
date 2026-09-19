@@ -34,6 +34,7 @@ public class BurrowerAnimatorAutoTester : MonoBehaviour
     private bool originCaptured;
 
     [Header("Auto Test Settings")]
+    [SerializeField] private bool enableLogs;
     [SerializeField] private bool autoRunOnStart = true;
     [SerializeField] private bool loopTest = false;
     [SerializeField] private TestScenario scenario = TestScenario.FullCycleNoLowHp;
@@ -117,7 +118,7 @@ public class BurrowerAnimatorAutoTester : MonoBehaviour
         originScale = objectToReset.localScale;
         originCaptured = true;
 
-        Debug.Log("Burrower Tester: Current transform captured as origin.");
+        if (enableLogs) Debug.Log("Burrower Tester: Current transform captured as origin.");
     }
 
     [ContextMenu("TEST / Reset Transform To Origin")]
@@ -132,7 +133,7 @@ public class BurrowerAnimatorAutoTester : MonoBehaviour
         objectToReset.rotation = originRotation;
         objectToReset.localScale = originScale;
 
-        Debug.Log("Burrower Tester: Transform reset to origin.");
+        if (enableLogs) Debug.Log("Burrower Tester: Transform reset to origin.");
     }
 
     [ContextMenu("TEST / Reset Animation To Hidden At Origin")]
@@ -146,7 +147,7 @@ public class BurrowerAnimatorAutoTester : MonoBehaviour
             burrowerAnimator.ResetToHidden();
         }
 
-        Debug.Log("Burrower Tester: Reset to Hidden at origin.");
+        if (enableLogs) Debug.Log("Burrower Tester: Reset to Hidden at origin.");
     }
 
     [ContextMenu("TEST / Reset Animation To Walk At Origin")]
@@ -160,7 +161,7 @@ public class BurrowerAnimatorAutoTester : MonoBehaviour
             burrowerAnimator.ResetToWalkBase();
         }
 
-        Debug.Log("Burrower Tester: Reset to Walk/Base at origin.");
+        if (enableLogs) Debug.Log("Burrower Tester: Reset to Walk/Base at origin.");
     }
 
     [ContextMenu("TEST / Reset Animation To Hover At Origin")]
@@ -174,14 +175,14 @@ public class BurrowerAnimatorAutoTester : MonoBehaviour
             burrowerAnimator.ResetToHover();
         }
 
-        Debug.Log("Burrower Tester: Reset to Hover at origin.");
+        if (enableLogs) Debug.Log("Burrower Tester: Reset to Hover at origin.");
     }
 
     private IEnumerator AutoTestRoutine()
     {
         do
         {
-            Debug.Log("Burrower AUTO TEST START: " + scenario);
+            if (enableLogs) Debug.Log("Burrower AUTO TEST START: " + scenario);
 
             if (resetTransformBeforeAutoTest)
             {
@@ -223,7 +224,7 @@ public class BurrowerAnimatorAutoTester : MonoBehaviour
                     break;
             }
 
-            Debug.Log("Burrower AUTO TEST FINISHED: " + scenario);
+            if (enableLogs) Debug.Log("Burrower AUTO TEST FINISHED: " + scenario);
 
             if (loopTest)
             {

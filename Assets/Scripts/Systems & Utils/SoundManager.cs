@@ -55,10 +55,6 @@ public sealed class SoundManager : MonoBehaviour
             musicVolume = PlayerPrefs.GetFloat(MusicVolumeKey, audioProfile.musicVolume);
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        Debug.Log($"[SoundManager] Audio startup: profile={(audioProfile != null ? audioProfile.name : "missing")}, master={masterVolume:0.##}, sfx={sfxVolume:0.##}, music={musicVolume:0.##}, listenerVolume={AudioListener.volume:0.##}, audioPaused={AudioListener.pause}.", this);
-#endif
-
         RefreshFallbackListener();
     }
 
@@ -112,8 +108,6 @@ public sealed class SoundManager : MonoBehaviour
         }
 
         bool shouldEnableFallback = !hasActiveSceneListener;
-        if (fallbackListener.enabled != shouldEnableFallback)
-            Debug.Log($"[SoundManager] AudioListener fallback {(shouldEnableFallback ? "enabled" : "disabled")}; active scene listener={(hasActiveSceneListener ? "yes" : "no")}.", this);
         fallbackListener.enabled = shouldEnableFallback;
     }
 
