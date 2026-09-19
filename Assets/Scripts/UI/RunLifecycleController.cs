@@ -29,6 +29,7 @@ public sealed class RunLifecycleController : MonoBehaviour
     private TMP_Text[] minionCounts;
     private CanvasGroup gameOverGroup;
     private Button restartButton;
+    private Button mainMenuButton;
     private CombatantStats boundPlayerStats;
     private GameObject deadPlayer;
     private Coroutine deathRoutine;
@@ -284,6 +285,18 @@ public sealed class RunLifecycleController : MonoBehaviour
         HardRestartRunner.Begin(restartSceneName);
     }
 
+    public static void ReturnToMainMenu()
+    {
+        HardRestartRunner.Begin("MainMenu");
+    }
+
+    private void ReturnToMainMenuFromGameOver()
+    {
+        if (mainMenuButton != null) mainMenuButton.interactable = false;
+        if (restartButton != null) restartButton.interactable = false;
+        ReturnToMainMenu();
+    }
+
     [ContextMenu("Debug - Kill Current Player")]
     private void DebugKillCurrentPlayer()
     {
@@ -335,8 +348,10 @@ public sealed class RunLifecycleController : MonoBehaviour
 
         gameOverGroup = CreateFullscreenPanel(canvasObject.transform, "Game Over", new Color(0f, 0f, 0f, 0.94f));
         CreateText(gameOverGroup.transform, "Title", "Game Over", 86f, new Vector2(0f, 90f), new Vector2(900f, 130f));
-        restartButton = CreateButton(gameOverGroup.transform, "Neustart", new Vector2(0f, -85f));
+        restartButton = CreateButton(gameOverGroup.transform, "Neustart", new Vector2(0f, -55f));
         restartButton.onClick.AddListener(RestartRun);
+        mainMenuButton = CreateButton(gameOverGroup.transform, "Hauptmenü", new Vector2(0f, -165f));
+        mainMenuButton.onClick.AddListener(ReturnToMainMenuFromGameOver);
     }
 
     private static CanvasGroup CreateFullscreenPanel(Transform parent, string name, Color color)

@@ -1508,6 +1508,7 @@ public sealed class BossEncounterController : MonoBehaviour
     private GameplayHUDController hud;
     private bool completed;
     private GameObject victoryScreenRoot;
+    private Button mainMenuButton;
     private Font victoryFont;
 
     private void OnEnable()
@@ -1607,7 +1608,10 @@ public sealed class BossEncounterController : MonoBehaviour
     {
         PrepareVictoryScreen();
         if (victoryScreenRoot != null)
+        {
             victoryScreenRoot.SetActive(true);
+            ControllerMenuNavigation.Focus(victoryScreenRoot.transform, mainMenuButton);
+        }
     }
 
     private void PrepareVictoryScreen()
@@ -1641,6 +1645,20 @@ public sealed class BossEncounterController : MonoBehaviour
 
         CreateLabel(panel.transform, victoryTitle, 72, new Vector2(0f, 48f), FontStyle.Bold);
         CreateLabel(panel.transform, victorySubtitle, 32, new Vector2(0f, -40f), FontStyle.Normal);
+        GameObject buttonObject = new GameObject("Hauptmenü", typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(panel.transform, false);
+        RectTransform buttonRect = buttonObject.GetComponent<RectTransform>();
+        buttonRect.anchorMin = buttonRect.anchorMax = new Vector2(0.5f, 0.5f);
+        buttonRect.anchoredPosition = new Vector2(0f, -175f);
+        buttonRect.sizeDelta = new Vector2(360f, 90f);
+        buttonObject.GetComponent<Image>().color = new Color(0.34f, 0.06f, 0.05f, 1f);
+        mainMenuButton = buttonObject.GetComponent<Button>();
+        mainMenuButton.onClick.AddListener(() =>
+        {
+            mainMenuButton.interactable = false;
+            RunLifecycleController.ReturnToMainMenu();
+        });
+        CreateLabel(buttonObject.transform, "Hauptmenü", 36, Vector2.zero, FontStyle.Normal);
         root.SetActive(false);
     }
 

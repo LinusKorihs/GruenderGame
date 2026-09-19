@@ -27,6 +27,7 @@ public sealed class SoundManager : MonoBehaviour
     private float sfxVolume = 1f;
     private float musicVolume = 1f;
     private AudioListener fallbackListener;
+    private float nextListenerRefreshTime;
 
     private void Awake()
     {
@@ -54,6 +55,10 @@ public sealed class SoundManager : MonoBehaviour
             musicVolume = PlayerPrefs.GetFloat(MusicVolumeKey, audioProfile.musicVolume);
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.Log($"[SoundManager] Audio startup: profile={(audioProfile != null ? audioProfile.name : "missing")}, master={masterVolume:0.##}, sfx={sfxVolume:0.##}, music={musicVolume:0.##}, listenerVolume={AudioListener.volume:0.##}, audioPaused={AudioListener.pause}.", this);
+#endif
+
         RefreshFallbackListener();
     }
 
@@ -69,10 +74,11 @@ public sealed class SoundManager : MonoBehaviour
 
     private void LateUpdate()
     {
-        // While the temporary listener is active, keep checking until the real
-        // gameplay camera has spawned. Afterwards sceneLoaded handles transitions.
-        if (fallbackListener == null || fallbackListener.enabled)
-            RefreshFallbackListener();
+        // Scene cameras can be disabled after sceneLoaded. Keep the listener
+        // state in sync even while the fallback itself is disabled.
+        if (Time.unscaledTime < nextListenerRefreshTime) return;
+        nextListenerRefreshTime = Time.unscaledTime + 0.25f;
+        RefreshFallbackListener();
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -105,7 +111,10 @@ public sealed class SoundManager : MonoBehaviour
                 fallbackListener = gameObject.AddComponent<AudioListener>();
         }
 
-        fallbackListener.enabled = !hasActiveSceneListener;
+        bool shouldEnableFallback = !hasActiveSceneListener;
+        if (fallbackListener.enabled != shouldEnableFallback)
+            Debug.Log($"[SoundManager] AudioListener fallback {(shouldEnableFallback ? "enabled" : "disabled")}; active scene listener={(hasActiveSceneListener ? "yes" : "no")}.", this);
+        fallbackListener.enabled = shouldEnableFallback;
     }
 
     public AudioSource Play(SoundEmitter emitter)

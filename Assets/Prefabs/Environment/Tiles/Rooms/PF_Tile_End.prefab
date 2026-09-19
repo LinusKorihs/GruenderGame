@@ -495,10 +495,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: PF_LevelExitTrigger
       objectReference: {fileID: 0}
-    - target: {fileID: 29468670048496165, guid: b7691684b70efcf4eb79276a5f8009f0, type: 3}
-      propertyPath: m_Layer
-      value: 6
-      objectReference: {fileID: 0}
     - target: {fileID: 648580925468157606, guid: b7691684b70efcf4eb79276a5f8009f0, type: 3}
       propertyPath: m_LocalPosition.x
       value: 1.2499999
@@ -538,14 +534,6 @@ PrefabInstance:
     - target: {fileID: 648580925468157606, guid: b7691684b70efcf4eb79276a5f8009f0, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3280226684998852131, guid: b7691684b70efcf4eb79276a5f8009f0, type: 3}
-      propertyPath: m_Layer
-      value: 6
-      objectReference: {fileID: 0}
-    - target: {fileID: 8130256275889498993, guid: b7691684b70efcf4eb79276a5f8009f0, type: 3}
-      propertyPath: m_Layer
-      value: 6
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
